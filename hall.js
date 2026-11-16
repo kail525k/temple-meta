@@ -85,7 +85,8 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3 } = {}) {
   // 부처님 (삼존불 또는 한 분)
   const BY = FY + AH + .1;
   const seats = buddhas >= 3 ? [[0, 1], [-AW * .33, .78], [AW * .33, .78]] : buddhas >= 1 ? [[0, 1]] : [];
-  for (const [x, s] of seats) { const b = buddha(THREE, MAT, s); b.position.set(x, BY, AZ - .15); g.add(b); }
+  const slots = []; // 부처님 자리 (나중에 실제 불상 모델로 바꿔 끼움)
+  for (const [x, s] of seats) { const b = buddha(THREE, MAT, s); b.position.set(x, BY, AZ - .15); g.add(b); slots.push({ x, y: BY, z: AZ - .15, s, obj: b }); }
   if (!seats.length) { // 적멸보궁: 불상 대신 진신사리를 모신 종 모양 사리탑
     add(new THREE.CylinderGeometry(.55, .62, .22, 16), MAT.bronze, 0, BY + .11, AZ - .15);
     const bell = add(new THREE.SphereGeometry(.42, 20, 14), MAT.gold, 0, BY + .62, AZ - .15); bell.scale.y = 1.25;
@@ -99,13 +100,14 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3 } = {}) {
   }
   add(new THREE.CylinderGeometry(.18, .14, .22, 16), MAT.bronze, 0, FY + AH + .21, AZ + AD / 2 - .3);
   for (const dx of [-.05, 0, .05]) add(new THREE.CylinderGeometry(.008, .008, .32, 4), MAT.line, dx, FY + AH + .45, AZ + AD / 2 - .3);
+  const incense = { lx: 0, ly: FY + AH + .62, lz: AZ + AD / 2 - .3 }; // 향 끝 높이
 
   // 방석: 가운데 맨 앞 방석이 삼배 자리
   const bowSpot = { lx: 0, lz: iz0 + 3.3 };
   const cushGeo = new THREE.BoxGeometry(.78, .09, .78);
-  let k = 0;
+  let k = 0; const cushions = [];
   for (let z = bowSpot.lz; z < iz1 - .7; z += 1.3) for (let x = 0; x <= IW / 2 - 1.1; x += 1.25) for (const sx of x ? [-1, 1] : [1]) {
-    const c = add(cushGeo, k++ % 2 ? MAT.cushion2 : MAT.cushion, sx * x, FY + .045, z); c.castShadow = false;
+    const c = add(cushGeo, k++ % 2 ? MAT.cushion2 : MAT.cushion, sx * x, FY + .045, z); c.castShadow = false; cushions.push({ lx: sx * x, lz: z });
   }
   const glow = new THREE.Mesh(new THREE.RingGeometry(.58, .74, 40), MAT.glow); glow.rotation.x = -Math.PI / 2; glow.position.set(bowSpot.lx, FY + .1, bowSpot.lz); g.add(glow);
 
@@ -128,7 +130,7 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3 } = {}) {
   };
   const isInside = (lx, lz) => lx > ix0 && lx < ix1 && lz > iz0 && lz < iz1 + .3;
   const underRoof = (lx, lz) => Math.abs(lx) < L / 2 + o && lz > -D / 2 - o && lz < D / 2 + o;
-  return { group: g, colliders, heightAt, isInside, underRoof, bowSpot, glow, L, D, FY, ceilY: FY + H, interior: { ix0, ix1, iz0, iz1 }, lights: [inLight, altarLight] };
+  return { group: g, colliders, heightAt, isInside, underRoof, bowSpot, glow, L, D, FY, ceilY: FY + H, interior: { ix0, ix1, iz0, iz1 }, lights: [inLight, altarLight], cushions, incense, slots, altarZ: AZ };
 }
 
 // 부처님 (단순한 도형으로 공손하게 표현한 좌상)

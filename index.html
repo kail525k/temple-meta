@@ -30,11 +30,11 @@
   #joy{position:fixed;left:18px;bottom:max(22px,env(safe-area-inset-bottom));width:116px;height:116px;border-radius:50%;background:rgba(255,250,240,.45);border:1px solid rgba(80,60,30,.18);touch-action:none;display:none}
   #knob{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;background:rgba(255,250,240,.95);box-shadow:0 3px 10px rgba(0,0,0,.15)}
   body.touch #joy{display:block}
-  #help{position:fixed;left:12px;bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));font-size:12px;padding:8px 12px;color:#6d5f4b}
+  #help{position:fixed;left:12px;bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));font-size:11.5px;padding:8px 12px;color:#6d5f4b;max-width:250px;line-height:1.5}
   body.touch #help{display:none}
   #attrib{position:fixed;left:0;right:0;bottom:0;text-align:center;font-size:10px;color:rgba(50,40,25,.7);padding:3px 8px calc(3px + env(safe-area-inset-bottom));pointer-events:none;text-shadow:0 1px 0 rgba(255,255,255,.6)}
   #dbgBtn{border:0;border-radius:99px;background:#e9e4da;font-size:11px;padding:2px 8px;cursor:pointer;font-family:inherit;color:#6d5f4b}
-  #dbg{position:fixed;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 146px);z-index:5;width:min(92vw,330px);max-height:46vh;overflow:auto;margin:0;padding:10px 12px;font:11px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;display:none;color:#2b2b2b}
+  #dbg{position:fixed;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 182px);z-index:5;width:min(92vw,330px);max-height:46vh;overflow:auto;margin:0;padding:10px 12px;font:11px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;display:none;color:#2b2b2b}
   #dbg.show{display:block}
   #loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(#e9f3f8,#f6efe0);z-index:20;transition:opacity .6s}
   #loading.hide{opacity:0;pointer-events:none}
@@ -52,6 +52,41 @@
   .rg:hover{border-color:var(--accent)}.rg.on{border:2px solid var(--accent);background:#fff3df}
   .rg b{font-size:15px;display:block}.rg span{font-size:12px;color:#7a6a52;display:block;margin-top:3px;line-height:1.45}
   .rg .go{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.rg .go button{border:0;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit}
+  #tools{position:fixed;left:50%;transform:translateX(-50%);bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));display:flex;gap:4px;padding:6px;border-radius:18px;z-index:4}
+  #tools button{border:0;background:transparent;border-radius:12px;padding:6px 9px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:50px}
+  #tools button i{font-style:normal;font-size:20px;line-height:1}
+  #tools button:hover{background:rgba(155,59,43,.08)}#tools button:active{transform:scale(.94)}
+  #ctxBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(26px,env(safe-area-inset-bottom) + 18px) + 74px);display:flex;gap:8px;z-index:6;flex-wrap:wrap;justify-content:center;max-width:94vw}
+  #ctxBar button{border:0;border-radius:99px;padding:10px 16px;font-size:14px;font-weight:700;background:var(--paper);color:var(--ink);box-shadow:0 4px 14px rgba(60,40,10,.18);cursor:pointer;font-family:inherit}
+  #ctxBar button.main{background:var(--accent);color:#fff;font-size:15px;padding:12px 20px;animation:pulse 2s ease-in-out infinite}
+  #topBtns{position:fixed;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 140px);display:flex;gap:6px;z-index:5}
+  #topBtns button{border:0;border-radius:99px;padding:6px 11px;font-size:13px;font-weight:700;background:var(--paper);box-shadow:0 3px 10px rgba(60,40,10,.12);cursor:pointer;font-family:inherit;color:var(--ink)}
+  #minimap{cursor:pointer}
+  .panel{position:fixed;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 178px);width:min(86vw,290px);padding:12px 14px;display:none;z-index:7;font-size:13px}
+  .panel.show{display:block}.panel>b{font-size:15px;display:block}.panel>small{display:block;color:#8a7a62;font-size:11px;margin:2px 0 8px}
+  #todoPanel div{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed var(--line);color:#6d5f4b}
+  #todoPanel div.on{color:var(--jade);font-weight:600}#todoPanel i{font-style:normal;width:18px;height:18px;border-radius:50%;border:1.5px solid #cbbd9f;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none}
+  #todoPanel div.on i{background:var(--jade);border-color:var(--jade);color:#fff}
+  #soundPanel label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line)}#soundPanel input[type=range]{width:130px}
+  #ritual{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:25;background:rgba(40,30,20,.18);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+  #ritual.show{display:flex}#ritualStage{touch-action:none;user-select:none}#ritualStage svg{cursor:pointer;filter:drop-shadow(0 14px 18px rgba(60,30,10,.35))}
+  #ritualStage svg.hit{animation:mokhit .16s ease-out}#ritualStage svg.hit #mallet{animation:mallet .16s ease-out;transform-origin:150px 150px}
+  @keyframes mokhit{40%{transform:scale(.95)}}@keyframes mallet{40%{transform:rotate(-14deg)}}
+  #ritualStage canvas{cursor:grab;touch-action:none}
+  #ritualInfo{text-align:center;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.45)}#ritualInfo b{font-size:40px;display:block;line-height:1}#ritualInfo span{font-size:13px}
+  #ritualCtrl{display:flex;gap:8px}#ritualCtrl button,#ritualClose{border:0;border-radius:99px;padding:9px 16px;font-weight:700;background:var(--paper);cursor:pointer;font-family:inherit;color:var(--ink)}
+  #wishModal,#mapModal{position:fixed;inset:0;background:rgba(30,25,15,.45);display:none;align-items:center;justify-content:center;z-index:32;padding:14px}
+  #wishModal.show,#mapModal.show{display:flex}
+  #wishModal .box{width:min(380px,100%);padding:16px}#wishModal b{font-size:16px}#wishModal small{display:block;color:#8a7a62;font-size:12px;margin:3px 0 10px}
+  #wishColors{display:flex;gap:8px;margin-bottom:10px}#wishColors button{width:34px;height:34px;border-radius:50%;border:2px solid rgba(0,0,0,.08);cursor:pointer}#wishColors button.on{outline:3px solid var(--accent);outline-offset:2px}
+  #wishText{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);font-size:15px;font-family:inherit;background:#fffdf8}
+  #wishModal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}#wishModal .row button{border:0;border-radius:99px;padding:9px 16px;font-weight:700;cursor:pointer;font-family:inherit}
+  #wishHang{background:var(--accent);color:#fff}#wishCancel{background:#efe6d4}
+  #mapModal .box{width:min(640px,100%);padding:12px;display:flex;flex-direction:column;gap:8px}#mapModal header{display:flex;align-items:center}#mapModal header b{flex:1;font-size:16px}#mapModal header small{display:block;font-size:12px;color:#8a7a62;font-weight:400}
+  #mapClose{border:0;border-radius:99px;padding:8px 14px;font-weight:600;background:#efe6d4;cursor:pointer;font-family:inherit}
+  #bigMap{width:100%;aspect-ratio:1;cursor:pointer;border-radius:18px}
+  body.flash::after{content:'';position:fixed;inset:0;background:#fff;opacity:.7;z-index:40;pointer-events:none}
+  @media (max-width:760px),(pointer:coarse){#tools{left:auto;right:12px;transform:none;bottom:calc(max(26px,env(safe-area-inset-bottom) + 18px));max-width:calc(100vw - 150px);overflow-x:auto}#tools button{min-width:44px;padding:5px 6px}#actions{bottom:calc(max(26px,env(safe-area-inset-bottom) + 18px) + 70px)}#ctxBar{bottom:calc(max(26px,env(safe-area-inset-bottom) + 18px) + 140px)}#help{display:none}}
   #modal{position:fixed;inset:0;background:rgba(30,25,15,.45);display:none;align-items:center;justify-content:center;z-index:30;padding:14px}
   #modal.show{display:flex}
   #modal .box{width:min(960px,100%);height:min(640px,86vh);display:flex;flex-direction:column;overflow:hidden}
@@ -88,14 +123,36 @@
 
 <div id="actions">
   <button id="btnRegion">🗺 다른 지역·사찰</button>
-  <button id="btnHapjang">🙏 합장</button>
-  <button id="btnBow">🙇 절하기</button>
   <button id="btnHall">🛕 법당 안으로</button>
   <button id="btnHome">📍 순례 마당</button>
   <button id="btnPano" class="primary">📷 실제 모습 보기</button>
 </div>
+<div id="tools" class="card">
+  <button id="btnHapjang" title="합장 (1)"><i>🙏</i>합장</button>
+  <button id="btnBow" title="절하기 (2)"><i>🙇</i>절하기</button>
+  <button id="btnSit" title="앉기 (3)"><i>🧘</i>앉기</button>
+  <button id="btnMoktak" title="목탁 (4)"><i>🪵</i>목탁</button>
+  <button id="btnBeads" title="염주 (5)"><i>📿</i>염주</button>
+  <button id="btnWish" title="소원 연등"><i>🏮</i>연등</button>
+  <button id="btnPhoto" title="사진 저장"><i>📸</i>사진</button>
+</div>
+<div id="ctxBar"></div>
+<div id="topBtns"><button id="btnTodo">📋 0/11</button><button id="btnSound">🔈</button></div>
+<div id="todoPanel" class="panel card"></div>
+<div id="soundPanel" class="panel card"></div>
+<div id="ritual"><div id="ritualStage"></div><div id="ritualInfo"></div><div id="ritualCtrl"></div><button id="ritualClose">닫기 ✕</button></div>
+<div id="wishModal"><div class="box card">
+  <b>🏮 소원 연등 걸기</b><small>순례 마당 소원 연등대에 걸려요 · 지금은 이 기기에서만 보여요</small>
+  <div id="wishColors"></div>
+  <input id="wishText" maxlength="40" placeholder="소원 한 문장 (40자까지)">
+  <div class="row"><button id="wishCancel">취소</button><button id="wishHang">연등 걸기</button></div>
+</div></div>
+<div id="mapModal"><div class="box card">
+  <header><b>산사 둘러보기 <small>가고 싶은 곳을 누르면 바로 이동해요</small></b><button id="mapClose">닫기</button></header>
+  <canvas id="bigMap" width="720" height="720"></canvas>
+</div></div>
 <div id="joy"><div id="knob"></div></div>
-<div id="help" class="card">WASD·방향키 이동 · Shift 달리기 · 드래그 시점 회전 · 휠 확대 · 법당 안 빛나는 방석에서 E 또는 🙇 = 삼배</div>
+<div id="help" class="card">WASD·바닥 클릭 이동 · Shift 달리기 · 드래그 시점 · 휠/핀치 확대·축소 · E 상황 버튼 · 1 합장 2 절 3 앉기 4 목탁 5 염주 · 미니맵 누르면 지도</div>
 <div id="toast" class="card"></div>
 <button id="bowPrompt">🙇 여기서 삼배 올리기</button>
 <div id="attrib">법당 위치·크기: 브이월드(국토교통부) 도로명주소 건물 · 거리뷰 ⓒ NAVER Corp. · 법당 안팎 모습은 실제를 바탕으로 한 재현이라 실제와 달라요</div>
@@ -118,6 +175,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=4"></script>
+<script type="module" src="./app.js?v=5"></script>
 </body>
 </html>

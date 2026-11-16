@@ -56,16 +56,16 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
   const axisRot = (b, axis, ang) => new THREE.Quaternion().setFromAxisAngle(localAxis(b, axis), ang);
 
   // ── 합장 자세: 두 손이 가슴 앞에서 만나도록 팔 IK ──
-  const hapQ = new Map();
-  const solveArm = (side) => {
+  const hapQ = new Map(), lapQ = new Map();
+  const solveArm = (side, out = hapQ, mode = 'hap') => {
     const sh = B[side + 'Arm'], el = B[side + 'ForeArm'], hd = B[side + 'Hand']; if (!sh || !el || !hd) return;
     const S = wp(sh), E = wp(el), H = wp(hd), a = S.distanceTo(E), b = E.distanceTo(H);
     const sgn = Math.sign(S.x - (B.Hips ? wp(B.Hips).x : 0)) || (side === 'Left' ? 1 : -1);
     const chestY = B.Spine2 ? wp(B.Spine2).y : S.y - a * .4;
-    const T = new THREE.Vector3(sgn * (a + b) * .06, (S.y + chestY) / 2 - (a + b) * .05, S.z + (a + b) * .62);
+    const T = mode === 'lap' ? new THREE.Vector3(sgn * (a + b) * .1, S.y - (a + b) * .78, S.z + (a + b) * .42) : new THREE.Vector3(sgn * (a + b) * .06, (S.y + chestY) / 2 - (a + b) * .05, S.z + (a + b) * .62);
     let d = S.distanceTo(T); const maxd = (a + b) * .985; if (d > maxd) { T.sub(S).setLength(maxd).add(S); d = maxd; }
     const ca = THREE.MathUtils.clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), ang = Math.acos(ca);
-    const dir = T.clone().sub(S).normalize(), pole = new THREE.Vector3(sgn * .6, -1, -.35).normalize();
+    const dir = T.clone().sub(S).normalize(), pole = (mode === 'lap' ? new THREE.Vector3(sgn, -.35, -.25) : new THREE.Vector3(sgn * .6, -1, -.35)).normalize();
     const bend = pole.sub(dir.clone().multiplyScalar(pole.dot(dir))).normalize();
     const E2 = S.clone().add(dir.clone().multiplyScalar(Math.cos(ang) * a)).add(bend.multiplyScalar(Math.sin(ang) * a));
     // 위팔
@@ -80,11 +80,11 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
     // 손: 손끝이 위를 향하게
     const hdW = wq(hd), hdRel = elW.clone().invert().multiply(hdW), hdW1 = elW2.clone().multiply(hdRel);
     const handDir = T.clone().sub(E2).normalize();
-    const hdW2 = new THREE.Quaternion().setFromUnitVectors(handDir, new THREE.Vector3(-sgn * .15, 1, .25).normalize()).multiply(hdW1);
+    const hdW2 = new THREE.Quaternion().setFromUnitVectors(handDir, (mode === 'lap' ? new THREE.Vector3(-sgn, -.1, .35) : new THREE.Vector3(-sgn * .15, 1, .25)).normalize()).multiply(hdW1);
     const hdL = elW2.clone().invert().multiply(hdW2);
-    hapQ.set(sh, shL); hapQ.set(el, elL); hapQ.set(hd, hdL);
+    out.set(sh, shL); out.set(el, elL); out.set(hd, hdL);
   };
-  solveArm('Left'); solveArm('Right');
+  solveArm('Left'); solveArm('Right'); solveArm('Left', lapQ, 'lap'); solveArm('Right', lapQ, 'lap');
 
   // ── 무릎 꿇기: 정강이를 뒤로 접고 골반을 무릎 높이만큼 내림 ──
   const kneelQ = new Map();
@@ -95,6 +95,17 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
   // 월드에서 '아래로 hipsDrop' 만큼을 골반 부모의 로컬 좌표로 바꿔 둠 (뼈대가 눕혀져 있어도 맞게)
   let dropVec = new THREE.Vector3();
   if (B.Hips) { const hw = wp(B.Hips), par = B.Hips.parent; dropVec = par.worldToLocal(hw.clone().add(new THREE.Vector3(0, -hipsDrop, 0))).sub(par.worldToLocal(hw.clone())); }
+
+  // ── 가부좌(앉기): 허벅지 앞으로 + 바깥으로, 무릎 접기, 골반을 거의 바닥까지 ──
+  const sitQ = new Map(), Z = new THREE.Vector3(0, 0, 1);
+  for (const sd of ['Left', 'Right']) {
+    const up = B[sd + 'UpLeg'], lg = B[sd + 'Leg'], ft = B[sd + 'Foot'], sg = B[sd + 'UpLeg'] && wp(B[sd + 'UpLeg']).x > (B.Hips ? wp(B.Hips).x : 0) ? 1 : -1;
+    if (up) sitQ.set(up, restQ(up).clone().multiply(axisRot(up, X, -1.42)).multiply(axisRot(up, Z, sg * .62)));
+    if (lg) sitQ.set(lg, restQ(lg).clone().multiply(axisRot(lg, X, 2.25)).multiply(axisRot(lg, Y, -sg * .5)));
+    if (ft) sitQ.set(ft, restQ(ft).clone().multiply(axisRot(ft, X, .35)));
+  }
+  let sitVec = new THREE.Vector3();
+  if (B.Hips) { const hw = wp(B.Hips), par = B.Hips.parent, drop = Math.max(0, hw.y - height * .075); sitVec = par.worldToLocal(hw.clone().add(new THREE.Vector3(0, -drop, 0))).sub(par.worldToLocal(hw.clone())); }
 
   // 허리 숙이기 축 (뼈마다 로컬 축)
   const spineBones = [['Spine', .5], ['Spine1', .3], ['Spine2', .2]].filter(([k]) => B[k]).map(([k, w]) => ({ b: B[k], w, ax: localAxis(B[k], X) }));
@@ -131,7 +142,7 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
     }
   }
 
-  const touched = [...new Set([...hapQ.keys(), ...kneelQ.keys(), ...spineBones.map(o => o.b), B.Head, B.Hips].filter(Boolean))];
+  const touched = [...new Set([...hapQ.keys(), ...lapQ.keys(), ...sitQ.keys(), ...kneelQ.keys(), ...spineBones.map(o => o.b), B.Head, B.Hips].filter(Boolean))];
   const base = new Map(touched.map(b => [b, { q: b.quaternion.clone(), p: b.position.clone() }])); let haveBase = false;
   function update(dt, st) {
     // 걷기·달리기 섞기
@@ -142,6 +153,12 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
     if (haveBase) for (const b of touched) { const v = base.get(b); b.quaternion.copy(v.q); b.position.copy(v.p); }
     mixer.update(dt);
     for (const b of touched) { const v = base.get(b); v.q.copy(b.quaternion); v.p.copy(b.position); } haveBase = true;
+    // 앉기 (가부좌 + 무릎 위 선정인)
+    if (st.sit > 0) {
+      for (const [b, q] of sitQ) b.quaternion.slerp(q, st.sit);
+      for (const [b, q] of lapQ) b.quaternion.slerp(q, st.sit);
+      if (B.Hips) B.Hips.position.addScaledVector(sitVec, st.sit);
+    }
     // 합장
     if (st.hap > 0) for (const [b, q] of hapQ) b.quaternion.slerp(q, st.hap);
     // 무릎 꿇기
