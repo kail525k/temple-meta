@@ -84,8 +84,14 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3 } = {}) {
   for (const sx of [-1, 1]) box(.1, PH, .07, MAT.trim, sx * (AW / 2 + .35), PY, iz0 + .05);
   // 부처님 (삼존불 또는 한 분)
   const BY = FY + AH + .1;
-  const seats = buddhas >= 3 ? [[0, 1], [-AW * .33, .78], [AW * .33, .78]] : [[0, 1]];
+  const seats = buddhas >= 3 ? [[0, 1], [-AW * .33, .78], [AW * .33, .78]] : buddhas >= 1 ? [[0, 1]] : [];
   for (const [x, s] of seats) { const b = buddha(THREE, MAT, s); b.position.set(x, BY, AZ - .15); g.add(b); }
+  if (!seats.length) { // 적멸보궁: 불상 대신 진신사리를 모신 종 모양 사리탑
+    add(new THREE.CylinderGeometry(.55, .62, .22, 16), MAT.bronze, 0, BY + .11, AZ - .15);
+    const bell = add(new THREE.SphereGeometry(.42, 20, 14), MAT.gold, 0, BY + .62, AZ - .15); bell.scale.y = 1.25;
+    add(new THREE.CylinderGeometry(.06, .1, .5, 10), MAT.gold, 0, BY + 1.33, AZ - .15);
+    add(new THREE.SphereGeometry(.1, 12, 10), MAT.gold, 0, BY + 1.62, AZ - .15);
+  }
   // 촛대 둘과 향로
   for (const sx of [-1, 1]) {
     add(new THREE.CylinderGeometry(.06, .06, .42, 10), MAT.candle, sx * AW * .42, FY + AH + .31, AZ + AD / 2 - .25);
@@ -122,7 +128,7 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3 } = {}) {
   };
   const isInside = (lx, lz) => lx > ix0 && lx < ix1 && lz > iz0 && lz < iz1 + .3;
   const underRoof = (lx, lz) => Math.abs(lx) < L / 2 + o && lz > -D / 2 - o && lz < D / 2 + o;
-  return { group: g, colliders, heightAt, isInside, underRoof, bowSpot, glow, L, D, FY, ceilY: FY + H, interior: { ix0, ix1, iz0, iz1 } };
+  return { group: g, colliders, heightAt, isInside, underRoof, bowSpot, glow, L, D, FY, ceilY: FY + H, interior: { ix0, ix1, iz0, iz1 }, lights: [inLight, altarLight] };
 }
 
 // 부처님 (단순한 도형으로 공손하게 표현한 좌상)

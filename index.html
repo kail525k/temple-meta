@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>용주사 대웅보전 · 온라인 참배 체험판</title>
+<title>전국 사찰 온라인 참배 체험판</title>
 <meta name="description" content="실제 법당 자리를 바탕으로, 법당 안에 들어가 삼배를 올리는 온라인 참배 체험판">
 <style>
   :root{--ink:#3b3226;--paper:rgba(255,250,240,.92);--line:rgba(80,60,30,.15);--accent:#9b3b2b;--jade:#2e8b74}
@@ -41,6 +41,17 @@
   #loading .lotus{font-size:46px;animation:breathe 2.4s ease-in-out infinite}
   #loading p{margin:14px 0 0;font-size:14px;color:#6d5f4b;text-align:center;line-height:1.6}
   @keyframes breathe{50%{transform:scale(1.12)}}
+  #regionModal{position:fixed;inset:0;background:rgba(30,25,15,.45);display:none;align-items:center;justify-content:center;z-index:31;padding:14px}
+  #regionModal.show{display:flex}
+  #regionModal .box{width:min(720px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden}
+  #regionModal header{display:flex;align-items:center;gap:10px;padding:12px 12px 10px 16px;border-bottom:1px solid var(--line)}
+  #regionModal header div{flex:1}#regionModal header b{font-size:16px}#regionModal header small{display:block;font-size:12px;color:#8a7a62;margin-top:2px}
+  #regionModal header button{border:0;border-radius:99px;padding:8px 14px;font-weight:600;background:#efe6d4;cursor:pointer;font-family:inherit}
+  #regionList{overflow:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+  .rg{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fffaf0;cursor:pointer;text-align:left;font-family:inherit;color:var(--ink)}
+  .rg:hover{border-color:var(--accent)}.rg.on{border:2px solid var(--accent);background:#fff3df}
+  .rg b{font-size:15px;display:block}.rg span{font-size:12px;color:#7a6a52;display:block;margin-top:3px;line-height:1.45}
+  .rg .go{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.rg .go button{border:0;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit}
   #modal{position:fixed;inset:0;background:rgba(30,25,15,.45);display:none;align-items:center;justify-content:center;z-index:30;padding:14px}
   #modal.show{display:flex}
   #modal .box{width:min(960px,100%);height:min(640px,86vh);display:flex;flex-direction:column;overflow:hidden}
@@ -64,10 +75,10 @@
 <body>
 <canvas id="c" tabindex="0"></canvas>
 
-<div id="loading"><div class="lotus">🪷</div><p id="loadMsg">용주사 대웅보전으로 가는 중…<br>브이월드에서 실제 법당 위치를 불러오고 있어요</p></div>
+<div id="loading"><div class="lotus">🪷</div><p id="loadMsg">사찰로 가는 중…<br>브이월드에서 실제 법당 위치를 불러오고 있어요</p></div>
 
 <div id="title" class="card">
-  <h1>용주사 대웅보전 <small>龍珠寺 · 경기 화성</small></h1>
+  <h1>사찰 순례 <small>불러오는 중</small></h1>
   <p>법당 안에 들어가 부처님께 삼배를 올리는 온라인 참배 체험판</p>
   <div class="row"><span id="badge" class="badge">불러오는 중…</span><button id="dbgBtn" title="디버그 정보">🛠 상태</button></div>
 </div>
@@ -76,10 +87,11 @@
 <div id="near" class="card"></div>
 
 <div id="actions">
+  <button id="btnRegion">🗺 다른 지역·사찰</button>
   <button id="btnHapjang">🙏 합장</button>
   <button id="btnBow">🙇 절하기</button>
   <button id="btnHall">🛕 법당 안으로</button>
-  <button id="btnHome">📍 처음 위치</button>
+  <button id="btnHome">📍 순례 마당</button>
   <button id="btnPano" class="primary">📷 실제 모습 보기</button>
 </div>
 <div id="joy"><div id="knob"></div></div>
@@ -87,6 +99,13 @@
 <div id="toast" class="card"></div>
 <button id="bowPrompt">🙇 여기서 삼배 올리기</button>
 <div id="attrib">법당 위치·크기: 브이월드(국토교통부) 도로명주소 건물 · 거리뷰 ⓒ NAVER Corp. · 법당 안팎 모습은 실제를 바탕으로 한 재현이라 실제와 달라요</div>
+
+<div id="regionModal">
+  <div class="box card">
+    <header><div><b>어느 지역 사찰로 갈까요?</b><small>지역마다 큰 사찰부터 모아 두었어요 · 같은 지역 안에서는 걸어서 오갈 수 있어요</small></div><button id="regionClose">닫기</button></header>
+    <div id="regionList"></div>
+  </div>
+</div>
 
 <div id="modal">
   <div class="box card">
@@ -99,6 +118,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=2"></script>
+<script type="module" src="./app.js?v=3"></script>
 </body>
 </html>
