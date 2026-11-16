@@ -4,7 +4,7 @@
 //   통도사 금강계단, 해인사 장경판전, 백양사 쌍계루, 선암사 승선교, 관음사 석불 길, 조계사 노거수 등
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
-import { hipRoofGeo, gableRoofGeo } from './hall.js?v=6';
+import { hipRoofGeo, gableRoofGeo } from './hall.js?v=7';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const R = {
@@ -105,6 +105,25 @@ function dabotap(h, x, z) {
   for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(.1 - i * .015, 10, 8), h.MAT.stoneDark, x, 3.75 + i * .22, z);
   return 1.5;
 }
+// 해동용궁사 사사자 석탑: 네 마리 돌사자가 받친 삼층석탑
+function lion3(h, x, z) {
+  const { box, add } = h, S = .9;
+  box(2.5 * S, .4, 2.5 * S, h.MAT.stone, x, .2, z);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const lx = x + sx * .72 * S, lz = z + sz * .72 * S, ry = Math.atan2(sx, sz);
+    const g = new THREE.Group(); g.position.set(lx, .4, lz); g.rotation.y = ry; h.site.add(g);
+    const mk = (geo, px, py, pz, sx2 = 1, sy = 1, sz2 = 1) => { const m = new THREE.Mesh(geo, R.granite); m.position.set(px, py, pz); m.scale.set(sx2, sy, sz2); m.castShadow = true; g.add(m); return m; };
+    mk(new THREE.SphereGeometry(.24, 10, 8), 0, .3, -.05, .9, 1.1, 1.2);        // 앉은 몸
+    mk(new THREE.SphereGeometry(.2, 10, 8), 0, .6, .1, 1.1, 1, 1);               // 갈기 머리
+    mk(new THREE.SphereGeometry(.1, 8, 6), 0, .56, .27, 1, .8, .8);              // 주둥이
+    for (const s2 of [-1, 1]) mk(new THREE.CylinderGeometry(.05, .06, .36, 6), s2 * .1, .18, .16);
+  }
+  box(.36, .82, .36, R.granite2, x, .81, z);
+  box(2.1 * S, .2, 2.1 * S, h.MAT.stoneDark, x, 1.32, z);
+  const up = { ...h, add: (geo, m, px, py, pz, s) => add(geo, m, px, py + 1.42, pz, s), box: (w, hh, d, m, px, py, pz) => add(new THREE.BoxGeometry(w, hh, d), m, px, py + 1.42, pz) };
+  stoneTiers(up, x, z, 3, .78);
+  return 1.25 * S;
+}
 // 탑 종류에 맞춰 세우기 → 탑돌이 중심 반환
 export function buildPagoda(h, type, PZ) {
   const { col } = h;
@@ -113,6 +132,7 @@ export function buildPagoda(h, type, PZ) {
   else if (type === 'wood5') r = wood5(h, 0, PZ);
   else if (type === 'stone5') r = stoneTiers(h, 0, PZ, 5, 1.05, true);
   else if (type === 'stone7') r = stoneTiers(h, 0, PZ, 7, 1.1);
+  else if (type === 'lion') r = lion3(h, 0, PZ);
   else if (type === 'pair') { // 서쪽 석가탑 · 동쪽 다보탑 (법당을 바라볼 때 왼쪽·오른쪽)
     x = -3.5; r = stoneTiers(h, x, PZ, 3, 1.12);
     const r2 = dabotap(h, 3.5, PZ); col(3.5, PZ, r2, r2);
@@ -124,8 +144,9 @@ export function buildPagoda(h, type, PZ) {
 /* ───────── 사찰 상징물 (법당 옆 6m 마당·뒤뜰에 배치) ───────── */
 // side: 법당 옆 빈 마당 가운데 x
 export function buildExtras(h, T) {
-  const { box, add, col, L, D } = h, list = (T.style && T.style.extras) || [], SX = L / 2 + 3.2;
-  const out = {};
+  const { box, add, col, L, D } = h, list = [...((T.style && T.style.extras) || [])], SX = L / 2 + 3.2;
+  const out = {}, fig = h.fig || (h.fig = []); // fig: 나중에 3D 존상 모델로 바꿔 끼울 바깥 불상·보살상 자리
+  if (T.style && T.style.bigStand) list.push('bigStand');
   for (const kind of list) {
     if (kind === 'oldTree') { // 수백 년 된 노거수 (조계사 회화나무·백송, 봉은사)
       const x = SX - .2, z = D / 2 - 1.5;
@@ -141,6 +162,17 @@ export function buildExtras(h, T) {
       box(1.2, .22, .5, h.MAT.stone, x, .11, z + 2.1);
       col(x, z, 2.0, 2.2);
       out.bigBuddha = { lx: x, ly: 1.55, lz: z, h: 5.2 };
+    }
+    if (kind === 'bigStand') { // 바깥 큰 입불 (법주사 금동미륵대불·동화사 약사대불·봉은사 미륵대불): 기단 위에 선 부처님
+      const b = T.style.bigStand, x = -SX, z = -.4, mat = b.tint === 'gold' ? R.gold : R.granite;
+      add(new THREE.CylinderGeometry(2.0, 2.25, .9, 8), h.MAT.stone, x, .45, z);
+      add(new THREE.CylinderGeometry(1.55, 1.75, .7, 8), R.granite2, x, 1.25, z);
+      add(new THREE.CylinderGeometry(1.25, 1.0, .45, 16), mat, x, 1.82, z);
+      box(1.4, .22, .6, h.MAT.stone, x, .11, z + 2.4);
+      const ph = standingGwaneum(o => h.site.add(o), x, 2.05, z, b.h * .92, 0, mat);
+      fig.push({ k: b.k, tint: b.tint, lx: x, ly: 2.05, lz: z, h: b.h, ry: 0, ph: [ph] });
+      if (b.name) add(new THREE.PlaneGeometry(1.7, .42), new THREE.MeshStandardMaterial({ map: h.nameTex(b.name, '#2b1d14', '#f2cf72', 38), roughness: .6 }), x, .62, z + 2.27, false);
+      col(x, z, 2.3, 2.3);
     }
     if (kind === 'mireuk') { // 금산사 미륵전: 3층 법당
       const x = -SX, z = -.5;
@@ -230,6 +262,7 @@ export function buildExtras(h, T) {
       mk(new THREE.SphereGeometry(.4, 18, 14), 0, 2.12, 0);                          // 머리
       for (const sx of [-1, 1]) { mk(new THREE.SphereGeometry(.1, 10, 8), sx * .38, 2.1, 0, .6, 1.4, .7); mk(new THREE.SphereGeometry(.22, 12, 10), sx * .62, 1.25, .25, 1, 1.6, 1); }
       mk(new THREE.SphereGeometry(.42, 14, 10), .95, .75, -.15, 1, .85, 1);          // 포대(자루)
+      fig.push({ k: 'budai', tint: 'gold', lx: x, ly: .4, lz: z, h: 2.3, ry: 0, ph: g.children.slice(1) });
       col(x, z, 1.1, 1.1);
     }
     if (kind === 'whiteGwaneum') { // 바위 언덕 위 하얀 관세음보살 + 돌탑
@@ -237,7 +270,8 @@ export function buildExtras(h, T) {
       for (const [dx, dy, dz, r] of [[0, .9, 0, 2.1], [-1.2, .5, .8, 1.3], [1.3, .6, .5, 1.4], [.3, .4, 1.4, 1.1], [-.6, 1.6, -.2, 1.4]]) { const m = add(new THREE.IcosahedronGeometry(r, 0), Math.random() < .5 ? R.rock : R.rock2, x + dx, dy, z + dz); m.scale.y = .75; m.rotation.y = Math.random() * 3; }
       add(new THREE.CylinderGeometry(1.0, 1.15, .35, 16), R.granite, x, 2.35, z);
       add(new THREE.CylinderGeometry(.75, .95, .3, 16), R.marble, x, 2.68, z);
-      standingGwaneum(o => h.site.add(o), x, 2.83, z, 6.2, 0);
+      const ph = standingGwaneum(o => h.site.add(o), x, 2.83, z, 6.2, 0);
+      fig.push({ k: 'bosalS', tint: 'marble', lx: x, ly: 2.83, lz: z, h: 6.6, ry: 0, ph: [ph] });
       col(x, z, 2.3, 2.0);
       if (!list.includes('flatRock')) for (const [dx, dz, hh] of [[3.2, -.6, 2.4], [4.4, .6, 1.8], [-2.9, 1.6, 2.0]]) { add(new THREE.ConeGeometry(.75 * hh / 2.2, hh, 9), R.rock2, x + dx, hh / 2, z + dz); add(new THREE.SphereGeometry(.16, 8, 6), R.rock, x + dx, hh + .1, z + dz); col(x + dx, z + dz, .6, .6); }
     }
@@ -426,8 +460,9 @@ export function buildHyuhyu(h, T) {
     for (let i = 0; i <= 16; i++) { const a = Math.PI * .1 + i / 16 * Math.PI * .8; box(.14, .7, .14, R.rail, x + Math.cos(a) * 4.5, .8, z - Math.sin(a) * 4.5); }
     add(new THREE.CylinderGeometry(1.25, 1.45, .7, 18), R.granite2, x, .8, z - 1.2);
     add(new THREE.CylinderGeometry(1.0, 1.1, .3, 18), R.marble, x, 1.3, z - 1.2);
-    standingGwaneum(o => h.site.add(o), x, 1.45, z - 1.2, 7.8, 0);
-    standingGwaneum(o => h.site.add(o), x - 2.7, .45, z + .4, 1.5, .25);                 // 남순동자
+    const fig = h.fig || (h.fig = []);
+    fig.push({ k: 'bosalS', tint: 'marble', lx: x, ly: 1.45, lz: z - 1.2, h: 8.2, ry: 0, ph: [standingGwaneum(o => h.site.add(o), x, 1.45, z - 1.2, 7.8, 0)] });
+    fig.push({ k: 'disciple', tint: 'marble', lx: x - 2.7, ly: .45, lz: z + .4, h: 1.6, ry: .25, ph: [standingGwaneum(o => h.site.add(o), x - 2.7, .45, z + .4, 1.5, .25)] }); // 남순동자
     standingGwaneum(o => h.site.add(o), x + 2.8, .45, z + .3, 2.5, -.25, R.gold);        // 동해용왕
     add(new THREE.PlaneGeometry(1.8, .44), new THREE.MeshStandardMaterial({ map: h.nameTex('지혜관세음보살', '#2b1d14', '#f2cf72', 38), roughness: .6 }), x, .72, z + 4.62, false);
     col(x, z - 1.2, 1.5, 1.5); col(x - 2.7, z + .4, .4, .4); col(x + 2.8, z + .3, .5, .5);
@@ -448,4 +483,164 @@ export function buildHyuhyu(h, T) {
     const th = add(new THREE.SphereGeometry(.55, 10, 8), R.rock2, x - 4.2, .35, z + 3.3); th.scale.set(1.2, .7, .9);
   }
   return out;
+}
+
+/* ───────── 해동용궁사: 지도·위성 사진과 참배 안내의 순서대로 ─────────
+   일주문 쪽 언덕(십이지신상 · 교통안전기원탑 · 갓바위 약사여래 · 득남불) → 108 장수계단을 내려가 → 바닷물이 드나드는 물길 위 용문석교
+   → 연등이 가득한 마당과 사사자 석탑 → 대웅보전 · 옆 굴법당 · 오른쪽 계단 위 해수관음대불 → 바다 쪽 일출암 지장보살
+   법당 기준 좌표: 앞(+z) = 일주문(순례 마당 쪽), 뒤(-z) = 동해. 바다를 볼 때 왼쪽(-x) = 북쪽 물길(용문석교 아래로 이어짐) */
+export function yonggungFrame(h) {
+  const { L, D, YX, YZ1 } = h, TY = 1.6;
+  const ZC0 = D / 2 + 8.6, ZC1 = D / 2 + 10.4, ZB = ZC1 + .3, ZS1 = D / 2 + 14, ZT1 = YZ1 - 2;
+  const HXc = L / 2 + 3.2, HZc = -1.4, HR = 2.4, HY = 2.4, HS1 = HZc + HR + 2.6; // 해수관음 언덕
+  // 걸어 다니는 높이 (언덕·계단·다리)
+  const ground = (lx, lz) => {
+    if (lz > YZ1 + .05) return 0;
+    if (lz >= ZT1) return Math.abs(lx) < 1.45 ? TY * (YZ1 - lz) / (YZ1 - ZT1) : TY;            // 일주문 계단(오름)
+    if (lz >= ZB) return Math.abs(lx) < 1.45 && lz < ZS1 ? TY * (lz - ZB) / (ZS1 - ZB) : TY;   // 108 계단(내림) · 언덕 마당
+    if (lz > ZC0 - .4 && Math.abs(lx) < 1.5) return .42 * Math.sin(Math.PI * (lz - (ZC0 - .4)) / (ZB - ZC0 + .4)); // 용문석교 무지개 다리
+    const dx = lx - HXc, dz = lz - HZc;
+    if (dx * dx + dz * dz < HR * HR) return HY;
+    if (Math.abs(dx) < .6 && lz >= HZc + HR - .2 && lz < HS1) return HY * (HS1 - lz) / (HS1 - (HZc + HR - .2));
+    return 0;
+  };
+  return { TY, ZC0, ZC1, ZB, ZS1, ZT1, HXc, HZc, HR, HY, HS1, ground, PZ: D / 2 + 6.4, gap: [YX - 4.8, YX - 1.4, 5.6] };
+}
+// 십이지신상 하나: 받침돌 + 도포 + 띠 동물 머리 (화강암)
+function zodiac(h, x, y, z, ry, i) {
+  const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; h.site.add(g);
+  const S = R.granite, S2 = R.granite2;
+  const mk = (geo, px, py, pz, mat = S, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.scale.set(sx, sy, sz); m.castShadow = true; g.add(m); return m; };
+  mk(new THREE.BoxGeometry(.56, .22, .5), S2, 0, .11, 0);
+  mk(new THREE.LatheGeometry([[0, 0], [.2, 0], [.19, .05], [.15, .45], [.17, .58], [.1, .66], [0, .68]].map(([r, yy]) => new THREE.Vector2(r, yy)), 12), S, 0, .22, 0);
+  for (const sx of [-1, 1]) mk(new THREE.SphereGeometry(.06, 8, 6), S, sx * .07, .62, .12, S, 1, 1, 1.2); // 모은 두 손
+  const hy = 1.0, head = (sx, sy, sz) => mk(new THREE.SphereGeometry(.13, 12, 10), S, 0, hy, 0, S, sx, sy, sz);
+  const ear = (px, py, r = .05, sx = 1, sy = 1) => { for (const s of [-1, 1]) mk(new THREE.SphereGeometry(r, 8, 6), S, s * px, py, -.01, S, sx, sy, .5); };
+  const horn = (px, py, len = .14, tilt = .5) => { for (const s of [-1, 1]) { const c = mk(new THREE.ConeGeometry(.03, len, 6), S2, s * px, py, 0); c.rotation.z = -s * tilt; } };
+  const snout = (len, r = .06, py = hy - .02) => { const c = mk(new THREE.CylinderGeometry(r * .8, r, len, 8), S, 0, py, .11 + len / 2 - .04); c.rotation.x = Math.PI / 2; };
+  switch (i) {
+    case 0: head(1, 1, 1.05); ear(.1, hy + .1, .06); snout(.08, .04); break;                    // 쥐
+    case 1: head(1.15, 1, 1.1); horn(.13, hy + .1, .16, 1.0); snout(.08, .08); break;           // 소
+    case 2: head(1.15, 1.05, 1.05); ear(.1, hy + .11, .045); snout(.06, .07); break;            // 범
+    case 3: head(1, 1, 1); for (const s of [-1, 1]) { const e = mk(new THREE.CylinderGeometry(.025, .035, .22, 6), S, s * .05, hy + .2, -.02); e.rotation.z = -s * .15; } break; // 토끼
+    case 4: head(1.05, 1, 1.15); horn(.07, hy + .14, .2, .35); snout(.14, .06); break;          // 용
+    case 5: head(.85, .9, 1.2); snout(.1, .05); break;                                          // 뱀
+    case 6: head(.9, 1.1, 1.05); ear(.06, hy + .15, .04, .6, 1.6); snout(.18, .065, hy - .05); break; // 말
+    case 7: head(1, 1, 1); for (const s of [-1, 1]) { const t = mk(new THREE.TorusGeometry(.06, .022, 6, 12), S2, s * .12, hy + .04, 0); t.rotation.y = Math.PI / 2; } snout(.07, .06); break; // 양
+    case 8: head(1, 1, .95); ear(.14, hy, .05, .6, 1); mk(new THREE.SphereGeometry(.08, 8, 6), S2, 0, hy - .03, .09, S2, 1, .8, .6); break; // 원숭이
+    case 9: head(.9, 1, 1); mk(new THREE.BoxGeometry(.03, .1, .14), R.redCol, 0, hy + .15, 0); mk(new THREE.ConeGeometry(.035, .1, 6), S2, 0, hy, .15).rotation.x = Math.PI / 2; break; // 닭
+    case 10: head(1, 1, 1.05); ear(.12, hy + .02, .05, .6, 1.5); snout(.1, .06); break;          // 개
+    default: head(1.15, 1.05, 1); ear(.11, hy + .1, .05, 1.2, .7); snout(.05, .07); break;      // 돼지
+  }
+  h.col(x, z, .3, .3);
+}
+export function buildYonggung(h, T, F) {
+  const { add, box, col, L, D, YX, YZ0, YZ1, MAT } = h, { TY, ZC0, ZC1, ZB, ZS1, ZT1, HXc, HZc, HR, HY, HS1 } = F, fig = h.fig || (h.fig = []);
+  const plane = (w, d, mat, x, y, z) => { const p = add(new THREE.PlaneGeometry(w, d), mat, x, y, z, false); p.rotation.x = -Math.PI / 2; p.receiveShadow = true; return p; };
+  const sign = (text, x, y, z, w = 1.5, ry = 0, fs = 40) => { const p = add(new THREE.PlaneGeometry(w, w * .27), new THREE.MeshStandardMaterial({ map: h.nameTex(text, '#2b1d14', '#f2cf72', fs), roughness: .6 }), x, y, z, false); p.rotation.y = ry; return p; };
+  const post = (x, y, z, hh = .8) => add(new THREE.CylinderGeometry(.04, .05, hh, 6), MAT.trunk, x, y + hh / 2, z);
+  const rail = (x0, z0, x1, z1, y = 0) => { // 흰 돌난간
+    const len = Math.hypot(x1 - x0, z1 - z0), a = Math.atan2(x1 - x0, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    for (const yy of [.95, .45]) { const b = add(new THREE.BoxGeometry(.12, .09, len), R.rail, cx, y + yy, cz); b.rotation.y = a; }
+    for (let t = 0; t <= len + .01; t += 1.2) add(new THREE.BoxGeometry(.16, 1.05, .16), R.rail, x0 + (x1 - x0) * t / len, y + .52, z0 + (z1 - z0) * t / len);
+  };
+  const rocks = (x0, z0, x1, z1, n, r0 = .4, r1 = .9) => { for (let i = 0; i < n; i++) { const t = i / Math.max(1, n - 1), r = r0 + Math.random() * (r1 - r0); const m = add(new THREE.IcosahedronGeometry(r, 0), Math.random() < .5 ? R.rock : R.rock2, x0 + (x1 - x0) * t + (Math.random() - .5) * .6, r * .25, z0 + (z1 - z0) * t + (Math.random() - .5) * .6); m.scale.y = .6 + Math.random() * .3; m.rotation.y = Math.random() * 3; } };
+
+  // ① 바닷물이 드나드는 물길: 왼쪽(북쪽) 바다에서 들어와 일주문 언덕과 마당 사이를 가로지름
+  const XW = -YX - 6;
+  plane(-YX - XW, ZC1 - YZ0 + 1, R.sea, (XW - YX) / 2, .045, (YZ0 + ZC1) / 2 - .5);
+  plane(YX - XW + .5, ZC1 - ZC0, R.sea, (XW + YX) / 2, .046, (ZC0 + ZC1) / 2);
+  rocks(-YX - .3, YZ0 + .5, -YX - .3, ZC0 - .4, 16, .35, .7); rocks(XW + .4, YZ0, XW + .4, ZB + 3, 14, .6, 1.2);
+  for (const x0 of [-YX + .4, 2.1]) rocks(x0, ZC0 - .15, x0 === 2.1 ? YX - .2 : -2.1, ZC0 - .15, 9, .3, .55);
+  rail(-YX, YZ0, -YX, ZC0 - .35); col(-YX - .1, (YZ0 + ZC0) / 2, .2, (ZC0 - YZ0) / 2);
+  for (const [x0, x1] of [[-YX - 6, -1.62], [1.62, YX + .4]]) col((x0 + x1) / 2, (ZC0 + ZC1) / 2, (x1 - x0) / 2, (ZC1 - ZC0) / 2 + .1);
+  // ② 용문석교: 물길 위 흰 난간 무지개 다리 (다리 위에서 동전을 던지며 소원을 빎)
+  { const z0 = ZC0 - .4, z1 = ZB, n = 9;
+    for (let i = 0; i < n; i++) { const t0 = i / n, t1 = (i + 1) / n, za = z0 + (z1 - z0) * t0, zb = z0 + (z1 - z0) * t1, ya = .42 * Math.sin(Math.PI * t0), yb = .42 * Math.sin(Math.PI * t1), len = Math.hypot(zb - za, yb - ya);
+      const d = add(new THREE.BoxGeometry(2.9, .16, len + .02), R.granite, 0, (ya + yb) / 2 - .06, (za + zb) / 2); d.rotation.x = -Math.atan2(yb - ya, zb - za); }
+    const a = add(new THREE.TorusGeometry(.75, .14, 6, 16, Math.PI), R.granite2, 0, -.2, (ZC0 + ZC1) / 2); a.rotation.y = Math.PI / 2;
+    for (const sx of [-1, 1]) for (let i = 0; i <= 6; i++) { const t = i / 6, z = z0 + (z1 - z0) * t, y = .42 * Math.sin(Math.PI * t); add(new THREE.BoxGeometry(.14, .62, .14), R.rail, sx * 1.42, y + .31, z); }
+    for (const sx of [-1, 1]) for (let i = 0; i < 6; i++) { const t0 = i / 6, t1 = (i + 1) / 6, za = z0 + (z1 - z0) * t0, zb = z0 + (z1 - z0) * t1, ya = .42 * Math.sin(Math.PI * t0) + .6, yb = .42 * Math.sin(Math.PI * t1) + .6; const b = add(new THREE.BoxGeometry(.09, .08, Math.hypot(zb - za, yb - ya)), R.rail, sx * 1.42, (ya + yb) / 2, (za + zb) / 2); b.rotation.x = -Math.atan2(yb - ya, zb - za); }
+    for (const sx of [-1, 1]) col(sx * 1.55, (z0 + z1) / 2, .08, (z1 - z0) / 2);
+    sign('용문석교', 1.9, .95, ZC0 - .55, 1.1); post(1.9, 0, ZC0 - .6, .82);
+  }
+  // ③ 일주문 언덕: 축대 위 마당 (일주문 계단으로 올라와 108 장수계단으로 내려감)
+  { const MW = MAT.wallStone, wd = 2 * YX;
+    for (const sx of [-1, 1]) { const w = YX - 1.45; box(w, TY, ZS1 - ZB, MW, sx * (1.45 + w / 2), TY / 2, (ZB + ZS1) / 2); box(w, TY, YZ1 - .25 - ZT1, MW, sx * (1.45 + w / 2), TY / 2, (ZT1 + YZ1 - .25) / 2); }
+    box(wd, TY, ZT1 - ZS1, MW, 0, TY / 2, (ZS1 + ZT1) / 2);
+    for (const sx of [-1, 1]) { plane(YX - 1.45, YZ1 - .25 - ZB, MAT.yard, sx * (1.45 + (YX - 1.45) / 2), TY + .014, (ZB + YZ1 - .25) / 2); }
+    plane(2.8, ZT1 - ZS1, MAT.path, 0, TY + .02, (ZS1 + ZT1) / 2);
+    // 108 장수계단 (내림) · 일주문 계단 (오름)
+    const steps = (za, zb, up) => { const n = Math.round(Math.abs(zb - za) / .3), dz = (zb - za) / n; for (let i = 0; i < n; i++) { const hh = TY * (up ? (n - i) / n : (i + 1) / n); box(2.9, hh, Math.abs(dz) + .01, R.granite, 0, hh / 2, za + dz * (i + .5)); } };
+    steps(ZB, ZS1, false); steps(ZT1, YZ1 - .1, true);
+    for (const sx of [-1, 1]) { col(sx * 1.55, (ZB + ZS1) / 2, .1, (ZS1 - ZB) / 2); col(sx * 1.55, (ZT1 + YZ1) / 2, .1, (YZ1 - ZT1) / 2); col(sx * (1.45 + (YX - 1.45) / 2), (ZB + ZS1) / 2 - .1, (YX - 1.45) / 2, (ZS1 - ZB) / 2 - .05); }
+    // 계단 양옆 연등 난간 (낮은 돌기둥 위 연등)
+    for (const sx of [-1, 1]) for (let z = ZB + .2; z < ZS1; z += .55) { const y = TY * (z - ZB) / (ZS1 - ZB); add(new THREE.BoxGeometry(.14, .5, .14), R.granite2, sx * 1.55, y + .25, z); add(new THREE.IcosahedronGeometry(.15, 1), MAT.lotus[(Math.round(z * 3) + (sx > 0 ? 2 : 0)) % MAT.lotus.length], sx * 1.55, y + .66, z, false); }
+    sign('108 장수계단', -2.6, TY + .92, ZS1 + .25, 1.4); post(-2.6, TY, ZS1 + .2, .82);
+    rail(-YX, ZB, -YX, YZ1 - .3, TY); col(-YX - .1, (ZB + YZ1) / 2, .2, (YZ1 - ZB) / 2);
+    // 일주문 (해동제일관음성지): 108계단 꼭대기
+    for (const sx of [-1, 1]) { add(new THREE.CylinderGeometry(.17, .19, 3.0, 10), MAT.red, sx * 1.75, TY + 1.5, ZS1 + .35); col(sx * 1.75, ZS1 + .35, .22, .22); }
+    box(4.4, .28, 1.0, MAT.wallCap, 0, TY + 3.1, ZS1 + .35); box(3.8, .22, .3, MAT.red, 0, TY + 2.82, ZS1 + .35);
+    for (const s of [1, -1]) { const b = sign('해동제일관음성지', 0, TY + 2.45, ZS1 + .35 + s * .17, 2.2, s > 0 ? 0 : Math.PI, 34); }
+    // 십이지신상: 길 양옆에 여섯씩 (자 축 인 묘 진 사 / 오 미 신 유 술 해)
+    const zz = (ZS1 + ZT1) / 2 + .2;
+    for (let i = 0; i < 12; i++) { const sx = i < 6 ? -1 : 1, k = i % 6; zodiac(h, sx * (2.2 + k * .85), TY, zz, sx < 0 ? .55 : -.55, i); }
+    sign('십이지신상', -4.3, TY + .3, zz + 1.0, 1.2, 0, 40);
+    // 교통안전기원탑 (오층석탑)
+    const up = dy => ({ ...h, add: (geo, m, x, y, z, s) => add(geo, m, x, y + dy, z, s), box: (w, hh, d, m, x, y, z) => add(new THREE.BoxGeometry(w, hh, d), m, x, y + dy, z) });
+    const tx = -(YX - 2.4), tz = zz - .2; stoneTiers(up(TY), tx, tz, 5, .62); col(tx, tz, .8, .8); sign('교통안전기원탑', tx, TY + .42, tz + 1.05, 1.3, 0, 36);
+    // 갓바위 약사여래 (동해 갓바위 부처): 돌부처 머리 위 넓적한 갓돌
+    { const x = YX - 2.4, z = zz - .2;
+      box(1.5, .5, 1.3, R.granite2, x, TY + .25, z); col(x, z, .8, .7);
+      fig.push({ k: 'yaksa', tint: 'stone', lx: x, ly: TY + .5, lz: z, h: 1.6, ry: 0, ph: [] });
+      add(new THREE.CylinderGeometry(.62, .66, .1, 16), R.granite2, x, TY + .5 + 1.6 * .985, z - .02);
+      sign('갓바위 약사여래', x, TY + .3, z + .8, 1.3, 0, 34); }
+    // 득남불 (미륵좌상 석불): 계단 초입 — 코와 배를 만지면 아들을 얻는다는 이야기
+    { const x = 2.7, z = ZS1 + .9; box(.9, .35, .8, R.granite2, x, TY + .175, z); col(x, z, .5, .45);
+      fig.push({ k: 'budai', tint: 'stone', lx: x, ly: TY + .35, lz: z, h: 1.05, ry: -.4, ph: [] });
+      sign('득남불', x, TY + .2, z + .48, .8, -.4, 44); }
+  }
+  // ④ 굴법당(미륵전): 대웅보전 왼쪽 바위 동굴 법당
+  { const x = -(L / 2 + 3.2), z = -1.6;
+    for (const [dx, dy, dz, r] of [[0, .9, 0, 2.2], [-1.3, .6, -.5, 1.5], [1.2, .7, -.6, 1.5], [.1, 1.9, -.5, 1.4]]) { const m = add(new THREE.IcosahedronGeometry(r, 0), dx ? R.rock2 : R.rock, x + dx, dy, z + dz); m.scale.set(1, .8, .9); }
+    const door = add(new THREE.CircleGeometry(.72, 16, 0, Math.PI), new THREE.MeshStandardMaterial({ color: '#1b1612', roughness: 1 }), x, .02, z + 1.98, false); door.scale.y = 1.55;
+    box(1.6, .12, .4, R.granite, x, .06, z + 2.2); sign('굴법당 (미륵전)', x, 1.5, z + 2.06, 1.4);
+    col(x, z, 2.1, 1.9);
+  }
+  // ⑤ 해수관음대불: 대웅보전 오른쪽 계단 위 바위 언덕
+  { const x = HXc, z = HZc;
+    const hill = add(new THREE.CylinderGeometry(HR, HR + .5, HY, 12), R.rock, x, HY / 2, z); hill.scale.z = 1;
+    for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; if (Math.abs(Math.sin(a) - 1) < .25) continue; const r = .6 + Math.random() * .5, m = add(new THREE.IcosahedronGeometry(r, 0), i % 2 ? R.rock2 : R.rock, x + Math.cos(a) * (HR + .3), r * .4, z + Math.sin(a) * (HR + .3)); m.scale.y = .7; }
+    plane(HR * 2 - .2, HR * 2 - .2, R.granite, x, HY + .01, z).geometry = new THREE.CircleGeometry(HR - .1, 20);
+    const n = 9; for (let i = 0; i < n; i++) { const hh = HY * (n - i) / n, z0 = HZc + HR - .2 + (HS1 - (HZc + HR - .2)) * i / n, dz = (HS1 - (HZc + HR - .2)) / n; box(1.3, hh, dz + .01, R.granite, x, hh / 2, z0 + dz / 2); }
+    add(new THREE.CylinderGeometry(1.0, 1.15, .4, 16), R.granite2, x, HY + .2, z - .5);
+    add(new THREE.CylinderGeometry(.85, .95, .25, 16), R.marble, x, HY + .52, z - .5);
+    const ph = standingGwaneum(o => h.site.add(o), x, HY + .64, z - .5, 6.2, 0);
+    fig.push({ k: 'bosalS', tint: 'marble', lx: x, ly: HY + .64, lz: z - .5, h: 6.8, ry: 0, ph: [ph] });
+    col(x, z - .5, 1.1, 1.1);
+    // 언덕 가장자리 (계단 입구만 열어 둠)
+    col(x - HR - .2, z, .15, HR + .3); col(x + HR + .2, z, .15, HR + .3); col(x, z - HR - .2, HR + .3, .15);
+    for (const sx of [-1, 1]) col(x + sx * (HR / 2 + .55), z + HR + .1, HR / 2 - .2, .15);
+    for (const sx of [-1, 1]) col(x + sx * .72, (HZc + HR + HS1) / 2, .08, (HS1 - HZc - HR) / 2);
+    sign('해수관음대불', x + 1.15, .95, HS1 + .1, 1.3, 0, 38); post(x + 1.15, 0, HS1 + .05, .82);
+  }
+  // ⑥ 용궁단: 법당 뒤 바닷가 작은 단
+  { const x = -3.6, z = -D / 2 - 4.2;
+    box(3.0, .35, 2.4, R.granite, x, .175, z); box(2.2, 1.6, 1.6, R.white, x, 1.15, z);
+    for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(.1, .11, 1.6, 8), R.redCol, x + sx * 1.0, 1.15, z + .82);
+    const m = add(hipRoofGeo(THREE, 3.2, 2.6, .9, .5, .3), R.roofTile, x, 1.95, z); m.receiveShadow = false;
+    sign('용궁단', x, 1.62, z + .83, 1.0, 0, 46);
+    col(x, z, 1.5, 1.2);
+  }
+  // ⑦ 일출암과 지장보살: 난간이 끊긴 곳에서 바다로 나간 바위 끝
+  { const [g0, g1, gd] = F.gap, x = (g0 + g1) / 2, zEnd = YZ0 - gd + .6;
+    const fr = add(new THREE.BoxGeometry(g1 - g0 + .6, .2, gd), R.rock, x, .1, YZ0 - gd / 2, true); fr.receiveShadow = true;
+    rocks(g0 - .5, YZ0 - .3, g0 - .5, YZ0 - gd, 6, .5, .9); rocks(g1 + .5, YZ0 - .3, g1 + .5, YZ0 - gd, 6, .5, .9);
+    col(g0 - .35, YZ0 - gd / 2, .15, gd / 2); col(g1 + .35, YZ0 - gd / 2, .15, gd / 2);
+    for (const [dx, dy, dz, r] of [[0, .55, 0, 1.15], [-.8, .35, .4, .8], [.7, .4, -.3, .9]]) { const m = add(new THREE.IcosahedronGeometry(r, 0), R.rock2, x + dx, dy, zEnd + dz - .4); m.scale.y = .75; }
+    fig.push({ k: 'disciple', tint: 'bronze', lx: x, ly: 1.15, lz: zEnd - .4, h: 2.1, ry: 0, ph: [standingGwaneum(o => h.site.add(o), x, 1.15, zEnd - .4, 2.0, 0, R.bronze)] });
+    col(x, zEnd - .4, 1.0, .9);
+    sign('일출암 · 지장보살', x, .95, YZ0 - .9, 1.4); post(x - .9, 0, YZ0 - .95, .82);
+  }
+  return {};
 }

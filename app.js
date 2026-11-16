@@ -2,11 +2,11 @@
 import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=3';
-import { buildHall } from './hall.js?v=6';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, standingGwaneum, treeKit } from './regional.js?v=5';
+import { buildHall } from './hall.js?v=7';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=6';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
-import { REGIONS } from './temples.js?v=5';
+import { REGIONS } from './temples.js?v=6';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=2';
 
 /* ───────── 설정 ───────── */
@@ -201,13 +201,18 @@ function useTemple(T) {
   document.title = `${T.name} ${T.hallName} · ${REGION.name} 온라인 참배`;
 }
 
+// 불단 구성 문자열 'amita biro:1.15 sakya' → [{k, s}]
+function parseAltar(a) {
+  if (!a) return null; const ws = a.trim().split(/\s+/), mid = ws.length % 2 ? (ws.length - 1) / 2 : -1;
+  return ws.map((w, i) => { const [k, sc] = w.split(':'); return { k, s: sc ? +sc : i === mid ? 1 : /^(sakya|amita|yaksa|biro)$/.test(k) ? .86 : .8 }; });
+}
 function siteSize(info) { return { L: clamp(info.width * .92, 11, 18), D: clamp(info.depth * .92, 10, 14.5) }; }
 function buildSite(info, T) {
   const { L, D } = siteSize(info);
   setFrame(T);
   dbg('hall.' + T.name, `${T.hallName} 정면 ${L.toFixed(1)}m × 측면 ${D.toFixed(1)}m · 실제 방향 ${(info.th * 180 / Math.PI).toFixed(0)}° · ${T.via}`);
   const st = T.style || {}, ex = st.extras || [];
-  hall = buildHall(THREE, { L, D, buddhas: T.buddhas, roof: st.roof, stories: st.stories, plain: st.plain, sign: nameTex(T.hallName, '#2b1d14', '#f2cf72', 50) });
+  hall = buildHall(THREE, { L, D, buddhas: T.buddhas, altar: parseAltar(T.altar), roof: st.roof, stories: st.stories, plain: st.plain, sign: nameTex(T.hallName, '#2b1d14', '#f2cf72', 50) });
   const site = new THREE.Group(); site.position.set(HX, 0, HZ); site.rotation.y = TH; scene.add(site);
   site.add(hall.group);
   hall.colliders.forEach(addCollider);
@@ -217,8 +222,8 @@ function buildSite(info, T) {
   const col = (cx, cz, hx, hz) => { const c = { cx, cz, hx, hz }; loc.push(c); addCollider(c); };
 
   // 마당과 박석길
-  const hyu = st.layout === 'hyuhyu';
-  const back = hyu ? 18 : ex.includes('janggyeong') ? 12.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('whiteGwaneum') ? 7.5 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
+  const hyu = st.layout === 'hyuhyu', yg = st.layout === 'yonggung';
+  const back = hyu ? 18 : yg ? 6 : ex.includes('janggyeong') ? 12.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('whiteGwaneum') ? 7.5 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
   const YX = L / 2 + 6, YZ0 = -D / 2 - 2 - back, YZ1 = D / 2 + 19;
   YARD = { x0: -YX, x1: YX, z0: YZ0, z1: YZ1 };
   const yard = add(new THREE.PlaneGeometry(2 * YX, YZ1 - YZ0), MAT.yard, 0, .02, (YZ0 + YZ1) / 2, false); yard.rotation.x = -Math.PI / 2;
@@ -226,7 +231,7 @@ function buildSite(info, T) {
   // 낮은 담장 + 앞쪽 문
   const WH = .95, wall = (w, d, x, z) => { box(w, WH, d, MAT.wallStone, x, WH / 2, z); box(w + .2, .18, d + .2, MAT.wallCap, x, WH + .09, z); col(x, z, w / 2 + .05, d / 2 + .05); };
   if (!hyu) { // 휴휴암은 담장 없이 숲속 곶에 열려 있음
-    for (const sx of [-1, 1]) wall(.45, YZ1 - YZ0, sx * YX, (YZ0 + YZ1) / 2);
+    for (const sx of [-1, 1]) if (!(yg && sx < 0)) wall(.45, YZ1 - YZ0, sx * YX, (YZ0 + YZ1) / 2); // 해동용궁사 왼쪽은 바닷물 길
     if (!st.sea) wall(2 * YX + .45, .45, 0, YZ0); // 바다 사찰은 뒤가 바다 (흰 돌난간)
     for (const sx of [-1, 1]) wall(YX - 1.6, .45, sx * (1.6 + (YX - 1.6) / 2), YZ1);
   }
@@ -239,27 +244,30 @@ function buildSite(info, T) {
   add(new THREE.ConeGeometry(.52, .38, 8), MAT.stoneDark, 0, 2.06, SL); add(new THREE.SphereGeometry(.1, 10, 8), MAT.stoneDark, 0, 2.3, SL);
   col(0, SL, .55, .55);
   // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
-  const PZ = D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, nameTex, site };
+  const YG = yg ? yonggungFrame({ L, D, YX, YZ1 }) : null;
+  const PZ = yg ? YG.PZ : D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, nameTex, site, fig: [] };
   if (hyu) { H.fishX = -6.2; H.fishZ = YZ0 - 7; H.fishFeedZ = YZ0 - 5; H.fishAt = { lx: -6.2, lz: YZ0 - 1.4 }; }
-  if (st.sea) T.seaRect = buildSea(H, hyu ? { gap: [-10.2, -2.2, 3.4], side: st.seaSide || 0 } : {});
-  if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(2.7, pg.r + .75); } else T.pagoda = null;
+  if (st.sea) T.seaRect = buildSea(H, hyu ? { gap: [-10.2, -2.2, 3.4], side: st.seaSide || 0 } : yg ? { gap: YG.gap } : {});
+  if (yg && T.seaRect) T.seaRect.inlet = { x0: -YX - 7, x1: -YX + .3, z0: YZ0 - 1, z1: YG.ZB + .5 };
+  if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(yg ? 2.0 : 2.7, pg.r + .75); } else T.pagoda = null;
   // 사찰 상징물 (법당 옆 마당·뒤뜰)
   const exo = buildExtras(H, T); T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini; T.fish = exo.fish; T.anim = exo.anim;
   if (hyu) buildHyuhyu(H, T);
-  // 불단: 관음 도량은 서 있는 금빛 관세음보살을 모심 (휴휴암)
-  if (st.altar === 'gwaneum') for (const sl of hall.slots) { sl.obj.children.forEach(ch => { const g = ch.geometry; if (!(g && (g.type === 'CircleGeometry' || (g.type === 'TorusGeometry' && g.parameters.radius >= .4)))) ch.visible = false; }); standingGwaneum(o => sl.obj.parent.add(o), sl.x, sl.y, sl.z, 2.15 * sl.s, 0, H_GOLD); sl.skip = true; }
+  if (yg) { buildYonggung(H, T, YG); const hh = hall.heightAt; hall.heightAt = (lx, lz) => Math.max(hh(lx, lz), YG.ground(lx, lz)); }
+  T.figs = H.fig; // 바깥 불상·보살상 자리 (3D 존상 모델을 불러오면 바꿔 끼움)
   // 마당 위를 가로지르는 연등 줄 (조계사처럼 마당을 덮는 연등 지붕도) — 색깔별로 한 번에 그림
   const lanGeo = new THREE.IcosahedronGeometry(.21, 1), tasGeo = new THREE.CylinderGeometry(.02, .04, .22, 6), LM = MAT.lotus.length;
   const lanM = Array.from({ length: LM }, () => []), tasM = Array.from({ length: LM }, () => []), m4 = new THREE.Matrix4();
-  const rows = st.lanterns === 'canopy' ? Array.from({ length: Math.floor((YZ1 - 2 - (D / 2 + 5)) / 1.5) }, (_, i) => D / 2 + 5 + i * 1.5).filter(z => Math.abs(z - PZ) > 2) : [D / 2 + 7.2, D / 2 + 13.5, D / 2 + 17];
+  const gy = (x, z) => yg ? YG.ground(x, z) : 0;
+  const rows = yg ? [D / 2 + 3.0, D / 2 + 4.6, D / 2 + 8.0, D / 2 + 12.2, D / 2 + 13.4, D / 2 + 16.6] : st.lanterns === 'canopy' ? Array.from({ length: Math.floor((YZ1 - 2 - (D / 2 + 5)) / 1.5) }, (_, i) => D / 2 + 5 + i * 1.5).filter(z => Math.abs(z - PZ) > 2) : [D / 2 + 7.2, D / 2 + 13.5, D / 2 + 17];
   let k = 0;
   for (const z of rows) {
-    const x0 = -YX + .6, x1 = YX - .6;
-    for (const x of [x0, x1]) { add(new THREE.CylinderGeometry(.05, .06, 3.4, 6), MAT.line, x, 1.7, z); col(x, z, .12, .12); }
-    const wire = add(new THREE.CylinderGeometry(.01, .01, x1 - x0, 4), MAT.line, 0, 3.25, z, false); wire.rotation.z = Math.PI / 2;
+    const x0 = -YX + .6, x1 = YX - .6, wy = Math.max(gy(0, z), gy(x0, z));
+    for (const x of [x0, x1]) { const b = gy(x, z), hp = 3.4 + wy - b; add(new THREE.CylinderGeometry(.05, .06, hp, 6), MAT.line, x, b + hp / 2, z); col(x, z, .12, .12); }
+    const wire = add(new THREE.CylinderGeometry(.01, .01, x1 - x0, 4), MAT.line, 0, 3.25 + wy, z, false); wire.rotation.z = Math.PI / 2;
     for (let x = x0 + .9; x < x1 - .5; x += st.lanterns === 'canopy' ? .7 : .95) {
-      const c = k++ % LM; lanM[c].push(new THREE.Matrix4().compose(new THREE.Vector3(x, 2.95, z), new THREE.Quaternion(), new THREE.Vector3(1, .85, 1)));
-      tasM[(c + 2) % LM].push(new THREE.Matrix4().makeTranslation(x, 2.67, z));
+      const c = k++ % LM; lanM[c].push(new THREE.Matrix4().compose(new THREE.Vector3(x, 2.95 + wy, z), new THREE.Quaternion(), new THREE.Vector3(1, .85, 1)));
+      tasM[(c + 2) % LM].push(new THREE.Matrix4().makeTranslation(x, 2.67 + wy, z));
     }
   }
   T.wire = { z: rows[0], x0: -YX + .6, x1: YX - .6, step: st.lanterns === 'canopy' ? .7 : .95, items: [], k: 0 };
@@ -344,6 +352,7 @@ function plantTrees() {
       if (lx > Y.x0 - 2.5 && lx < Y.x1 + 2.5 && lz > Y.z0 - 2.5 && lz < Y.z1 + 2.5) return false;
       const S = T.seaRect; if (S && lz < S.z1 + 1 && lz > S.z0 && Math.abs(lx) < S.x) return false; // 바다
       if (S && S.cove && lx > S.cove.x0 && lx < S.cove.x1 && lz > S.cove.z0 && lz < S.cove.z1) return false; // 모래 해변
+      if (S && S.inlet && lx > S.inlet.x0 && lx < S.inlet.x1 && lz > S.inlet.z0 && lz < S.inlet.z1) return false; // 해동용궁사 물길
     }
     return true;
   };
@@ -398,36 +407,65 @@ const glbReady = loadMonkGLB(MONK_URL, { closedUrl: MONK_CLOSED, onProgress: f =
   .catch(e => { dbg('monkError', e.message); return null; });
 let blinkT = 2.5, idleT = 0;
 
-// 금동 불상 (Meshy로 만든 실제 3D 조형). 못 불러오면 코드로 그린 불상을 그대로 둠
-const STATUE_URL = QS.get('statue') || 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@898d0acabdb82f4c5bf3bbe52d99d4619ad7b591/assets/buddha.glb';
-let statueKit = null;
-const statueReady = loadStatue(STATUE_URL, renderer).then(k => (statueKit = k)).catch(e => { dbg('statueError', e.message); return null; });
-const TINT = (() => { const cache = { bronze: new Map(), stone: new Map() };
+// 불상·보살상 (Meshy로 만든 3D 조형 — 특정 실제 불상을 본뜨지 않고 일반 도상 설명만으로 새로 만든 모델)
+// sakya 석가(항마촉지인) · amita 아미타(선정인) · yaksa 약사(약합) · biro 비로자나(지권인) · bosal 앉은 보살 · bosalS 선 보살
+// disciple 선 제자 · chunsu 천수관음 · buddhaS 선 부처 · budai 포대화상. 아직 없는 모델은 비슷한 모델이나 코드로 그린 자리표시로 대신함
+const ASSET = 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@';
+const STATUE_URL = QS.get('statue') || ASSET + '898d0acabdb82f4c5bf3bbe52d99d4619ad7b591/assets/buddha.glb';
+const KIT_SHA = QS.get('kits') || '';
+const KIT_URL = k => k === 'sakya' ? STATUE_URL : KIT_SHA ? `${ASSET}${KIT_SHA}/assets/statue-${k}.glb` : null;
+const KIT_FALLBACK = { amita: 'sakya', yaksa: 'sakya', biro: 'sakya', bosal: 'sakya' };
+const KIT_H = { sakya: 2.0, amita: 2.0, yaksa: 2.0, biro: 2.0, bosal: 1.9, bosalS: 2.45, disciple: 2.1, chunsu: 2.5, buddhaS: 2.6, budai: 2.0 };
+const kitCache = new Map();
+function kitFor(k) {
+  if (!kitCache.has(k)) {
+    const url = KIT_URL(k);
+    const p = url ? loadStatue(url, renderer).catch(e => { dbg('kitError.' + k, e.message); return null; }) : Promise.resolve(null);
+    kitCache.set(k, p.then(kit => kit || (KIT_FALLBACK[k] ? kitFor(KIT_FALLBACK[k]) : null)));
+  }
+  return kitCache.get(k);
+}
+const TINT = (() => { const cache = { bronze: new Map(), stone: new Map(), gold: new Map(), marble: new Map() };
   const mk = (kind, fn) => m => { const c = cache[kind]; if (!c.has(m)) { const k = m.clone(); fn(k); c.set(m, k); } return c.get(m); };
   return {
     bronze: mk('bronze', k => { k.color.set('#8c7650'); k.metalness = .75; k.roughness = .42; k.emissiveIntensity = .05; }),
     stone: mk('stone', k => { k.map = null; k.emissiveMap = null; k.emissiveIntensity = 0; k.color.set('#a7a29a'); k.metalness = 0; k.roughness = .95; k.envMapIntensity = .25; }),
+    gold: mk('gold', k => { k.color.set('#ffd98a'); k.metalness = .8; k.roughness = .3; k.emissiveIntensity = .22; }),
+    marble: mk('marble', k => { k.map = null; k.emissiveMap = null; k.emissiveIntensity = 0; k.color.set('#f1eee8'); k.metalness = 0; k.roughness = .55; k.envMapIntensity = .4; }),
   };
 })();
+const tintObj = (obj, kind) => { if (kind) obj.traverse(o => { if (!o.isMesh) return; o.material = TINT[kind](o.material); if (kind === 'stone') o.castShadow = false; }); };
+const isHalo = ch => { const g = ch.geometry; return g && (g.type === 'CircleGeometry' || (g.type === 'TorusGeometry' && g.parameters.radius >= .4)); };
 async function enshrineStatues() {
-  const kit = await statueReady; if (!kit) return;
   let n = 0;
+  const jobs = [];
   for (const T of temples) for (const sl of (T.hall && T.hall.slots) || []) {
     if (sl.skip) continue;
-    const old = sl.obj, s = sl.s;
-    // 두광·신광(뒤쪽 원판)만 남기고 코드 불상 몸은 숨김
-    old.children.forEach(ch => { const g = ch.geometry, halo = g && (g.type === 'CircleGeometry' || (g.type === 'TorusGeometry' && g.parameters.radius >= .4)); if (!halo) ch.visible = false; });
-    const st = kit.make(2.0 * s), d = st.userData.depth;
-    const back = sl.z - .27 * s, cz = Math.min(back + d / 2, sl.z + .95 - d / 2);
-    st.position.set(sl.x, sl.y, cz);
-    old.parent.add(st); sl.statue = st; n++;
+    jobs.push(kitFor(sl.k || 'sakya').then(kit => {
+      if (!kit) return; // 모델이 없으면 코드로 그린 자리표시를 그대로 둠
+      const old = sl.obj, s = sl.s;
+      old.children.forEach(ch => { if (!isHalo(ch)) ch.visible = false; }); // 두광·신광(뒤쪽 원판)만 남김
+      const st = kit.make((KIT_H[sl.k] || 2) * s), d = st.userData.depth;
+      const back = sl.z - .27 * s, cz = Math.min(back + d / 2, sl.z + .95 - d / 2);
+      st.position.set(sl.x, sl.y, cz);
+      old.parent.add(st); sl.statue = st; n++;
+    }));
   }
   // 바깥 불상: 신흥사 통일대불(청동), 관음사 길가 돌부처
-  const tint = (obj, kind) => obj.traverse(o => { if (!o.isMesh) return; o.material = TINT[kind](o.material); if (kind === 'stone') o.castShadow = false; });
-  for (const T of temples) {
-    if (T.bigBuddha && T.site) { const b = T.bigBuddha, st = kit.make(b.h); tint(st, 'bronze'); st.position.set(b.lx, b.ly, b.lz); T.site.add(st); n++; }
-    if (T.mini && T.site) for (const m of T.mini) { const st = kit.make(.95); tint(st, 'stone'); st.position.set(m.lx, m.ly, m.lz); st.rotation.y = m.lx > 0 ? -Math.PI / 2 : Math.PI / 2; T.site.add(st); n++; }
-  }
+  jobs.push(kitFor('sakya').then(kit => {
+    if (!kit) return;
+    for (const T of temples) {
+      if (T.bigBuddha && T.site) { const b = T.bigBuddha, st = kit.make(b.h); tintObj(st, 'bronze'); st.position.set(b.lx, b.ly, b.lz); T.site.add(st); n++; }
+      if (T.mini && T.site) for (const m of T.mini) { const st = kit.make(.95); tintObj(st, 'stone'); st.position.set(m.lx, m.ly, m.lz); st.rotation.y = m.lx > 0 ? -Math.PI / 2 : Math.PI / 2; T.site.add(st); n++; }
+    }
+  }));
+  // 바깥 보살상·입불·포대화상 (해수관음대불, 지혜관음, 큰 입불 등)
+  for (const T of temples) for (const f of T.figs || []) jobs.push(kitFor(f.k).then(kit => {
+    if (!kit || !T.site) return;
+    const st = kit.make(f.h); tintObj(st, f.tint); st.position.set(f.lx, f.ly, f.lz); st.rotation.y = f.ry || 0; T.site.add(st);
+    (f.ph || []).forEach(o => { o.visible = false; }); n++;
+  }));
+  await Promise.all(jobs);
   dbg('statues', n);
 }
 

@@ -1,7 +1,8 @@
 // 법당 하나 — 앞면이 +z. 계단으로 올라가 안으로 들어가고, 가운데 방석에서 삼배를 올릴 수 있게 내부까지 만든 모델 (위레브)
 // L: 정면 폭, D: 측면 깊이(실제 건물 크기에서 가져옴), buddhas: 불단 위 부처님 수(1 또는 3)
 // roof: 'hip'(팔작) | 'gable'(맞배) · stories: 2면 바깥이 2층(중층) · plain: 단청 없는 나무 빛 · sign: 현판 글자 텍스처
-export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, roof: roofType = 'hip', stories = 1, plain = false, sign = null } = {}) {
+// altar: 불단 위 존상 [{k, s}] (보는 사람 기준 왼쪽→오른쪽) — k: sakya·amita·yaksa·biro(앉은 부처), bosal(앉은 보살), bosalS(선 보살), disciple(선 제자), chunsu(천수관음), buddhaS(선 부처)
+export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, roof: roofType = 'hip', stories = 1, plain = false, sign = null } = {}) {
   const g = new THREE.Group();
   const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
   const MAT = {
@@ -122,9 +123,17 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, roof: roofType =
   for (const sx of [-1, 1]) box(.1, PH, .07, MAT.trim, sx * (AW / 2 + .35), PY, iz0 + .05);
   // 부처님 (삼존불 또는 한 분)
   const BY = FY + AH + .1;
-  const seats = buddhas >= 3 ? [[0, 1], [-AW * .33, .78], [AW * .33, .78]] : buddhas >= 1 ? [[0, 1]] : [];
+  const STAND = k => ['bosalS', 'disciple', 'chunsu', 'buddhaS'].includes(k), WID = k => STAND(k) ? (k === 'chunsu' ? 1.2 : .8) : 1.45;
+  const list = altar && altar.length ? altar : buddhas >= 3 ? [{ k: 'amita', s: .8 }, { k: 'sakya', s: 1 }, { k: 'yaksa', s: .8 }] : buddhas >= 1 ? [{ k: 'sakya', s: 1 }] : [];
+  const gap = .25, need = list.reduce((a, it) => a + WID(it.k) * it.s, 0) + Math.max(0, list.length - 1) * gap, fit = Math.min(1.15, (AW - .4) / Math.max(.1, need));
   const slots = []; // 부처님 자리 (나중에 실제 불상 모델로 바꿔 끼움)
-  for (const [x, s] of seats) { const b = buddha(THREE, MAT, s); b.position.set(x, BY, AZ - .15); g.add(b); slots.push({ x, y: BY, z: AZ - .15, s, obj: b }); }
+  let cx = -need * fit / 2;
+  for (const it of list) {
+    const w = WID(it.k) * it.s * fit, x = cx + w / 2, s = it.s * fit; cx += w + gap * fit;
+    const b = STAND(it.k) ? standing(THREE, MAT, s, it.k) : buddha(THREE, MAT, s); b.position.set(x, BY, AZ - .15); g.add(b);
+    slots.push({ x, y: BY, z: AZ - .15, s, k: it.k, stand: STAND(it.k), obj: b });
+  }
+  const seats = list;
   if (!seats.length) { // 적멸보궁: 불상 대신 진신사리를 모신 종 모양 사리탑
     add(new THREE.CylinderGeometry(.55, .62, .22, 16), MAT.bronze, 0, BY + .11, AZ - .15);
     const bell = add(new THREE.SphereGeometry(.42, 20, 14), MAT.gold, 0, BY + .62, AZ - .15); bell.scale.y = 1.25;
@@ -176,6 +185,15 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, roof: roofType =
 }
 
 // 부처님 (단순한 도형으로 공손하게 표현한 좌상)
+// 선 존상 자리표시 (모델을 불러오기 전·못 불러올 때): 옷자락을 돌려 깎은 금빛 입상
+function standing(THREE, MAT, s, k) {
+  const b = new THREE.Group(), H = (k === 'disciple' ? 2.2 : 2.5) * s;
+  const prof = [[0, 0], [.17, 0], [.16, .05], [.13, .35], [.12, .55], [.135, .7], [.12, .76], [.07, .8], [0, .8]].map(([r, y]) => new THREE.Vector2(r * H, y * H));
+  const m = new THREE.Mesh(new THREE.LatheGeometry(prof, 16), MAT.gold); m.castShadow = true; b.add(m);
+  const hd = new THREE.Mesh(new THREE.SphereGeometry(.07 * H, 14, 10), MAT.gold); hd.position.y = .86 * H; b.add(hd);
+  if (k !== 'disciple') { const c = new THREE.Mesh(new THREE.CylinderGeometry(.04 * H, .06 * H, .08 * H, 10), MAT.gold); c.position.y = .94 * H; b.add(c); }
+  return b;
+}
 function buddha(THREE, MAT, s) {
   const b = new THREE.Group();
   const add = (geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; b.add(m); return m; };
