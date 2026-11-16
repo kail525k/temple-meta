@@ -810,7 +810,7 @@ function updateCtx(inside, dBow, lx, lz) {
   const acts = [];
   if (!sam && !tapdori) {
     if (inside && dBow < 2.2 && !sit) acts.push(['🙇 여기서 삼배 올리기', startSambae]);
-    if (inside && lz < hall.bowSpot.lz + 2.5) acts.push(['🪔 향 올리기', offerIncense]);
+    if (inside && !sit) acts.push(['🪔 향 올리기', offerIncense]);
     if (inside) acts.push([sit ? '🙂 일어나기' : '🧘 방석에 앉기', toggleSit]);
     if (!inside && cur && cur.pagoda && Math.hypot(avatar.position.x - cur.pagoda.x, avatar.position.z - cur.pagoda.z) < 4.6) acts.push(['🪷 탑돌이 시작', () => startTapdori(cur)]);
     if (BELL && Math.hypot(avatar.position.x - BELL.x, avatar.position.z - BELL.z) < 3.6) acts.push(['🔔 범종 치기', strikeBell]);
