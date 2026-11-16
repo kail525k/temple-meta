@@ -59,7 +59,7 @@ function vworldJSONP(path, params, ms = 15000) {
 async function findHallPoint(t) {
   const norm = v => (v || '').replace(/\s/g, '');
   const near = it => it.point && Math.hypot((+it.point.y - t.lat) * 111, (+it.point.x - t.lng) * 111 * Math.cos(t.lat * Math.PI / 180)) < 12;
-  for (const q of [`${t.name} ${t.hall}`, t.name]) {
+  for (const q of [`${t.name} ${t.hall}`, t.q || `${t.where.split(' ')[0]} ${t.name}`, t.name]) {
     try {
       const d = await vworldJSONP('search', { service: 'search', request: 'search', version: '2.0', crs: 'EPSG:4326', size: '10', page: '1', query: q, type: 'place', format: 'json', errorformat: 'json' }, 9000);
       const items = (d.response && d.response.result && d.response.result.items) || [];
@@ -638,7 +638,7 @@ regionModal.addEventListener('pointerdown', e => { if (e.target === regionModal)
     const pt = await findHallPoint(t); T.ref = mkRef(pt.lat, pt.lng); T.via = pt.via;
     try {
       const d = await vworldBuildings(T.ref), r = d && d.response;
-      if (!r || r.status !== 'OK') { const e = r && r.error; throw new Error(e ? `${e.code} ${e.text}` : '응답 형식 오류'); }
+      if (!r || r.status !== 'OK') { const e = r && r.error; throw new Error(e ? `${e.code} ${e.text}` : r && r.status === 'NOT_FOUND' ? '주변 건물 자료 없음(기본 크기로 지음)' : '응답 형식 오류'); }
       T.info = pickHall(r.result.featureCollection.features, T.ref, t.name);
       if (!T.info) throw new Error('법당 건물을 찾지 못함');
       ok++;
