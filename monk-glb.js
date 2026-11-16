@@ -121,7 +121,7 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
   // ── 감은 눈 덧씌우기 ──
   const lids = [];
   if (eyes && B.Head) {
-    const tex = lidTexture(eyes.skin);
+    const tex = lidTexture(eyes[0].skin);
     for (const e of eyes) {
       const w = e.w * 1.35, h = e.h * 1.3;
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: .6, polygonOffset: true, polygonOffsetFactor: -4 }));
