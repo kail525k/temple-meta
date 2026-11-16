@@ -1,6 +1,7 @@
 // 온라인 사찰 참배 체험판 — 사찰마다 법당 하나만 실제 위치·방향·크기로 놓고, 안에 들어가 삼배를 올림 (위레브)
 import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
+import { loadMonkGLB } from './monk-glb.js?v=1';
 import { buildHall } from './hall.js?v=1';
 
 /* ───────── 설정 ───────── */
@@ -241,6 +242,12 @@ function clampBound(p) {
 /* ───────── 아바타 (아기 스님) ───────── */
 const { avatar, body, headG, torso, kasa, legs, eyeGroups, closedEyes, faceOpen, placeArms, faceFill } = createBabyMonk();
 scene.add(avatar, faceFill, faceFill.target);
+// Meshy로 만든 아기 스님 3D 모델(시트 그대로). 못 불러오면 지금의 코드 아바타를 그대로 씀
+const MONK_URL = new URLSearchParams(location.search).get('monk') || 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@ea753afac051478b6d31f64e96f39f54abba9fec/assets/baby-monk.glb';
+let glb = null;
+const glbReady = loadMonkGLB(MONK_URL, { onProgress: f => { const m = document.getElementById('loadMsg'); if (m && !document.getElementById('loading').classList.contains('hide')) m.innerHTML = `아기 스님을 모시는 중… ${Math.round(f * 100)}%`; } })
+  .then(m => { glb = m; avatar.add(m.root); body.visible = false; dbg('monk', m.info); return m; })
+  .catch(e => { dbg('monkError', e.message); return null; });
 let blinkT = 2.5, idleT = 0;
 
 /* ───────── 입력 ───────── */
@@ -446,6 +453,7 @@ function step() {
     if (pose === 'bow') { body.rotation.x = clamp(Math.min((poseT - .3) / .4, (dur - poseT) / .5), 0, 1) * 0.8; headG.rotation.x = body.rotation.x * .3; }
     if (poseT > dur) { pose = null; resetBody(); }
   }
+  if (glb) glb.update(dt, { walkAmp, speed, hap, kneel: body.position.y < 0 ? Math.min(1, -body.position.y / .2) : 0, bend: body.rotation.x, headX: headG.rotation.x, headZ: headG.rotation.z, closed: hap > .5, blink: blinkT < .12 });
   placeArms(hap, hap ? 0 : swing);
   const closed = hap > .5;
   eyeGroups.forEach(g => { g.visible = !closed; }); closedEyes.forEach(c => { c.visible = closed; }); faceOpen.forEach(m => { m.visible = !closed; });
@@ -496,6 +504,7 @@ function step() {
   placeAtStart();
   const [cx, cz] = L2W(startL[0], startL[1] - 5);
   camera.position.set(cx, 2.4, cz);
+  await Promise.race([glbReady, new Promise(r => setTimeout(r, 9000))]); // 모델이 늦으면 9초 뒤 코드 아바타로 먼저 시작
   document.getElementById('loading').classList.add('hide');
   canvas.focus();
   loop();

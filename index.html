@@ -59,7 +59,7 @@
   @keyframes pulse{50%{transform:translateX(-50%) scale(1.06)}}
   @media (max-width:520px){#title h1{font-size:15px}#title{max-width:calc(100vw - 144px)}#minimap{width:108px;height:108px}#dbg{top:calc(max(12px,env(safe-area-inset-top)) + 122px)}#actions button{padding:9px 13px;font-size:13px}}
 </style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 </head>
 <body>
 <canvas id="c" tabindex="0"></canvas>
@@ -99,6 +99,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=1"></script>
+<script type="module" src="./app.js?v=2"></script>
 </body>
 </html>
