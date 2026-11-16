@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=2';
 import { buildHall } from './hall.js?v=3';
+import { loadStatue } from './statue.js?v=1';
 import { REGIONS } from './temples.js?v=2';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=1';
 
@@ -319,6 +320,7 @@ function plantTrees() {
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3();
   const free = (x, z) => {
     const r = Math.hypot(x, z); if (r < 11) return false;
+    for (const S of [BELL, RACK]) if (S && Math.hypot(x - S.x, z - S.z) < 6.5) return false; // 범종각·연등대 가림 방지
     for (const T of temples) {
       const along = x * T.ux + z * T.uz, side = Math.abs(x * T.uz - z * T.ux);
       if (along > 0 && along < RG + 2 && side < 3.2) return false; // 박석길
@@ -371,6 +373,25 @@ const glbReady = loadMonkGLB(MONK_URL, { onProgress: f => { const m = document.g
   .then(m => { glb = m; avatar.add(m.root); body.visible = false; dbg('monk', m.info); return m; })
   .catch(e => { dbg('monkError', e.message); return null; });
 let blinkT = 2.5, idleT = 0;
+
+// 금동 불상 (Meshy로 만든 실제 3D 조형). 못 불러오면 코드로 그린 불상을 그대로 둠
+const STATUE_URL = QS.get('statue') || 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@898d0acabdb82f4c5bf3bbe52d99d4619ad7b591/assets/buddha.glb';
+let statueKit = null;
+const statueReady = loadStatue(STATUE_URL, renderer).then(k => (statueKit = k)).catch(e => { dbg('statueError', e.message); return null; });
+async function enshrineStatues() {
+  const kit = await statueReady; if (!kit) return;
+  let n = 0;
+  for (const T of temples) for (const sl of (T.hall && T.hall.slots) || []) {
+    const old = sl.obj, s = sl.s;
+    // 두광·신광(뒤쪽 원판)만 남기고 코드 불상 몸은 숨김
+    old.children.forEach(ch => { const g = ch.geometry, halo = g && (g.type === 'CircleGeometry' || (g.type === 'TorusGeometry' && g.parameters.radius >= .4)); if (!halo) ch.visible = false; });
+    const st = kit.make(2.0 * s), d = st.userData.depth;
+    const back = sl.z - .27 * s, cz = Math.min(back + d / 2, sl.z + 1.0 - d / 2);
+    st.position.set(sl.x, sl.y, cz);
+    old.parent.add(st); sl.statue = st; n++;
+  }
+  dbg('statues', n);
+}
 
 /* ───────── 입력 ───────── */
 const keys = {};
@@ -841,8 +862,8 @@ function openMap() {
   mapSpots = [{ n: '순례 마당', x: 0, z: 0, go: () => document.getElementById('btnHome').click() }];
   for (const T of temples) { setFrame(T); const [gx, gz] = L2W(0, T.YARD.z1 + 2.5); mapSpots.push({ n: T.name, x: gx, z: gz, go: () => goTemple(T) }); if (T.pagoda) mapSpots.push({ n: `${T.name} 탑돌이`, x: T.pagoda.x, z: T.pagoda.z, small: 1, go: () => { goTemple(T); avatar.position.set(T.pagoda.x + (avatar.position.x - T.pagoda.x) * 0 + T.ux * 3.2, 0, T.pagoda.z + T.uz * 3.2); } }); }
   if (cur) setFrame(cur);
-  if (BELL) mapSpots.push({ n: '범종각', x: BELL.x, z: BELL.z, go: () => { avatar.position.set(BELL.stand[0], 0, BELL.stand[1]); avatar.rotation.y = Math.atan2(BELL.x - BELL.stand[0], BELL.z - BELL.stand[1]); yaw = avatar.rotation.y + Math.PI; } });
-  if (RACK) mapSpots.push({ n: '소원 연등대', x: RACK.x, z: RACK.z, go: () => { avatar.position.set(RACK.stand[0], 0, RACK.stand[1]); avatar.rotation.y = Math.atan2(RACK.x - RACK.stand[0], RACK.z - RACK.stand[1]); yaw = avatar.rotation.y + Math.PI; } });
+  if (BELL) mapSpots.push({ n: '범종각', x: BELL.x, z: BELL.z, go: () => { avatar.position.set(BELL.stand[0], 0, BELL.stand[1]); avatar.rotation.y = Math.atan2(BELL.x - BELL.stand[0], BELL.z - BELL.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; } });
+  if (RACK) mapSpots.push({ n: '소원 연등대', x: RACK.x, z: RACK.z, go: () => { avatar.position.set(RACK.stand[0], 0, RACK.stand[1]); avatar.rotation.y = Math.atan2(RACK.x - RACK.stand[0], RACK.z - RACK.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; } });
   for (const sp of mapSpots) { const [x, y] = P(sp.x, sp.z); sp.px = x; sp.py = y; if (sp.n === '순례 마당' || sp.small) continue; c.fillStyle = '#9b3b2b'; c.beginPath(); c.arc(x, y, 7, 0, 7); c.fill(); }
   for (const sp of mapSpots.filter(q => !temples.some(T => T.name === q.n))) { c.fillStyle = sp.small ? '#6d5f4b' : '#2e8b74'; c.beginPath(); c.arc(sp.px, sp.py, sp.small ? 5 : 8, 0, 7); c.fill(); c.font = `600 ${sp.small ? 15 : 19}px sans-serif`; c.textAlign = 'center'; c.fillStyle = '#3d2a1c'; c.fillText(sp.n.replace(/^.* /, ''), sp.px, sp.py - 12); }
   mapModal.classList.add('show');
@@ -904,6 +925,7 @@ regionModal.addEventListener('pointerdown', e => { if (e.target === regionModal)
   for (const T of temples) { T.lightPos = T.hall.lights.map(l => l.position.clone()); if (T !== temples[0]) T.hall.lights.forEach(l => l.removeFromParent()); }
   buildCommons();
   try { plantTrees(); } catch (e) { dbg('treeError', e.message); }
+  enshrineStatues();
   useTemple(temples[0]);
   placeAtStart();
   camera.position.set(temples[0].ux * 6, 2.2, temples[0].uz * 6);
