@@ -76,7 +76,7 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, roof: roofType =
     const m = add(hipRoofGeo(THREE, lr, wr, rh, rlx, Math.min(.8, wr * .06)), MAT.roof, 0, y, 0); m.receiveShadow = false;
     if (ridge) { box(rlx + .5, .42, .5, MAT.ridge, 0, y + rh + .12, 0); for (const sx of [-1, 1]) box(.35, .75, .42, MAT.ridge, sx * (rlx / 2 + .25), y + rh + .35, 0); }
   };
-  let signY = FY + H + .62, signZ = D / 2 - .18, signW = Math.min(2.6, L * .2);
+  let signY = FY + H + .5, signZ = D / 2 - .18, signW = Math.min(2.6, L * .2);
   if (stories >= 2) {
     // 아래층 지붕(낮게) → 2층 벽 → 윗지붕
     const UL = L - 2.6, UD = D - 2.6, UH = 2.5;

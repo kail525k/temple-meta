@@ -2,8 +2,8 @@
 import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=2';
-import { buildHall } from './hall.js?v=5';
-import { buildPagoda, buildExtras, buildBackdrop, treeKit } from './regional.js?v=1';
+import { buildHall } from './hall.js?v=6';
+import { buildPagoda, buildExtras, buildBackdrop, treeKit } from './regional.js?v=2';
 import { loadStatue } from './statue.js?v=1';
 import { REGIONS } from './temples.js?v=3';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=2';
@@ -317,7 +317,7 @@ function buildCommons() {
   for (let i = 0; i < 10; i++) {
     const a = i / 10 * Math.PI * 2 + .3, x = Math.sin(a) * 8.9, z = Math.cos(a) * 8.9;
     if (temples.some(T => Math.abs(x * T.uz - z * T.ux) < 2.4 && x * T.ux + z * T.uz > 0)) continue; // 길 입구는 비움
-    if ([BELL, RACK].some(S => S && Math.abs(x * S.uz - z * S.ux) < 2.6 && x * S.ux + z * S.uz > 0)) continue; // 범종각·연등대 가는 쪽도 비움
+    if ([BELL, RACK, TILE].some(S => S && Math.abs(x * S.uz - z * S.ux) < 2.6 && x * S.ux + z * S.uz > 0)) continue; // 범종각·연등대 가는 쪽도 비움
     add(new THREE.CylinderGeometry(.05, .06, 2.6, 6), MAT.line, x, 1.3, z); add(lanGeo, MAT.lotus[i % MAT.lotus.length], x, 2.55, z, false);
   }
 }
@@ -794,12 +794,12 @@ function buildBellAndRack(g, add) {
     B(2.2, .08, .8, MAT.trunk, 0, .78, 1.0); for (const sx of [-1, 1]) for (const sz of [-1, 1]) B(.08, .78, .08, MAT.trunk, sx * 1.0, .39, 1.0 + sz * .32);
     B(.42, .05, .28, MAT.stoneDark, -.6, .84, 1.0); const br = ad(new THREE.CylinderGeometry(.015, .02, .36, 6), MAT.line, -.1, .84, 1.05); br.rotation.z = Math.PI / 2;
     for (let i = 0; i < 3; i++) { const t = ad(TILE_GEO, TILE_MAT, .62, .86 + i * .05, 1.0); t.rotation.x = -Math.PI / 2; t.scale.set(.8, .8, .8); }
-    for (let r = 0; r < 3; r++) { B(4.4, .1, .55, MAT.trunk, 0, .45 + r * .55, -r * .5); B(4.4, .45 + r * .55, .08, MAT.trunk, 0, (.45 + r * .55) / 2, -r * .5 - .24); }
-    for (const sx of [-1, 1]) B(.12, 2.9, .12, MAT.trunk, sx * 2.3, 1.45, -1.35);
-    B(4.7, .1, .12, MAT.trunk, 0, 2.95, -1.35);
-    const sign = ad(new THREE.PlaneGeometry(1.5, .42), new THREE.MeshStandardMaterial({ map: nameTex('기와 불사', '#3a2418', '#f2cf72', 46), roughness: .7 }), 0, 2.62, -1.28); sign.castShadow = false;
+    for (let r = 0; r < 3; r++) { B(4.4, .1, .55, MAT.trunk, 0, 1.05 + r * .55, -r * .5); B(4.4, 1.05 + r * .55, .08, MAT.trunk, 0, (1.05 + r * .55) / 2, -r * .5 - .24); }
+    for (const sx of [-1, 1]) B(.12, 3.5, .12, MAT.trunk, sx * 2.3, 1.75, -1.35);
+    B(4.7, .1, .12, MAT.trunk, 0, 3.5, -1.35);
+    const sign = ad(new THREE.PlaneGeometry(1.5, .42), new THREE.MeshStandardMaterial({ map: nameTex('기와 불사', '#3a2418', '#f2cf72', 46), roughness: .7 }), 0, 3.12, -1.28); sign.castShadow = false;
     const slots = [];
-    for (let r = 0; r < 3; r++) for (let c = 0; c < 8; c++) { const m = ad(TILE_GEO, TILE_MAT, -1.75 + c * .5, .5 + r * .55 + .23, -r * .5); slots.push(m); }
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 8; c++) { const m = ad(TILE_GEO, TILE_MAT, -1.75 + c * .5, 1.1 + r * .55 + .23, -r * .5); slots.push(m); }
     obstacles.push({ cx: x, cz: z, c: Math.cos(grp.rotation.y), s: -Math.sin(grp.rotation.y), hu: 2.45, hv: 1.55 });
     TILE = { x, z, ux, uz, grp, slots, k: 0, stand: [ux * (R0 - 2.7), uz * (R0 - 2.7)] };
     for (const w of store.tiles(REGION.id)) hangTile(w, false);
