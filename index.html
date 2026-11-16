@@ -99,7 +99,7 @@
   #pano{position:absolute;left:0;top:0;width:100%;height:100%}
   #panoMsg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--paper);padding:12px 16px;border-radius:12px;font-size:13px;text-align:center;max-width:80%;display:none;line-height:1.5}
   #modal footer{font-size:10px;color:#8a7a62;padding:6px 14px}
-  #toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);padding:8px 14px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none}
+  #toast{position:fixed;left:50%;bottom:180px;z-index:7;transform:translateX(-50%);padding:8px 14px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none}
   #toast.show{opacity:1}
   #bowPrompt{position:fixed;left:50%;bottom:calc(max(26px,env(safe-area-inset-bottom)) + 70px);transform:translateX(-50%);display:none;border:0;border-radius:99px;padding:13px 22px;font-size:16px;font-weight:700;color:#fff;background:var(--accent);box-shadow:0 6px 20px rgba(120,40,20,.35);cursor:pointer;font-family:inherit;animation:pulse 2s ease-in-out infinite;z-index:6}
   @keyframes pulse{50%{transform:translateX(-50%) scale(1.06)}}
@@ -175,6 +175,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=6"></script>
+<script type="module" src="./app.js?v=7"></script>
 </body>
 </html>
