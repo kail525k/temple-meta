@@ -67,6 +67,7 @@
   #todoPanel div{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed var(--line);color:#6d5f4b}
   #todoPanel div.on{color:var(--jade);font-weight:600}#todoPanel i{font-style:normal;width:18px;height:18px;border-radius:50%;border:1.5px solid #cbbd9f;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none}
   #todoPanel div.on i{background:var(--jade);border-color:var(--jade);color:#fff}
+  #peoplePanel div{padding:5px 0;border-top:1px dashed var(--line);color:#6d5f4b}#peoplePanel div.empty{color:#9a8b72}#peoplePanel .me{display:flex;align-items:center;gap:6px;color:var(--ink);font-weight:600}#peoplePanel .me input{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-family:inherit;font-size:13px;background:#fffdf8}#peoplePanel .me button{border:0;border-radius:99px;padding:6px 10px;background:var(--accent);color:#fff;font-weight:700;font-family:inherit;cursor:pointer}
   #soundPanel label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line)}#soundPanel input[type=range]{width:130px}
   #ritual{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:25;background:rgba(40,30,20,.18);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
   #ritual.show{display:flex}#ritualStage{touch-action:none;user-select:none}#ritualStage svg{cursor:pointer;filter:drop-shadow(0 14px 18px rgba(60,30,10,.35))}
@@ -138,9 +139,10 @@
   <button id="btnPhoto" title="사진 저장"><i>📸</i>사진</button>
 </div>
 <div id="ctxBar"></div>
-<div id="topBtns"><button id="btnTodo">📋 0/11</button><button id="btnSound">🔈</button></div>
+<div id="topBtns"><button id="btnPeople" title="함께 순례 중인 사람">👥 1</button><button id="btnTodo">📋 0/12</button><button id="btnSound">🔈</button></div>
 <div id="todoPanel" class="panel card"></div>
 <div id="soundPanel" class="panel card"></div>
+<div id="peoplePanel" class="panel card"></div>
 <div id="ritual"><div id="ritualStage"></div><div id="ritualInfo"></div><div id="ritualCtrl"></div><button id="ritualClose">닫기 ✕</button></div>
 <div id="wishModal"><div class="box card">
   <b id="wishTitle">🏮 소원 연등 걸기</b><small id="wishSub">순례 마당 소원 연등대에 걸려요 · 지금은 이 기기에서만 보여요</small>
@@ -176,6 +178,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=13"></script>
+<script type="module" src="./app.js?v=14"></script>
 </body>
 </html>

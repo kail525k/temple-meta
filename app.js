@@ -3,9 +3,10 @@ import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=2';
 import { buildHall } from './hall.js?v=6';
-import { buildPagoda, buildExtras, buildBackdrop, treeKit } from './regional.js?v=2';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, treeKit } from './regional.js?v=3';
 import { loadStatue } from './statue.js?v=1';
-import { REGIONS } from './temples.js?v=3';
+import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
+import { REGIONS } from './temples.js?v=4';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=2';
 
 /* ───────── 설정 ───────── */
@@ -215,7 +216,7 @@ function buildSite(info, T) {
   const col = (cx, cz, hx, hz) => { const c = { cx, cz, hx, hz }; loc.push(c); addCollider(c); };
 
   // 마당과 박석길
-  const back = ex.includes('janggyeong') ? 12.5 : ex.includes('gyedan') ? 9 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
+  const back = ex.includes('janggyeong') ? 12.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('whiteGwaneum') ? 7.5 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
   const YX = L / 2 + 6, YZ0 = -D / 2 - 2 - back, YZ1 = D / 2 + 19;
   YARD = { x0: -YX, x1: YX, z0: YZ0, z1: YZ1 };
   const yard = add(new THREE.PlaneGeometry(2 * YX, YZ1 - YZ0), MAT.yard, 0, .02, (YZ0 + YZ1) / 2, false); yard.rotation.x = -Math.PI / 2;
@@ -223,7 +224,7 @@ function buildSite(info, T) {
   // 낮은 담장 + 앞쪽 문
   const WH = .95, wall = (w, d, x, z) => { box(w, WH, d, MAT.wallStone, x, WH / 2, z); box(w + .2, .18, d + .2, MAT.wallCap, x, WH + .09, z); col(x, z, w / 2 + .05, d / 2 + .05); };
   for (const sx of [-1, 1]) wall(.45, YZ1 - YZ0, sx * YX, (YZ0 + YZ1) / 2);
-  wall(2 * YX + .45, .45, 0, YZ0);
+  if (!st.sea) wall(2 * YX + .45, .45, 0, YZ0); // 바다 사찰은 뒤가 바다 (흰 돌난간)
   for (const sx of [-1, 1]) wall(YX - 1.6, .45, sx * (1.6 + (YX - 1.6) / 2), YZ1);
   for (const sx of [-1, 1]) { add(new THREE.CylinderGeometry(.16, .18, 3, 10), MAT.red, sx * 1.6, 1.5, YZ1); col(sx * 1.6, YZ1, .25, .25); }
   box(4.2, .3, 1.2, MAT.wallCap, 0, 3.1, YZ1); box(3.6, .25, .3, MAT.red, 0, 2.8, YZ1);
@@ -234,11 +235,12 @@ function buildSite(info, T) {
   add(new THREE.ConeGeometry(.52, .38, 8), MAT.stoneDark, 0, 2.06, SL); add(new THREE.SphereGeometry(.1, 10, 8), MAT.stoneDark, 0, 2.3, SL);
   col(0, SL, .55, .55);
   // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
-  const PZ = D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, nameTex };
+  const PZ = D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, nameTex, site };
+  if (st.sea) T.seaRect = buildSea(H);
   const pg = buildPagoda(H, st.pagoda, PZ);
   { const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(2.7, pg.r + .75); }
   // 사찰 상징물 (법당 옆 마당·뒤뜰)
-  const exo = buildExtras(H, T); T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini;
+  const exo = buildExtras(H, T); T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini; T.fish = exo.fish; T.anim = exo.anim;
   // 마당 위를 가로지르는 연등 줄 (조계사처럼 마당을 덮는 연등 지붕도) — 색깔별로 한 번에 그림
   const lanGeo = new THREE.IcosahedronGeometry(.21, 1), tasGeo = new THREE.CylinderGeometry(.02, .04, .22, 6), LM = MAT.lotus.length;
   const lanM = Array.from({ length: LM }, () => []), tasM = Array.from({ length: LM }, () => []), m4 = new THREE.Matrix4();
@@ -333,6 +335,7 @@ function plantTrees() {
       if (along > 0 && along < RG + 2 && side < 3.2) return false; // 박석길
       setFrame(T); const [lx, lz] = W2L(x, z), Y = T.YARD;
       if (lx > Y.x0 - 2.5 && lx < Y.x1 + 2.5 && lz > Y.z0 - 2.5 && lz < Y.z1 + 2.5) return false;
+      const S = T.seaRect; if (S && lz < S.z1 + 1 && lz > S.z0 && Math.abs(lx) < S.x) return false; // 바다
     }
     return true;
   };
@@ -579,6 +582,7 @@ function drawRegionMap(mctx, W, H, big) {
   if (BELL) { const [bx, bz] = P(BELL.x, BELL.z); mctx.fillStyle = '#4f5a3c'; mctx.beginPath(); mctx.arc(bx, bz, big ? 7 : 4, 0, 7); mctx.fill(); }
   if (TILE) { const [tx, tz] = P(TILE.x, TILE.z); mctx.fillStyle = '#5b636f'; mctx.fillRect(tx - (big ? 8 : 4), tz - (big ? 5 : 3), big ? 16 : 8, big ? 10 : 6); }
   if (RACK) { const [rx, rz] = P(RACK.x, RACK.z); mctx.fillStyle = '#e0a020'; mctx.fillRect(rx - (big ? 9 : 5), rz - 2, big ? 18 : 10, 4); }
+  mctx.fillStyle = '#3d7fd6'; for (const Pp of peers.values()) if (Pp.g.visible) { const [px, pz] = P(Pp.g.position.x, Pp.g.position.z); mctx.beginPath(); mctx.arc(px, pz, big ? 6 : 3.5, 0, 7); mctx.fill(); }
   const [ax, az] = P(avatar.position.x, avatar.position.z);
   mctx.save(); mctx.translate(ax, az); mctx.rotate(Math.PI - avatar.rotation.y); mctx.fillStyle = '#d0382b'; mctx.beginPath(); mctx.moveTo(0, -11); mctx.lineTo(7, 7); mctx.lineTo(-7, 7); mctx.closePath(); mctx.fill(); mctx.restore();
 }
@@ -661,7 +665,9 @@ function step() {
     if (poseT > dur) { pose = null; resetBody(); }
   }
   if (tapdori) hap = Math.max(hap, .9);
-  if (glb) glb.update(dt, { sit: sitW, walkAmp, speed, hap, kneel: body.position.y < 0 ? Math.min(1, -body.position.y / .2) : 0, bend: body.rotation.x, headX: headG.rotation.x, headZ: headG.rotation.z, closed: hap > .5 || (sit && sitW > .6 && sit.inHall), blink: blinkT < .12 });
+  const ST = { sit: sitW, walkAmp, speed, hap, kneel: body.position.y < 0 ? Math.min(1, -body.position.y / .2) : 0, bend: body.rotation.x, headX: headG.rotation.x, headZ: headG.rotation.z, closed: hap > .5 || (sit && sitW > .6 && sit.inHall), blink: blinkT < .12 };
+  if (glb) glb.update(dt, ST);
+  netTick(dt, ST); updatePeers(dt);
   placeArms(hap, hap ? 0 : swing);
   const closed = hap > .5;
   eyeGroups.forEach(g => { g.visible = !closed; }); closedEyes.forEach(c => { c.visible = closed; }); faceOpen.forEach(m => { m.visible = !closed; });
@@ -785,7 +791,6 @@ function buildBellAndRack(g, add) {
     const sign = ad(new THREE.PlaneGeometry(1.5, .42), new THREE.MeshStandardMaterial({ map: nameTex('소원 연등', '#3a2418', '#f2cf72', 46), roughness: .7 }), 0, 3.15, .06); sign.castShadow = false;
     obstacles.push({ cx: x, cz: z, c: Math.cos(grp.rotation.y), s: -Math.sin(grp.rotation.y), hu: 2.7, hv: .3 });
     RACK = { x, z, ux, uz, grp, items: [], stand: [ux * (R0 - 2.2), uz * (R0 - 2.2)] };
-    for (const w of store.wishes(REGION.id)) hangWish(w, false);
   }
   // 기와 불사: 기와에 이름·소원을 적어 올리는 자리 (접수대 + 3단 기와 진열대)
   { const ux = Math.sin(aTile), uz = Math.cos(aTile), x = ux * R0, z = uz * R0, grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = Math.atan2(-ux, -uz); g.add(grp);
@@ -802,7 +807,6 @@ function buildBellAndRack(g, add) {
     for (let r = 0; r < 3; r++) for (let c = 0; c < 8; c++) { const m = ad(TILE_GEO, TILE_MAT, -1.75 + c * .5, 1.1 + r * .55 + .23, -r * .5); slots.push(m); }
     obstacles.push({ cx: x, cz: z, c: Math.cos(grp.rotation.y), s: -Math.sin(grp.rotation.y), hu: 2.45, hv: 1.55 });
     TILE = { x, z, ux, uz, grp, slots, k: 0, stand: [ux * (R0 - 2.7), uz * (R0 - 2.7)] };
-    for (const w of store.tiles(REGION.id)) hangTile(w, false);
   }
 }
 // 기와 한 장 (안쪽이 오목한 암키와 모양) — 글씨를 쓴 기와는 흰 글씨 그림을 입힘
@@ -865,7 +869,7 @@ let wishMode = 'lantern';
 function openWish(mode = 'lantern') {
   wishMode = mode; const tile = mode === 'tile', T = tile ? null : templeHere(), inp = document.getElementById('wishText');
   document.getElementById('wishTitle').textContent = tile ? '✍️ 기와 올리기' : '🏮 연등 달기';
-  document.getElementById('wishSub').textContent = (tile ? '기와 한 장에 이름과 소원을 적어 순례 마당 기와 불사 자리에 올려요' : T ? `${T.name} 마당 연등 줄에 이름표를 달아 걸려요` : '순례 마당 소원 연등대에 걸려요 · 절 마당 안에서 누르면 그 절 연등 줄에 달려요') + ' · 지금은 이 기기에서만 보여요';
+  document.getElementById('wishSub').textContent = (tile ? '기와 한 장에 이름과 소원을 적어 순례 마당 기와 불사 자리에 올려요' : T ? `${T.name} 마당 연등 줄에 이름표를 달아 걸려요` : '순례 마당 소원 연등대에 걸려요 · 절 마당 안에서 누르면 그 절 연등 줄에 달려요') + (NET && onlineOffers ? ' · 함께 접속한 모든 분께 보여요 (전화번호·주소는 적지 마세요)' : ' · 지금은 이 기기에서만 보여요');
   document.getElementById('wishHang').textContent = tile ? '기와 올리기' : '연등 달기';
   inp.maxLength = tile ? 24 : 40; inp.placeholder = tile ? '이름 · 소원 (24자까지) 예) 김OO 가족 건강' : '소원 한 문장 (40자까지)';
   const box = document.getElementById('wishColors'); box.innerHTML = ''; box.style.display = tile ? 'none' : 'flex';
@@ -879,21 +883,23 @@ function goTile() {
   avatar.position.set(TILE.stand[0], 0, TILE.stand[1]); avatar.rotation.y = Math.atan2(TILE.x - TILE.stand[0], TILE.z - TILE.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; intro = -1;
 }
 document.getElementById('wishCancel').onclick = () => wishModal.classList.remove('show');
-document.getElementById('wishHang').onclick = () => {
+document.getElementById('wishHang').onclick = async () => {
   const t = document.getElementById('wishText').value.trim(); if (!t) { toast(wishMode === 'tile' ? '기와에 적을 이름이나 소원을 써 주세요' : '소원을 한 문장 적어 주세요'); return; }
-  wishModal.classList.remove('show'); sound.chime();
-  if (wishMode === 'tile') {
-    const w = { t: t.slice(0, 24), at: Date.now() }, L = store.tiles(REGION.id); L.push(w); if (L.length > 24) L.shift(); store.save();
-    goTile(); hangTile(w); done('giwa'); toast('✍️ 기와 불사 자리에 기와를 올렸어요', 3000); return;
-  }
-  const T = templeHere();
-  if (T) {
-    const w = { c: wishColor, t: t.slice(0, 40), at: Date.now() }, L = store.tlan(T.name); L.push(w); if (L.length > 30) L.shift(); store.save();
-    hangTempleLantern(T, w); done('wish'); toast(`🏮 ${T.name} 마당 연등 줄에 연등을 달았어요`, 3000); return;
-  }
-  const w = { c: wishColor, t: t.slice(0, 40), at: Date.now() }; store.wishes(REGION.id).push(w); if (store.wishes(REGION.id).length > 16) store.wishes(REGION.id).shift(); store.save();
-  hangWish(w); done('wish');
-  toast('🏮 순례 마당 소원 연등대에 연등을 걸었어요', 3000);
+  const T = wishMode === 'tile' ? null : templeHere();
+  const kind = wishMode === 'tile' ? 'tile' : T ? 'lantern' : 'rack', body = t.slice(0, kind === 'tile' ? 24 : 40);
+  const btn = document.getElementById('wishHang'); btn.disabled = true;
+  let row = null, localOnly = false;
+  if (NET && onlineOffers) {
+    try { row = await NET.offer({ kind, temple: T ? T.name : null, color: kind === 'tile' ? null : wishColor, body }); seenOffer.add(row.id); }
+    catch (e) { const msg = offerError(e); if (msg) { btn.disabled = false; toast('🙏 ' + msg, 3200); return; } localOnly = true; }
+  } else localOnly = true;
+  btn.disabled = false; wishModal.classList.remove('show'); sound.chime();
+  const w = { c: wishColor, t: body, at: Date.now() };
+  if (localOnly) { const L = kind === 'tile' ? store.tiles(REGION.id) : kind === 'lantern' ? store.tlan(T.name) : store.wishes(REGION.id); L.push(w); if (L.length > 30) L.shift(); store.save(); }
+  const tail = localOnly ? ' (연결이 불안정해 이 기기에만 저장했어요)' : '';
+  if (kind === 'tile') { goTile(); hangTile(w); done('giwa'); toast('✍️ 기와 불사 자리에 기와를 올렸어요' + tail, 3200); return; }
+  if (kind === 'lantern') { hangTempleLantern(T, w); done('wish'); toast(`🏮 ${T.name} 마당 연등 줄에 연등을 달았어요` + tail, 3200); return; }
+  hangWish(w); done('wish'); toast('🏮 순례 마당 소원 연등대에 연등을 걸었어요' + tail, 3200);
   if (RACK) { avatar.position.set(RACK.stand[0], 0, RACK.stand[1]); avatar.rotation.y = Math.atan2(RACK.x - RACK.stand[0], RACK.z - RACK.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 5; pitch = .2; }
 };
 
@@ -920,6 +926,7 @@ function updateCtx(inside, dBow, lx, lz) {
     if (BELL && Math.hypot(avatar.position.x - BELL.x, avatar.position.z - BELL.z) < 3.6) acts.push(['🔔 범종 치기', strikeBell]);
     if (RACK && Math.hypot(avatar.position.x - RACK.x, avatar.position.z - RACK.z) < 3.8) acts.push(['🏮 소원 연등 걸기', () => openWish('lantern')]);
     if (TILE && Math.hypot(avatar.position.x - TILE.x, avatar.position.z - TILE.z) < 4.2) acts.push(['✍️ 기와 올리기', () => openWish('tile')]);
+    if (!inside && cur && cur.fish && Math.hypot(lx - cur.fish.at.lx, lz - cur.fish.at.lz) < 5) acts.push(['🐟 황어에게 밥 주기', () => { cur.fish.feed(12); sound.bead(); toast('🐟 황어 떼가 몰려와요 · 생명을 살리는 방생 바다예요', 3200); }]);
   }
   if (tapdori) acts.push(['⏹ 탑돌이 멈추기', () => stopTapdori('탑돌이를 멈췄어요')]);
   const key = acts.map(a => a[0]).join('|'); ctxActs = acts;
@@ -939,6 +946,7 @@ function updateWorld(dt) {
     if (t > 6) { bellAnim = -1; BELL.strG.rotation.x = 0; BELL.bellG.rotation.x = 0; }
   }
   if (moveMark.visible) { moveMark.userData.t += dt; moveMark.material.opacity = .9 * (.6 + .4 * Math.sin(moveMark.userData.t * 6)); }
+  for (const T of temples) if (T.anim) T.anim(dt);
   for (let i = GROW.length - 1; i >= 0; i--) { const it = GROW[i]; it.userData.grow = Math.min(1, it.userData.grow + dt * 2); it.scale.setScalar((.01 + .99 * it.userData.grow) * (it.userData.base || 1)); if (it.userData.grow >= 1) { delete it.userData.grow; GROW.splice(i, 1); } }
   if (RACK) for (const it of RACK.items) if (it.userData.grow !== undefined) { it.userData.grow = Math.min(1, it.userData.grow + dt * 2); it.scale.setScalar(.01 + .99 * it.userData.grow); if (it.userData.grow >= 1) delete it.userData.grow; }
   // 연기
@@ -1005,6 +1013,114 @@ document.getElementById('btnRegion').onclick = openRegions;
 document.getElementById('regionClose').onclick = () => regionModal.classList.remove('show');
 regionModal.addEventListener('pointerdown', e => { if (e.target === regionModal) regionModal.classList.remove('show'); });
 
+/* ───────── 함께 순례하기: 같은 권역 접속자 보이기 · 기와·연등 함께 보기 ───────── */
+const ME = myIdentity();
+let NET = null, onlineOffers = false;
+const seenOffer = new Set(), peers = new Map();
+const peopleBtn = document.getElementById('btnPeople'), peoplePanel = document.getElementById('peoplePanel');
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const BAD = /(씨발|시발|ㅅㅂ|ㅆㅂ|병신|ㅂㅅ|개새|좆|존나|썅|니미|fuck|shit)/i;
+function nickSprite(nick) {
+  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const c = cv.getContext('2d');
+  c.font = '600 32px "Noto Sans KR",sans-serif'; const w = Math.min(310, c.measureText(nick).width + 40);
+  c.fillStyle = 'rgba(255,250,240,.9)'; c.beginPath(); if (c.roundRect) c.roundRect((320 - w) / 2, 8, w, 56, 28); else c.rect((320 - w) / 2, 8, w, 56); c.fill();
+  c.fillStyle = '#5a3a22'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(nick, 160, 37);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthWrite: false, transparent: true })); sp.scale.set(1.3, .29, 1); sp.position.y = 1.52; sp.renderOrder = 5; return sp;
+}
+function ensurePeer(id, nick) {
+  let P = peers.get(id);
+  if (!P) {
+    const g = new THREE.Group(); g.visible = false; scene.add(g);
+    P = { id, nick: '', g, glb: null, label: null, goal: null, goalSt: null, st: { sit: 0, walkAmp: 0, speed: 0, hap: 0, kneel: 0, bend: 0, headX: 0, headZ: 0, closed: false, blink: false }, last: 0, blinkT: 2 + Math.random() * 3 };
+    peers.set(id, P);
+    if (peers.size <= 16) loadMonkGLB(MONK_URL).then(m => { if (peers.get(id) !== P) return; P.glb = m; g.add(m.root); }).catch(e => dbg('peerModelError', e.message)); // 16명까지 아기 스님 모습, 그 이상은 이름표만
+  }
+  if (nick && nick !== P.nick) { P.nick = nick; if (P.label) { P.g.remove(P.label); P.label.material.map.dispose(); } P.label = nickSprite(nick); P.g.add(P.label); }
+  return P;
+}
+function removePeer(id) { const P = peers.get(id); if (!P) return; P.g.removeFromParent(); peers.delete(id); }
+function onPeers(state) {
+  const keys = new Set(Object.keys(state).filter(k => k !== ME.id));
+  for (const k of keys) { const a = state[k]; ensurePeer(k, a && a[0] && a[0].nick); }
+  for (const id of [...peers.keys()]) if (!keys.has(id)) removePeer(id);
+  renderPeople();
+}
+function onState(p) {
+  const P = ensurePeer(p.id, p.n);
+  let x = p.x, z = p.z;
+  // 절 마당 안에서는 '그 절 기준 위치'로 받아서, 기기마다 법당 크기가 조금 달라도 같은 자리에 보이게
+  if (p.tn) { const T = temples.find(t => t.name === p.tn); if (T) { setFrame(T); [x, z] = L2W(p.lx, p.lz); if (cur) setFrame(cur); } }
+  P.goal = { x, y: p.y || 0, z, ry: p.ry || 0 };
+  const s = p.s || [];
+  P.goalSt = { sit: s[0] || 0, walkAmp: s[1] || 0, speed: s[2] || 0, hap: s[3] || 0, kneel: s[4] || 0, bend: s[5] || 0, headX: s[6] || 0, headZ: s[7] || 0, closed: !!s[8] };
+  if (!P.last) { P.g.position.set(x, P.goal.y, z); P.g.rotation.y = P.goal.ry; }
+  P.last = performance.now(); P.g.visible = true;
+}
+function updatePeers(dt) {
+  const now = performance.now(), k = Math.min(1, dt * 9);
+  for (const P of peers.values()) {
+    if (!P.goal) continue;
+    if (now - P.last > 25000) { P.g.visible = false; continue; }
+    const g = P.g; g.position.x += (P.goal.x - g.position.x) * k; g.position.y += (P.goal.y - g.position.y) * k; g.position.z += (P.goal.z - g.position.z) * k;
+    let d = P.goal.ry - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * k;
+    if (P.glb && P.goalSt) {
+      const S = P.st, G = P.goalSt; for (const key of ['sit', 'walkAmp', 'speed', 'hap', 'kneel', 'bend', 'headX', 'headZ']) S[key] += (G[key] - S[key]) * k; S.closed = G.closed;
+      P.blinkT -= dt; S.blink = P.blinkT < .12; if (P.blinkT < 0) P.blinkT = 2 + Math.random() * 3;
+      P.glb.update(dt, S);
+    }
+  }
+}
+let netT = 0, netBeat = 0, lastSent = '';
+function netTick(dt, ST) {
+  if (!NET || !NET.joined) return;
+  netT += dt; netBeat += dt; if (netT < .11) return; netT = 0;
+  const q = v => Math.round(v * 100) / 100, x = avatar.position.x, z = avatar.position.z;
+  let tn = '', lx = 0, lz = 0;
+  if (cur && cur.YARD) { const [a, b] = W2L(x, z), Y = cur.YARD; if (a > Y.x0 - 4 && a < Y.x1 + 4 && b > Y.z0 - 4 && b < Y.z1 + 6) { tn = cur.name; lx = q(a); lz = q(b); } }
+  const s = [q(ST.sit), q(ST.walkAmp), q(ST.speed), q(ST.hap), q(ST.kneel), q(ST.bend), q(ST.headX), q(ST.headZ), ST.closed ? 1 : 0];
+  const msg = { id: ME.id, n: ME.nick, tn, lx, lz, x: q(x), z: q(z), y: q(avatar.position.y), ry: q(avatar.rotation.y), s };
+  const key = JSON.stringify(msg);
+  if (key === lastSent && netBeat < 2) return; // 가만히 있으면 2초에 한 번만
+  lastSent = key; netBeat = 0; NET.send(msg);
+}
+function renderPeople() {
+  const n = peers.size + 1; if (peopleBtn) peopleBtn.textContent = `👥 ${n}`;
+  if (!peoplePanel || !peoplePanel.classList.contains('show')) return;
+  const list = [...peers.values()].map(P => `<div>🙏 ${esc(P.nick || '순례자')}</div>`).join('') || '<div class="empty">아직 다른 분이 없어요. 주소를 보내 함께 걸어 보세요</div>';
+  const st = NET && NET.joined ? '' : ' (연결 중…)';
+  peoplePanel.innerHTML = `<b>함께 순례 중 · ${n}명</b><small>${REGION.name} 권역에 지금 접속한 분들이에요${st}</small><div class="me">내 법명 <input id="nickIn" maxlength="12" value="${esc(ME.nick)}"><button id="nickSave">바꾸기</button></div>${list}`;
+  document.getElementById('nickSave').onclick = () => {
+    const v = document.getElementById('nickIn').value.trim().replace(/\s+/g, ' ').slice(0, 12);
+    if (!v) return; if (BAD.test(v)) { toast('고운 이름으로 지어 주세요'); return; }
+    ME.nick = v; saveNick(v); if (NET) NET.retrack(); lastSent = ''; toast(`🙏 이제 '${v}'(으)로 보여요`); renderPeople();
+  };
+}
+if (peopleBtn) peopleBtn.onclick = () => { ['todoPanel', 'soundPanel'].forEach(i => document.getElementById(i).classList.remove('show')); peoplePanel.classList.toggle('show'); renderPeople(); };
+function hangOffer(r, fresh) {
+  const w = { c: r.color || '#ffd86a', t: r.body, at: Date.parse(r.created_at) };
+  if (r.kind === 'tile') hangTile(w, fresh);
+  else if (r.kind === 'rack') hangWish(w, fresh);
+  else { const T = temples.find(t => t.name === r.temple); if (T) hangTempleLantern(T, w, fresh); }
+}
+function applyOffers(rows) {
+  const pick = (f, n) => rows.filter(f).slice(0, n).reverse();
+  const list = [...pick(r => r.kind === 'tile', 24), ...pick(r => r.kind === 'rack', 16), ...temples.flatMap(T => pick(r => r.kind === 'lantern' && r.temple === T.name, 30))];
+  for (const r of list) { seenOffer.add(r.id); hangOffer(r, false); }
+}
+function onOffer(r) {
+  if (!r || seenOffer.has(r.id)) return; seenOffer.add(r.id); hangOffer(r, true);
+  const where = r.kind === 'tile' ? '기와 불사 자리에 기와를' : r.kind === 'rack' ? '소원 연등대에 연등을' : `${r.temple} 마당에 연등을`;
+  toast(`${r.kind === 'tile' ? '✍️' : '🏮'} ${r.nick || '순례자'}님이 ${where} 올렸어요`, 2600);
+}
+function hangLocal() { for (const w of store.wishes(REGION.id)) hangWish(w, false); for (const w of store.tiles(REGION.id)) hangTile(w, false); for (const T of temples) for (const w of store.tlan(T.name)) hangTempleLantern(T, w, false); }
+async function startTogether() {
+  try { NET = await connectTogether({ region: REGION.id, me: ME, onPeers, onState, onOffer, onStatus: s => { DBG.net = s; renderPeople(); } }); }
+  catch (e) { dbg('netError', e.message); hangLocal(); return; }
+  try { const rows = await Promise.race([NET.load(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 7000))]); applyOffers(rows); onlineOffers = true; DBG.offers = rows.length; }
+  catch (e) { dbg('offerLoadError', e.message); hangLocal(); }
+}
+
 /* ───────── 시작 ───────── */
 (async function start() {
   const badge = document.getElementById('badge'), msg = document.getElementById('loadMsg');
@@ -1033,9 +1149,9 @@ regionModal.addEventListener('pointerdown', e => { if (e.target === regionModal)
   for (const T of temples) { T.lightPos = T.hall.lights.map(l => l.position.clone()); if (T !== temples[0]) T.hall.lights.forEach(l => l.removeFromParent()); }
   try { buildBackdrop(scene, ENV, RB); } catch (e) { dbg('backdropError', e.message); }
   buildCommons();
-  for (const T of temples) for (const w of store.tlan(T.name)) hangTempleLantern(T, w, false);
   try { plantTrees(); } catch (e) { dbg('treeError', e.message); }
   enshrineStatues();
+  startTogether();
   useTemple(temples[0]);
   placeAtStart();
   camera.position.set(temples[0].ux * 6, 2.2, temples[0].uz * 6);

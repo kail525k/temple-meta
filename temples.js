@@ -14,6 +14,7 @@ export const REGIONS = [
   { id: 'gangwon', name: '강원', env: { trees: { fir: .6, maple: .2, pine: .2 }, mtn: { h: 100, rock: true, snow: true }, grass: '#9cb07c', note: '높은 산 · 전나무 숲' }, temples: [
     { name: '월정사', hall: '적광전', buddhas: 1, lat: 37.7318, lng: 128.5926, where: '평창 오대산', style: { pagoda: 'octa9' } },
     { name: '신흥사', hall: '극락보전', buddhas: 3, lat: 38.1712, lng: 128.4890, where: '속초 설악산', style: { extras: ['bigBuddha'] } },
+    { name: '휴휴암', hall: '묘적전', buddhas: 1, lat: 37.9560, lng: 128.7860, where: '양양 바닷가', q: '양양 휴휴암', note: '바닷가 너럭바위 연화대와 황어 떼 · 지혜관세음보살상', style: { sea: true, extras: ['flatRock', 'whiteGwaneum', 'fish'], grove: 'pine' } },
   ] },
   { id: 'chungcheong', name: '충청·대전·세종', env: { trees: { pine: .55, maple: .25, broad: .2 }, mtn: { h: 66, rock: true }, grass: '#a4bb7c', note: '속리산 · 소나무' }, temples: [
     { name: '법주사', hall: '대웅보전', buddhas: 3, lat: 36.5427, lng: 127.8333, where: '보은 속리산', style: { pagoda: 'wood5' } },
@@ -42,6 +43,7 @@ export const REGIONS = [
     { name: '해인사', hall: '대적광전', buddhas: 3, lat: 35.7982, lng: 128.0951, where: '합천', note: '삼보사찰 중 법보사찰 · 팔만대장경', style: { extras: ['janggyeong'] } },
     { name: '범어사', hall: '대웅전', buddhas: 3, lat: 35.2840, lng: 129.0680, where: '부산' },
     { name: '쌍계사', hall: '대웅전', buddhas: 3, lat: 35.2384, lng: 127.6450, where: '하동', style: { grove: 'tea' } },
+    { name: '해동용궁사', hall: '대웅보전', buddhas: 3, lat: 35.1884, lng: 129.2233, where: '부산 기장 바닷가', q: '기장 해동용궁사', note: '바다와 가장 가까운 절 · 해수관음대불과 황금 포대화상', style: { sea: true, extras: ['seaBridge', 'goldBudai', 'whiteGwaneum'], grove: 'pine', lanterns: 'canopy' } },
   ] },
   { id: 'jeju', name: '제주', env: { trees: { broad: .45, tangerine: .25, camellia: .15, pine: .15 }, mtn: { h: 30, halla: true }, basalt: true, grass: '#8fb36f', note: '한라산 · 현무암 돌담 · 귤나무' }, temples: [
     { name: '관음사', hall: '대웅전', buddhas: 3, lat: 33.4217, lng: 126.5588, where: '제주시 한라산', q: '제주 관음사', style: { extras: ['stoneBuddhas'] } },
