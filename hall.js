@@ -98,9 +98,13 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3 } = {}) {
     add(new THREE.CylinderGeometry(.06, .06, .42, 10), MAT.candle, sx * AW * .42, FY + AH + .31, AZ + AD / 2 - .25);
     const fl = add(new THREE.ConeGeometry(.04, .13, 8), MAT.flame, sx * AW * .42, FY + AH + .59, AZ + AD / 2 - .25); fl.castShadow = false;
   }
-  add(new THREE.CylinderGeometry(.18, .14, .22, 16), MAT.bronze, 0, FY + AH + .21, AZ + AD / 2 - .3);
-  for (const dx of [-.05, 0, .05]) add(new THREE.CylinderGeometry(.008, .008, .32, 4), MAT.line, dx, FY + AH + .45, AZ + AD / 2 - .3);
-  const incense = { lx: 0, ly: FY + AH + .62, lz: AZ + AD / 2 - .3 }; // 향 끝 높이
+  // 향로는 불단 바로 앞 낮은 향탁 위에 (불상에 가리지 않게)
+  const TZ = AZ + AD / 2 + .3, TH = .72;
+  box(.9, .06, .44, MAT.trim, 0, FY + TH - .03, TZ); box(.8, TH - .06, .36, MAT.altar, 0, FY + (TH - .06) / 2, TZ);
+  col(0, TZ, .5, .27);
+  add(new THREE.CylinderGeometry(.16, .12, .2, 16), MAT.bronze, 0, FY + TH + .1, TZ);
+  for (const dx of [-.05, 0, .05]) add(new THREE.CylinderGeometry(.008, .008, .32, 4), MAT.line, dx, FY + TH + .32, TZ);
+  const incense = { lx: 0, ly: FY + TH + .48, lz: TZ }; // 향 끝 높이
 
   // 방석: 가운데 맨 앞 방석이 삼배 자리
   const bowSpot = { lx: 0, lz: iz0 + 3.3 };

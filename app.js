@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=2';
-import { buildHall } from './hall.js?v=3';
+import { buildHall } from './hall.js?v=4';
 import { loadStatue } from './statue.js?v=1';
 import { REGIONS } from './temples.js?v=2';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=1';
@@ -387,7 +387,7 @@ async function enshrineStatues() {
     // 두광·신광(뒤쪽 원판)만 남기고 코드 불상 몸은 숨김
     old.children.forEach(ch => { const g = ch.geometry, halo = g && (g.type === 'CircleGeometry' || (g.type === 'TorusGeometry' && g.parameters.radius >= .4)); if (!halo) ch.visible = false; });
     const st = kit.make(2.0 * s), d = st.userData.depth;
-    const back = sl.z - .27 * s, cz = Math.min(back + d / 2, sl.z + 1.0 - d / 2);
+    const back = sl.z - .27 * s, cz = Math.min(back + d / 2, sl.z + .95 - d / 2);
     st.position.set(sl.x, sl.y, cz);
     old.parent.add(st); sl.statue = st; n++;
   }
