@@ -14,7 +14,7 @@ export const REGIONS = [
   { id: 'gangwon', name: '강원', env: { trees: { fir: .6, maple: .2, pine: .2 }, mtn: { h: 100, rock: true, snow: true }, grass: '#9cb07c', note: '높은 산 · 전나무 숲' }, temples: [
     { name: '월정사', hall: '적광전', buddhas: 1, lat: 37.7318, lng: 128.5926, where: '평창 오대산', style: { pagoda: 'octa9' } },
     { name: '신흥사', hall: '극락보전', buddhas: 3, lat: 38.1712, lng: 128.4890, where: '속초 설악산', style: { extras: ['bigBuddha'] } },
-    { name: '휴휴암', hall: '묘적전', buddhas: 1, lat: 37.9560, lng: 128.7860, where: '양양 바닷가', q: '양양 휴휴암', note: '바닷가 너럭바위 연화대와 황어 떼 · 지혜관세음보살상', style: { sea: true, extras: ['flatRock', 'whiteGwaneum', 'fish'], grove: 'pine' } },
+    { name: '휴휴암', hall: '묘적전', buddhas: 1, lat: 37.9560, lng: 128.7860, where: '양양 바닷가', q: '양양 휴휴암', note: '일주문 → 묘적전 → 다라니 굴법당 → 관음범종 → 지혜관세음보살상 → 연화대(황어 떼) · 지도·위성 사진 배치대로', style: { layout: 'hyuhyu', sea: true, seaSide: -1, pagoda: 'none', altar: 'gwaneum', extras: ['fish'], grove: 'pine' } },
   ] },
   { id: 'chungcheong', name: '충청·대전·세종', env: { trees: { pine: .55, maple: .25, broad: .2 }, mtn: { h: 66, rock: true }, grass: '#a4bb7c', note: '속리산 · 소나무' }, temples: [
     { name: '법주사', hall: '대웅보전', buddhas: 3, lat: 36.5427, lng: 127.8333, where: '보은 속리산', style: { pagoda: 'wood5' } },

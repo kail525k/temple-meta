@@ -3,10 +3,10 @@ import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=2';
 import { buildHall } from './hall.js?v=6';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, treeKit } from './regional.js?v=3';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, standingGwaneum, treeKit } from './regional.js?v=4';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
-import { REGIONS } from './temples.js?v=4';
+import { REGIONS } from './temples.js?v=5';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=2';
 
 /* ───────── 설정 ───────── */
@@ -174,6 +174,7 @@ const MAT = {
   lotus: ['#f6a5b8', '#ffd86a', '#f48c7a', '#a8e0a0', '#ffffff'].map(c => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: .3, roughness: .6, flatShading: true })),
 };
 const ENV = REGION.env || {};
+const H_GOLD = new THREE.MeshStandardMaterial({ color: '#e2b347', metalness: .65, roughness: .3, emissive: '#6a4a08', emissiveIntensity: .55, flatShading: true });
 if (ENV.grass) MAT.grass.color.set(ENV.grass);
 MAT.wallStone = ENV.basalt ? M('#4a494d') : MAT.stone; // 제주는 검은 현무암 돌담
 if (ENV.basalt) MAT.wallCap = M('#3a3a3e');
@@ -216,16 +217,19 @@ function buildSite(info, T) {
   const col = (cx, cz, hx, hz) => { const c = { cx, cz, hx, hz }; loc.push(c); addCollider(c); };
 
   // 마당과 박석길
-  const back = ex.includes('janggyeong') ? 12.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('whiteGwaneum') ? 7.5 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
+  const hyu = st.layout === 'hyuhyu';
+  const back = hyu ? 18 : ex.includes('janggyeong') ? 12.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('whiteGwaneum') ? 7.5 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
   const YX = L / 2 + 6, YZ0 = -D / 2 - 2 - back, YZ1 = D / 2 + 19;
   YARD = { x0: -YX, x1: YX, z0: YZ0, z1: YZ1 };
   const yard = add(new THREE.PlaneGeometry(2 * YX, YZ1 - YZ0), MAT.yard, 0, .02, (YZ0 + YZ1) / 2, false); yard.rotation.x = -Math.PI / 2;
   const path = add(new THREE.PlaneGeometry(2.8, YZ1 - D / 2 - 1.2), MAT.path, 0, .03, (D / 2 + 1.2 + YZ1) / 2, false); path.rotation.x = -Math.PI / 2;
   // 낮은 담장 + 앞쪽 문
   const WH = .95, wall = (w, d, x, z) => { box(w, WH, d, MAT.wallStone, x, WH / 2, z); box(w + .2, .18, d + .2, MAT.wallCap, x, WH + .09, z); col(x, z, w / 2 + .05, d / 2 + .05); };
-  for (const sx of [-1, 1]) wall(.45, YZ1 - YZ0, sx * YX, (YZ0 + YZ1) / 2);
-  if (!st.sea) wall(2 * YX + .45, .45, 0, YZ0); // 바다 사찰은 뒤가 바다 (흰 돌난간)
-  for (const sx of [-1, 1]) wall(YX - 1.6, .45, sx * (1.6 + (YX - 1.6) / 2), YZ1);
+  if (!hyu) { // 휴휴암은 담장 없이 숲속 곶에 열려 있음
+    for (const sx of [-1, 1]) wall(.45, YZ1 - YZ0, sx * YX, (YZ0 + YZ1) / 2);
+    if (!st.sea) wall(2 * YX + .45, .45, 0, YZ0); // 바다 사찰은 뒤가 바다 (흰 돌난간)
+    for (const sx of [-1, 1]) wall(YX - 1.6, .45, sx * (1.6 + (YX - 1.6) / 2), YZ1);
+  }
   for (const sx of [-1, 1]) { add(new THREE.CylinderGeometry(.16, .18, 3, 10), MAT.red, sx * 1.6, 1.5, YZ1); col(sx * 1.6, YZ1, .25, .25); }
   box(4.2, .3, 1.2, MAT.wallCap, 0, 3.1, YZ1); box(3.6, .25, .3, MAT.red, 0, 2.8, YZ1);
   // 석등 (법당 바로 앞)
@@ -236,11 +240,14 @@ function buildSite(info, T) {
   col(0, SL, .55, .55);
   // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
   const PZ = D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, nameTex, site };
-  if (st.sea) T.seaRect = buildSea(H);
-  const pg = buildPagoda(H, st.pagoda, PZ);
-  { const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(2.7, pg.r + .75); }
+  if (hyu) { H.fishX = -6.2; H.fishZ = YZ0 - 7; H.fishFeedZ = YZ0 - 5; H.fishAt = { lx: -6.2, lz: YZ0 - 1.4 }; }
+  if (st.sea) T.seaRect = buildSea(H, hyu ? { gap: [-10.2, -2.2, 3.4], side: st.seaSide || 0 } : {});
+  if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(2.7, pg.r + .75); } else T.pagoda = null;
   // 사찰 상징물 (법당 옆 마당·뒤뜰)
   const exo = buildExtras(H, T); T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini; T.fish = exo.fish; T.anim = exo.anim;
+  if (hyu) buildHyuhyu(H, T);
+  // 불단: 관음 도량은 서 있는 금빛 관세음보살을 모심 (휴휴암)
+  if (st.altar === 'gwaneum') for (const sl of hall.slots) { sl.obj.children.forEach(ch => { const g = ch.geometry; if (!(g && (g.type === 'CircleGeometry' || (g.type === 'TorusGeometry' && g.parameters.radius >= .4)))) ch.visible = false; }); standingGwaneum(o => sl.obj.parent.add(o), sl.x, sl.y, sl.z, 2.15 * sl.s, 0, H_GOLD); sl.skip = true; }
   // 마당 위를 가로지르는 연등 줄 (조계사처럼 마당을 덮는 연등 지붕도) — 색깔별로 한 번에 그림
   const lanGeo = new THREE.IcosahedronGeometry(.21, 1), tasGeo = new THREE.CylinderGeometry(.02, .04, .22, 6), LM = MAT.lotus.length;
   const lanM = Array.from({ length: LM }, () => []), tasM = Array.from({ length: LM }, () => []), m4 = new THREE.Matrix4();
@@ -336,6 +343,7 @@ function plantTrees() {
       setFrame(T); const [lx, lz] = W2L(x, z), Y = T.YARD;
       if (lx > Y.x0 - 2.5 && lx < Y.x1 + 2.5 && lz > Y.z0 - 2.5 && lz < Y.z1 + 2.5) return false;
       const S = T.seaRect; if (S && lz < S.z1 + 1 && lz > S.z0 && Math.abs(lx) < S.x) return false; // 바다
+      if (S && S.cove && lx > S.cove.x0 && lx < S.cove.x1 && lz > S.cove.z0 && lz < S.cove.z1) return false; // 모래 해변
     }
     return true;
   };
@@ -404,6 +412,7 @@ async function enshrineStatues() {
   const kit = await statueReady; if (!kit) return;
   let n = 0;
   for (const T of temples) for (const sl of (T.hall && T.hall.slots) || []) {
+    if (sl.skip) continue;
     const old = sl.obj, s = sl.s;
     // 두광·신광(뒤쪽 원판)만 남기고 코드 불상 몸은 숨김
     old.children.forEach(ch => { const g = ch.geometry, halo = g && (g.type === 'CircleGeometry' || (g.type === 'TorusGeometry' && g.parameters.radius >= .4)); if (!halo) ch.visible = false; });

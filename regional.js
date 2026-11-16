@@ -18,17 +18,17 @@ const R = {
   fish: M('#3d4a52'), fishFin: M('#c8643a'),
 };
 // 서 있는 하얀 관세음보살 (해수관음·지혜관음): 옷자락 실루엣을 돌려 깎은 모양 + 머리·보관·정병·광배
-function standingGwaneum(add, x, y, z, H, ry = 0) {
+export function standingGwaneum(add, x, y, z, H, ry = 0, mat = R.marble) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; add(g);
   const prof = [[0, 0], [.17, 0], [.165, .04], [.135, .3], [.12, .52], [.13, .66], [.128, .74], [.09, .78], [.05, .8], [0, .8]].map(([r, yy]) => new THREE.Vector2(r * H, yy * H));
   const mk = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = true; g.add(m); return m; };
-  mk(new THREE.LatheGeometry(prof, 18), R.marble, 0, 0, 0);
-  mk(new THREE.SphereGeometry(.068 * H, 16, 12), R.marble, 0, .855 * H, 0);
-  mk(new THREE.CylinderGeometry(.03 * H, .045 * H, .08 * H, 10), R.marble, 0, .935 * H, -.005 * H);
-  mk(new THREE.CylinderGeometry(.055 * H, .06 * H, .03 * H, 12), R.marble, 0, .9 * H, 0);
-  for (const sx of [-1, 1]) { const a = mk(new THREE.CylinderGeometry(.028 * H, .034 * H, .3 * H, 8), R.marble, sx * .125 * H, .62 * H, .02 * H); a.rotation.z = sx * .12; }
-  mk(new THREE.SphereGeometry(.035 * H, 10, 8), R.marble, .05 * H, .55 * H, .11 * H); mk(new THREE.CylinderGeometry(.008 * H, .014 * H, .07 * H, 8), R.marble, .05 * H, .6 * H, .11 * H); // 정병
-  const halo = mk(new THREE.TorusGeometry(.1 * H, .006 * H, 6, 32), R.marble, 0, .86 * H, -.07 * H);
+  mk(new THREE.LatheGeometry(prof, 18), mat, 0, 0, 0);
+  mk(new THREE.SphereGeometry(.068 * H, 16, 12), mat, 0, .855 * H, 0);
+  mk(new THREE.CylinderGeometry(.03 * H, .045 * H, .08 * H, 10), mat, 0, .935 * H, -.005 * H);
+  mk(new THREE.CylinderGeometry(.055 * H, .06 * H, .03 * H, 12), mat, 0, .9 * H, 0);
+  for (const sx of [-1, 1]) { const a = mk(new THREE.CylinderGeometry(.028 * H, .034 * H, .3 * H, 8), mat, sx * .125 * H, .62 * H, .02 * H); a.rotation.z = sx * .12; }
+  mk(new THREE.SphereGeometry(.035 * H, 10, 8), mat, .05 * H, .55 * H, .11 * H); mk(new THREE.CylinderGeometry(.008 * H, .014 * H, .07 * H, 8), mat, .05 * H, .6 * H, .11 * H); // 정병
+  const halo = mk(new THREE.TorusGeometry(.1 * H, .006 * H, 6, 32), mat, 0, .86 * H, -.07 * H);
   return g;
 }
 
@@ -251,15 +251,15 @@ export function buildExtras(h, T) {
     if (kind === 'fish') { // 황어 떼: 연화대 앞바다를 맴돌다 '밥 주기'를 하면 몰려듦
       const N = 46, geo = new THREE.ConeGeometry(.09, .42, 5); geo.rotateX(Math.PI / 2);
       const im = new THREE.InstancedMesh(geo, R.fish, N); im.castShadow = false; h.site.add(im);
-      const cz = h.YZ0 - 3.2, F = [], m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(1, .7, 1), up = new THREE.Vector3(0, 1, 0);
+      const cx = h.fishX ?? 0, cz = h.fishZ ?? h.YZ0 - 3.2, F = [], m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(1, .7, 1), up = new THREE.Vector3(0, 1, 0);
       for (let i = 0; i < N; i++) F.push({ a: Math.random() * 6.3, r: 1.2 + Math.random() * 3.2, sp: (.4 + Math.random() * .5) * (Math.random() < .5 ? 1 : -1), x: 0, z: 0, ph: Math.random() * 6 });
-      let feed = 0, fx = 1.5, fz = h.YZ0 - 1.4;
-      out.fish = { feed(t = 10) { feed = t; }, at: { lx: 1.5, lz: h.YZ0 + 1.2 } };
+      let feed = 0; const fx = h.fishX ?? 1.5, fz = h.fishFeedZ ?? h.YZ0 - 1.4;
+      out.fish = { feed(t = 10) { feed = t; }, at: h.fishAt || { lx: 1.5, lz: h.YZ0 + 1.2 } };
       out.anim = dt => {
         feed = Math.max(0, feed - dt);
         F.forEach((f, i) => {
           f.a += f.sp * dt * (feed > 0 ? 2.2 : 1);
-          const tx = feed > 0 ? fx + Math.cos(f.a) * f.r * .35 : Math.cos(f.a) * f.r * 1.6, tz = feed > 0 ? fz - .6 + Math.sin(f.a) * f.r * .25 : cz + Math.sin(f.a) * f.r;
+          const tx = feed > 0 ? fx + Math.cos(f.a) * f.r * .35 : cx + Math.cos(f.a) * f.r * 1.6, tz = feed > 0 ? fz - .6 + Math.sin(f.a) * f.r * .25 : cz + Math.sin(f.a) * f.r;
           const nx = f.x + (tx - f.x) * Math.min(1, dt * 1.6), nz = f.z + (tz - f.z) * Math.min(1, dt * 1.6);
           const hd = Math.atan2(nx - f.x, nz - f.z); f.x = nx; f.z = nz;
           q.setFromAxisAngle(up, hd + Math.sin(performance.now() / 160 + f.ph) * .25);
@@ -267,7 +267,7 @@ export function buildExtras(h, T) {
         });
         im.instanceMatrix.needsUpdate = true;
       };
-      for (const f of F) { f.x = Math.cos(f.a) * f.r * 1.6; f.z = cz + Math.sin(f.a) * f.r; }
+      for (const f of F) { f.x = cx + Math.cos(f.a) * f.r * 1.6; f.z = cz + Math.sin(f.a) * f.r; }
     }
     if (kind === 'stoneBuddhas') { // 제주 관음사: 길 양옆에 줄지어 앉은 돌부처 (불상은 모델을 불러온 뒤 올림)
       out.mini = [];
@@ -356,7 +356,7 @@ export function treeKit() {
 }
 
 /* ───────── 바다 사찰: 법당 뒤로 펼쳐진 바다와 바위 해안 ───────── */
-export function buildSea(h) {
+export function buildSea(h, { gap = null, side = 0 } = {}) {
   const { add, YX, YZ0 } = h, W = 2 * (YX + 22), Dp = 70;
   const sea = add(new THREE.PlaneGeometry(W, Dp), R.sea, 0, .045, YZ0 - .8 - Dp / 2, false); sea.rotation.x = -Math.PI / 2; sea.receiveShadow = false;
   const sh = add(new THREE.PlaneGeometry(W, 3.2), R.shallow, 0, .05, YZ0 - 2.2, false); sh.rotation.x = -Math.PI / 2; sh.receiveShadow = false;
@@ -365,10 +365,87 @@ export function buildSea(h) {
     const m = add(new THREE.IcosahedronGeometry(r, 0), Math.random() < .5 ? R.rock : R.rock2, x, r * .2, z); m.scale.y = .55 + Math.random() * .3; m.rotation.y = Math.random() * 3;
   }
   // 흰 돌난간 (뒤 담장 대신)
-  const x0 = -YX, x1 = YX;
-  add(new THREE.BoxGeometry(x1 - x0, .1, .14), R.rail, 0, .95, YZ0);
-  add(new THREE.BoxGeometry(x1 - x0, .08, .12), R.rail, 0, .45, YZ0);
-  for (let x = x0; x <= x1 + .01; x += 1.2) add(new THREE.BoxGeometry(.16, 1.05, .16), R.rail, x, .52, YZ0);
-  h.col(0, YZ0, YX + .2, .25);
-  return { x: YX + 22, z0: YZ0 - Dp, z1: YZ0 };
+  // gap: 난간을 비워 둔 구간 [x0, x1] (휴휴암 연화대처럼 바위로 내려가는 곳) — 그 구간은 바위 바깥 끝에서 막음
+  const segs = gap ? [[-YX, gap[0]], [gap[1], YX]] : [[-YX, YX]];
+  for (const [x0, x1] of segs) {
+    if (x1 - x0 < .5) continue; const cx = (x0 + x1) / 2;
+    add(new THREE.BoxGeometry(x1 - x0, .1, .14), R.rail, cx, .95, YZ0);
+    add(new THREE.BoxGeometry(x1 - x0, .08, .12), R.rail, cx, .45, YZ0);
+    for (let x = x0; x <= x1 + .01; x += 1.2) add(new THREE.BoxGeometry(.16, 1.05, .16), R.rail, x, .52, YZ0);
+    h.col(cx, YZ0, (x1 - x0) / 2 + .2, .25);
+  }
+  if (gap) h.col((gap[0] + gap[1]) / 2, YZ0 - gap[2], (gap[1] - gap[0]) / 2, .3);
+  // side < 0: 왼쪽(바다를 볼 때 왼쪽)에 모래 해변 작은 만
+  if (side < 0) {
+    const sand = add(new THREE.PlaneGeometry(16, 22), M('#e7dcc0'), -YX - 8, .03, YZ0 + 4, false); sand.rotation.x = -Math.PI / 2;
+    const cove = add(new THREE.PlaneGeometry(14, 30), R.sea, -YX - 16, .045, YZ0 + 2, false); cove.rotation.x = -Math.PI / 2;
+  }
+  return { x: YX + 22, z0: YZ0 - Dp, z1: YZ0, cove: side < 0 ? { x0: -YX - 24, x1: -YX + .5, z0: YZ0 - 14, z1: YZ0 + 16 } : null };
+}
+
+/* ───────── 휴휴암: 지도·위성 사진의 배치대로 (일주문 → 묘적전 마당 → 오른쪽 다라니 굴법당 → 바다 쪽 관음범종 → 그 오른쪽 지혜관세음보살 광장 → 아래 연화대) ───────── */
+// 법당 기준 좌표: 앞(+z) = 일주문·순례 마당 쪽(내륙), 뒤(-z) = 동해. 바다를 바라볼 때 오른쪽 = +x
+export function buildHyuhyu(h, T) {
+  const { add, box, col, L, D, YX, YZ0, MAT } = h, out = {};
+  // 일주문 앞 돌 멧돼지 한 쌍
+  const boar = (x, z, ry) => {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; h.site.add(g);
+    const mk = (geo, px, py, pz, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, R.rock); m.position.set(px, py, pz); m.scale.set(sx, sy, sz); m.castShadow = true; g.add(m); return m; };
+    box(1.1, .3, .7, R.granite2, x, .15, z);
+    mk(new THREE.SphereGeometry(.42, 10, 8), 0, .62, 0, 1.4, .85, .9);
+    mk(new THREE.SphereGeometry(.26, 10, 8), .55, .7, 0, 1.1, .9, .9);
+    mk(new THREE.CylinderGeometry(.09, .11, .16, 8), .82, .66, 0).rotation.z = Math.PI / 2;
+    for (const [lx, lz] of [[-.3, -.18], [-.3, .18], [.3, -.18], [.3, .18]]) mk(new THREE.CylinderGeometry(.07, .06, .3, 6), lx, .38, lz);
+    for (const sz of [-1, 1]) mk(new THREE.ConeGeometry(.06, .16, 6), .52, .98, sz * .14);
+    col(x, z, .6, .4);
+  };
+  boar(-2.4, h.YZ1 + .9, -Math.PI / 2); boar(2.4, h.YZ1 + .9, -Math.PI / 2);
+  // 다라니 굴법당: 법당 오른쪽의 바위 동굴 법당
+  { const x = L / 2 + 3.6, z = -.5;
+    for (const [dx, dy, dz, r] of [[0, .9, 0, 2.3], [-1.4, .6, -.6, 1.5], [1.3, .7, -.4, 1.6], [.2, 1.9, -.4, 1.5]]) { const m = add(new THREE.IcosahedronGeometry(r, 0), dx ? R.rock2 : R.rock, x + dx, dy, z + dz); m.scale.set(1, .8, .9); }
+    const door = add(new THREE.CircleGeometry(.75, 16, 0, Math.PI), M('#1b1612'), x, .02, z + 2.05, false); door.scale.y = 1.6;
+    box(1.7, .12, .4, R.granite, x, .06, z + 2.25);
+    add(new THREE.PlaneGeometry(1.5, .4), new THREE.MeshStandardMaterial({ map: h.nameTex('다라니굴법당', '#2b1d14', '#f2cf72', 40), roughness: .6 }), x, 1.55, z + 2.12, false);
+    col(x, z, 2.2, 2.0);
+  }
+  // 바다 쪽 아랫마당: 돌 깔린 길
+  const ter = add(new THREE.PlaneGeometry(2 * YX - 2, -D / 2 - YZ0 - 1), M('#d8cfbd'), 0, .025, (YZ0 - D / 2) / 2, false); ter.rotation.x = -Math.PI / 2;
+  // 관음범종: 아랫마당에서 바다를 보면 바로 앞
+  { const x = -2.8, z = -D / 2 - 6.5;
+    box(3.6, .3, 3.6, R.granite, x, .15, z);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.CylinderGeometry(.12, .14, 2.8, 8), R.redCol, x + sx * 1.45, 1.7, z + sz * 1.45);
+    box(3.3, .2, 3.3, R.band, x, 3.15, z);
+    const m = add(hipRoofGeo(THREE, 4.8, 4.8, 1.5, .5, .3), R.roofTile, x, 3.25, z); m.receiveShadow = false;
+    const bell = add(new THREE.LatheGeometry([[0, 0], [.52, 0], [.5, .12], [.42, .5], [.37, .85], [.3, 1.0], [0, 1.02]].map(([r, y]) => new THREE.Vector2(r, y)), 24), R.gold, x, 1.25, z);
+    add(new THREE.PlaneGeometry(1.2, .36), new THREE.MeshStandardMaterial({ map: h.nameTex('관음범종', '#2b1d14', '#f2cf72', 44), roughness: .6 }), x, 2.92, z + 1.67, false);
+    col(x, z, 1.9, 1.9);
+  }
+  // 지혜관세음보살 광장: 범종 오른쪽, 바다를 등지고 선 큰 관음상 + 남순동자 + 동해용왕
+  { const x = 5.6, z = -D / 2 - 9.6;
+    const pl = add(new THREE.CylinderGeometry(4.6, 4.8, .45, 28), R.granite, x, .225, z); pl.receiveShadow = true;
+    for (let i = 0; i <= 16; i++) { const a = Math.PI * .1 + i / 16 * Math.PI * .8; box(.14, .7, .14, R.rail, x + Math.cos(a) * 4.5, .8, z - Math.sin(a) * 4.5); }
+    add(new THREE.CylinderGeometry(1.25, 1.45, .7, 18), R.granite2, x, .8, z - 1.2);
+    add(new THREE.CylinderGeometry(1.0, 1.1, .3, 18), R.marble, x, 1.3, z - 1.2);
+    standingGwaneum(o => h.site.add(o), x, 1.45, z - 1.2, 7.8, 0);
+    standingGwaneum(o => h.site.add(o), x - 2.7, .45, z + .4, 1.5, .25);                 // 남순동자
+    standingGwaneum(o => h.site.add(o), x + 2.8, .45, z + .3, 2.5, -.25, R.gold);        // 동해용왕
+    add(new THREE.PlaneGeometry(1.8, .44), new THREE.MeshStandardMaterial({ map: h.nameTex('지혜관세음보살', '#2b1d14', '#f2cf72', 38), roughness: .6 }), x, .72, z + 4.62, false);
+    col(x, z - 1.2, 1.5, 1.5); col(x - 2.7, z + .4, .4, .4); col(x + 2.8, z + .3, .5, .5);
+  }
+  // 연화대: 난간이 끊긴 곳에서 바다로 펼쳐진 너른 바위 (황어 떼가 모이는 곳)
+  { const x = -6.2, z = YZ0 - 1.2;
+    const fr = add(new THREE.CylinderGeometry(4.2, 4.6, .16, 13), R.rock, x, .08, z, false); fr.scale.z = .7; fr.receiveShadow = true;
+    for (let i = 0; i < 7; i++) { const r = add(new THREE.IcosahedronGeometry(.5 + Math.random() * .4, 0), R.rock2, x + (Math.random() - .5) * 7, .05, z - 1.5 - Math.random() * 1.6, false); r.scale.y = .3; }
+    add(new THREE.PlaneGeometry(1.1, .34), new THREE.MeshStandardMaterial({ map: h.nameTex('연화대', '#2b1d14', '#f2cf72', 46), roughness: .6 }), x + 3.6, .95, YZ0 + .4, false);
+    add(new THREE.CylinderGeometry(.04, .05, .95, 6), MAT.trunk, x + 3.6, .47, YZ0 + .35);
+    out.flat = { x0: x - 4, x1: x + 4, depth: 2.6, lx: x, lz: z };
+  }
+  // 바다의 바위: 누운 관세음보살 바위, 거북 바위
+  { const x = -9, z = YZ0 - 9;
+    for (let i = 0; i < 6; i++) { const r = add(new THREE.IcosahedronGeometry(1.1 - i * .08, 0), R.rock, x + i * 1.6, .25, z - Math.sin(i * .6) * .3); r.scale.set(1.3, .5, .8); }
+    const head = add(new THREE.SphereGeometry(.85, 10, 8), R.rock, x - 1.4, .55, z); head.scale.set(1, .8, .9);
+    const t = add(new THREE.SphereGeometry(1.6, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), R.rock2, x - 6, 0, z + 3.5); t.scale.y = .55;
+    const th = add(new THREE.SphereGeometry(.55, 10, 8), R.rock2, x - 4.2, .35, z + 3.3); th.scale.set(1.2, .7, .9);
+  }
+  return out;
 }
