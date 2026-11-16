@@ -1,6 +1,7 @@
 // 법당 하나 — 앞면이 +z. 계단으로 올라가 안으로 들어가고, 가운데 방석에서 삼배를 올릴 수 있게 내부까지 만든 모델 (위레브)
 // L: 정면 폭, D: 측면 깊이(실제 건물 크기에서 가져옴), buddhas: 불단 위 부처님 수(1 또는 3)
-export function buildHall(THREE, { L = 15, D = 13, buddhas = 3 } = {}) {
+// roof: 'hip'(팔작) | 'gable'(맞배) · stories: 2면 바깥이 2층(중층) · plain: 단청 없는 나무 빛 · sign: 현판 글자 텍스처
+export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, roof: roofType = 'hip', stories = 1, plain = false, sign = null } = {}) {
   const g = new THREE.Group();
   const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
   const MAT = {
@@ -17,6 +18,9 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3 } = {}) {
     lotus: ['#f6a5b8', '#ffd86a', '#ffffff', '#a8e0a0', '#f48c7a'].map(c => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: .3, roughness: .6, flatShading: true })),
     glow: new THREE.MeshBasicMaterial({ color: '#ffd36a', transparent: true, opacity: .6, depthWrite: false }),
   };
+  if (plain) { // 단청을 칠하지 않은 옛 나무 빛 (수덕사 대웅전·화엄사 각황전처럼)
+    MAT.col.color.set('#7d5a3c'); MAT.band.color.set('#6a4c33'); MAT.bandRed.color.set('#5a3f2a'); MAT.ceil.color.set('#8a6a48'); MAT.wall.color.set('#efe6d2');
+  }
   const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
   const box = (w, h, d, mat, x, y, z, parent) => add(new THREE.BoxGeometry(w, h, d), mat, x, y, z, parent);
 
@@ -64,12 +68,46 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3 } = {}) {
   // 천장 (우물천장 느낌의 초록)
   box(L - .5, .12, D - .5, MAT.ceil, 0, FY + H + .02, 0);
 
-  // 팔작풍 지붕: 처마 끝이 살짝 들린 모양
+  // 지붕: 팔작(처마 끝이 들린 모양) 또는 맞배, 중층이면 아래 지붕 위에 2층 벽과 윗지붕을 한 번 더
   const o = 1.3, Lr = L + 2 * o, Wr = D + 2 * o, RH = Wr * .34, rl = Math.max(.6, Lr - Wr * .95);
-  const roof = add(hipRoofGeo(THREE, Lr, Wr, RH, rl, Math.min(.8, Wr * .06)), MAT.roof, 0, FY + H + .14, 0);
-  roof.receiveShadow = false;
-  box(rl + .5, .42, .5, MAT.ridge, 0, FY + H + .14 + RH + .12, 0);
-  for (const sx of [-1, 1]) box(.35, .75, .42, MAT.ridge, sx * (rl / 2 + .25), FY + H + .14 + RH + .35, 0);
+  const R0 = FY + H + .14;
+  const hipRoof = (lr, wr, rh, y, ridge = true) => {
+    const rlx = Math.max(.6, lr - wr * .95);
+    const m = add(hipRoofGeo(THREE, lr, wr, rh, rlx, Math.min(.8, wr * .06)), MAT.roof, 0, y, 0); m.receiveShadow = false;
+    if (ridge) { box(rlx + .5, .42, .5, MAT.ridge, 0, y + rh + .12, 0); for (const sx of [-1, 1]) box(.35, .75, .42, MAT.ridge, sx * (rlx / 2 + .25), y + rh + .35, 0); }
+  };
+  let signY = FY + H + .62, signZ = D / 2 - .18, signW = Math.min(2.6, L * .2);
+  if (stories >= 2) {
+    // 아래층 지붕(낮게) → 2층 벽 → 윗지붕
+    const UL = L - 2.6, UD = D - 2.6, UH = 2.5;
+    hipRoof(Lr, Wr, RH * .5, R0, false);
+    box(UL, UH, UD, MAT.wall, 0, R0 + UH / 2, 0);
+    for (let i = 0; i <= 4; i++) { const x = -UL / 2 + UL * i / 4; for (const sz of [-1, 1]) box(.22, UH, .22, MAT.col, x, R0 + UH / 2, sz * (UD / 2 + .02)); }
+    for (const sz of [-1, 1]) box(UL + .1, .34, .26, MAT.band, 0, R0 + UH - .1, sz * (UD / 2 + .04));
+    for (const sz of [-1, 1]) for (let i = 0; i < 4; i++) box(UL / 4 - .5, .9, .06, MAT.lattice, -UL / 2 + UL * (i + .5) / 4, R0 + UH * .45, sz * (UD / 2 + .05));
+    hipRoof(UL + 2 * o, UD + 2 * o, (UD + 2 * o) * .34, R0 + UH);
+    signY = R0 + UH * .75; signZ = UD / 2 + .1; signW = Math.min(2.4, UL * .26);
+  } else if (roofType === 'gable') {
+    const m = add(gableRoofGeo(THREE, Lr, Wr, RH * .92, .25), MAT.roof, 0, R0, 0); m.receiveShadow = false;
+    box(Lr + .2, .42, .5, MAT.ridge, 0, R0 + RH * .92 + .12, 0);
+    for (const sx of [-1, 1]) box(.35, .7, .42, MAT.ridge, sx * (Lr / 2 + .05), R0 + RH * .92 + .3, 0);
+    // 박공(옆면 삼각 벽)과 드러난 나무 뼈대
+    const eY = RH * .92 * (1 - D / Wr);
+    const sh = new THREE.Shape([new THREE.Vector2(-D / 2, 0), new THREE.Vector2(D / 2, 0), new THREE.Vector2(D / 2, eY), new THREE.Vector2(0, RH * .92 - .05), new THREE.Vector2(-D / 2, eY)]);
+    for (const sx of [-1, 1]) {
+      const gw = new THREE.Mesh(new THREE.ShapeGeometry(sh), MAT.wall); gw.position.set(sx * (L / 2 - .05), R0, 0); gw.rotation.y = sx * Math.PI / 2; gw.material.side = THREE.DoubleSide; g.add(gw);
+      for (const zz of [-D / 4, 0, D / 4]) box(.08, RH * .92 * (1 - Math.abs(zz) * 2 / Wr) - .1, .16, MAT.col, sx * (L / 2 - .02), R0 + (RH * .92 * (1 - Math.abs(zz) * 2 / Wr) - .1) / 2, zz);
+      box(.08, .16, D, MAT.col, sx * (L / 2 - .02), R0 + eY * .9, 0);
+    }
+  } else {
+    hipRoof(Lr, Wr, RH, R0);
+  }
+  // 현판: 실제 법당 이름 (검은 바탕 금색 글씨)
+  if (sign) {
+    const bd = new THREE.Mesh(new THREE.PlaneGeometry(signW, signW * .3), new THREE.MeshStandardMaterial({ map: sign, roughness: .6, emissive: '#ffffff', emissiveMap: sign, emissiveIntensity: .15 }));
+    bd.position.set(0, signY, signZ + .14); g.add(bd);
+    box(signW + .14, signW * .3 + .14, .08, MAT.col, 0, signY, signZ + .08);
+  }
 
   // 불단(수미단)
   const AW = Math.min(IW - 2.2, 9.5), AD = 1.7, AH = 1.05, AZ = iz0 + .2 + AD / 2;
@@ -160,8 +198,19 @@ function buddha(THREE, MAT, s) {
   return b;
 }
 
+// 맞배지붕: 앞뒤 두 면, 처마 양 끝만 아주 살짝 들림
+export function gableRoofGeo(THREE, Lr, Wr, H, lift) {
+  const seg = 12, pos = [], hx = Lr / 2, hz = Wr / 2;
+  const lf = u => lift * Math.pow(Math.abs(2 * u - 1), 3);
+  for (const s of [1, -1]) for (let k = 0; k < seg; k++) {
+    const u0 = k / seg, u1 = (k + 1) / seg, x0 = -hx + Lr * u0, x1 = -hx + Lr * u1;
+    const e0 = [x0, lf(u0), s * hz], e1 = [x1, lf(u1), s * hz], r0 = [x0, H, 0], r1 = [x1, H, 0];
+    if (s > 0) pos.push(...e0, ...e1, ...r1, ...e0, ...r1, ...r0); else pos.push(...e1, ...e0, ...r0, ...e1, ...r0, ...r1);
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.computeVertexNormals(); return geo;
+}
 // 처마 끝이 살짝 들린 지붕
-function hipRoofGeo(THREE, Lr, Wr, H, rl, lift) {
+export function hipRoofGeo(THREE, Lr, Wr, H, rl, lift) {
   const seg = 12, pos = [];
   const hx = Lr / 2, hz = Wr / 2, rx = rl / 2;
   const lf = u => lift * Math.pow(Math.abs(2 * u - 1), 3);

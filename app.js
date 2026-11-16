@@ -2,10 +2,11 @@
 import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=2';
-import { buildHall } from './hall.js?v=4';
+import { buildHall } from './hall.js?v=5';
+import { buildPagoda, buildExtras, buildBackdrop, treeKit } from './regional.js?v=1';
 import { loadStatue } from './statue.js?v=1';
-import { REGIONS } from './temples.js?v=2';
-import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=1';
+import { REGIONS } from './temples.js?v=3';
+import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=2';
 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
@@ -171,6 +172,10 @@ const MAT = {
   red: M('#9b3b2b'), trunk: M('#7a5536'), leaf: M('#4f8a4b'), leaf2: M('#64a05a'), line: M('#6b4a2a'), fire: new THREE.MeshBasicMaterial({ color: '#ffd27a' }),
   lotus: ['#f6a5b8', '#ffd86a', '#f48c7a', '#a8e0a0', '#ffffff'].map(c => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: .3, roughness: .6, flatShading: true })),
 };
+const ENV = REGION.env || {};
+if (ENV.grass) MAT.grass.color.set(ENV.grass);
+MAT.wallStone = ENV.basalt ? M('#4a494d') : MAT.stone; // 제주는 검은 현무암 돌담
+if (ENV.basalt) MAT.wallCap = M('#3a3a3e');
 const ground = new THREE.Mesh(new THREE.CircleGeometry(600, 64), MAT.grass);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
@@ -190,7 +195,7 @@ function useTemple(T) {
   if (sharedLights && hall) sharedLights.forEach((l, k) => { hall.group.add(l); l.position.copy(T.lightPos[k]); });
   const h1 = document.querySelector('#title h1'), p = document.querySelector('#title p');
   if (h1) h1.innerHTML = `${T.name} ${T.hallName} <small>${REGION.name} · ${T.where}</small>`;
-  if (p) p.textContent = T.note ? T.note : `${REGION.name}의 큰 사찰 ${temples.length}곳을 걸어서 돌아볼 수 있어요`;
+  if (p) p.textContent = (T.note ? T.note : `${REGION.name}의 큰 사찰 ${temples.length}곳을 걸어서 돌아볼 수 있어요`) + (ENV.note ? ` · ${ENV.note}` : '');
   document.title = `${T.name} ${T.hallName} · ${REGION.name} 온라인 참배`;
 }
 
@@ -199,7 +204,8 @@ function buildSite(info, T) {
   const { L, D } = siteSize(info);
   setFrame(T);
   dbg('hall.' + T.name, `${T.hallName} 정면 ${L.toFixed(1)}m × 측면 ${D.toFixed(1)}m · 실제 방향 ${(info.th * 180 / Math.PI).toFixed(0)}° · ${T.via}`);
-  hall = buildHall(THREE, { L, D, buddhas: T.buddhas });
+  const st = T.style || {}, ex = st.extras || [];
+  hall = buildHall(THREE, { L, D, buddhas: T.buddhas, roof: st.roof, stories: st.stories, plain: st.plain, sign: nameTex(T.hallName, '#2b1d14', '#f2cf72', 50) });
   const site = new THREE.Group(); site.position.set(HX, 0, HZ); site.rotation.y = TH; scene.add(site);
   site.add(hall.group);
   hall.colliders.forEach(addCollider);
@@ -209,12 +215,13 @@ function buildSite(info, T) {
   const col = (cx, cz, hx, hz) => { const c = { cx, cz, hx, hz }; loc.push(c); addCollider(c); };
 
   // 마당과 박석길
-  const YX = L / 2 + 6, YZ0 = -D / 2 - 2, YZ1 = D / 2 + 19;
+  const back = ex.includes('janggyeong') ? 12.5 : ex.includes('gyedan') ? 9 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
+  const YX = L / 2 + 6, YZ0 = -D / 2 - 2 - back, YZ1 = D / 2 + 19;
   YARD = { x0: -YX, x1: YX, z0: YZ0, z1: YZ1 };
   const yard = add(new THREE.PlaneGeometry(2 * YX, YZ1 - YZ0), MAT.yard, 0, .02, (YZ0 + YZ1) / 2, false); yard.rotation.x = -Math.PI / 2;
   const path = add(new THREE.PlaneGeometry(2.8, YZ1 - D / 2 - 1.2), MAT.path, 0, .03, (D / 2 + 1.2 + YZ1) / 2, false); path.rotation.x = -Math.PI / 2;
   // 낮은 담장 + 앞쪽 문
-  const WH = .95, wall = (w, d, x, z) => { box(w, WH, d, MAT.stone, x, WH / 2, z); box(w + .2, .18, d + .2, MAT.wallCap, x, WH + .09, z); col(x, z, w / 2 + .05, d / 2 + .05); };
+  const WH = .95, wall = (w, d, x, z) => { box(w, WH, d, MAT.wallStone, x, WH / 2, z); box(w + .2, .18, d + .2, MAT.wallCap, x, WH + .09, z); col(x, z, w / 2 + .05, d / 2 + .05); };
   for (const sx of [-1, 1]) wall(.45, YZ1 - YZ0, sx * YX, (YZ0 + YZ1) / 2);
   wall(2 * YX + .45, .45, 0, YZ0);
   for (const sx of [-1, 1]) wall(YX - 1.6, .45, sx * (1.6 + (YX - 1.6) / 2), YZ1);
@@ -226,27 +233,28 @@ function buildSite(info, T) {
   box(.62, .14, .62, MAT.stone, 0, 1.3, SL); box(.46, .5, .46, MAT.stone, 0, 1.62, SL); box(.3, .26, .48, MAT.fire, 0, 1.62, SL);
   add(new THREE.ConeGeometry(.52, .38, 8), MAT.stoneDark, 0, 2.06, SL); add(new THREE.SphereGeometry(.1, 10, 8), MAT.stoneDark, 0, 2.3, SL);
   col(0, SL, .55, .55);
-  // 삼층 석탑
-  const PZ = D / 2 + 10.5;
-  box(2.4, .45, 2.4, MAT.stone, 0, .225, PZ); box(1.9, .4, 1.9, MAT.stone, 0, .65, PZ);
-  let y = .85;
-  for (let i = 0; i < 3; i++) { const w = 1.15 - i * .2, h = .8 - i * .14; box(w, h, w, MAT.stone, 0, y + h / 2, PZ); y += h; box(w + .85, .17, w + .85, MAT.stoneDark, 0, y + .085, PZ); y += .17; box(w * .7, .12, w * .7, MAT.stone, 0, y + .06, PZ); y += .12; }
-  add(new THREE.CylinderGeometry(.05, .07, .9, 8), MAT.stoneDark, 0, y + .45, PZ);
-  for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(.1 - i * .015, 10, 8), MAT.stoneDark, 0, y + .25 + i * .25, PZ);
-  col(0, PZ, 1.25, 1.25);
-  { const [px, pz] = L2W(0, PZ); T.pagoda = { x: px, z: pz }; }
-  // 마당 위를 가로지르는 연등 줄
-  const lanGeo = new THREE.IcosahedronGeometry(.21, 1), tasGeo = new THREE.CylinderGeometry(.02, .04, .22, 6);
+  // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
+  const PZ = D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, nameTex };
+  const pg = buildPagoda(H, st.pagoda, PZ);
+  { const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(2.7, pg.r + .75); }
+  // 사찰 상징물 (법당 옆 마당·뒤뜰)
+  const exo = buildExtras(H, T); T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini;
+  // 마당 위를 가로지르는 연등 줄 (조계사처럼 마당을 덮는 연등 지붕도) — 색깔별로 한 번에 그림
+  const lanGeo = new THREE.IcosahedronGeometry(.21, 1), tasGeo = new THREE.CylinderGeometry(.02, .04, .22, 6), LM = MAT.lotus.length;
+  const lanM = Array.from({ length: LM }, () => []), tasM = Array.from({ length: LM }, () => []), m4 = new THREE.Matrix4();
+  const rows = st.lanterns === 'canopy' ? Array.from({ length: Math.floor((YZ1 - 2 - (D / 2 + 5)) / 1.5) }, (_, i) => D / 2 + 5 + i * 1.5).filter(z => Math.abs(z - PZ) > 2) : [D / 2 + 7.2, D / 2 + 13.5, D / 2 + 17];
   let k = 0;
-  for (const z of [D / 2 + 7.2, D / 2 + 13.5, D / 2 + 17]) {
+  for (const z of rows) {
     const x0 = -YX + .6, x1 = YX - .6;
     for (const x of [x0, x1]) { add(new THREE.CylinderGeometry(.05, .06, 3.4, 6), MAT.line, x, 1.7, z); col(x, z, .12, .12); }
     const wire = add(new THREE.CylinderGeometry(.01, .01, x1 - x0, 4), MAT.line, 0, 3.25, z, false); wire.rotation.z = Math.PI / 2;
-    for (let x = x0 + .9; x < x1 - .5; x += .95) {
-      const l = add(lanGeo, MAT.lotus[k++ % MAT.lotus.length], x, 2.95, z, false); l.scale.y = .85;
-      add(tasGeo, MAT.lotus[(k + 2) % MAT.lotus.length], x, 2.67, z, false);
+    for (let x = x0 + .9; x < x1 - .5; x += st.lanterns === 'canopy' ? .7 : .95) {
+      const c = k++ % LM; lanM[c].push(new THREE.Matrix4().compose(new THREE.Vector3(x, 2.95, z), new THREE.Quaternion(), new THREE.Vector3(1, .85, 1)));
+      tasM[(c + 2) % LM].push(new THREE.Matrix4().makeTranslation(x, 2.67, z));
     }
   }
+  T.wire = { z: rows[0], x0: -YX + .6, x1: YX - .6, step: st.lanterns === 'canopy' ? .7 : .95, items: [], k: 0 };
+  for (let c = 0; c < LM; c++) for (const [geo, arr] of [[lanGeo, lanM[c]], [tasGeo, tasM[c]]]) { if (!arr.length) continue; const im = new THREE.InstancedMesh(geo, MAT.lotus[c], arr.length); arr.forEach((mm, i) => im.setMatrixAt(i, mm)); site.add(im); }
   // 일주문 현판 (안팎 양쪽)
   for (const side of [1, -1]) {
     const bd = add(new THREE.PlaneGeometry(2.3, .62), new THREE.MeshStandardMaterial({ map: nameTex(T.name, '#3a2418', '#f2cf72', 46), roughness: .7 }), 0, 2.35, YZ1 + side * .2, false);
@@ -315,13 +323,11 @@ function buildCommons() {
 }
 /* 사찰 담장 바깥 숲 (마당·길·사찰은 비움) */
 function plantTrees() {
-  const N = 900, trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.18, .26, 1, 6), MAT.trunk, N);
-  const leafA = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 7), MAT.leaf, N);
-  const leafB = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 7), MAT.leaf2, N);
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  // 권역마다 나무 종류가 다름 (전나무·소나무·대나무·동백·귤·은행·단풍), 사찰 주변엔 그 절의 숲(선운사 동백, 쌍계사 차밭 등)
+  const kit = treeKit(), W = ENV.trees || { fir: .5, broad: .5 }, N = ENV.treeN || 900;
   const free = (x, z) => {
     const r = Math.hypot(x, z); if (r < 11) return false;
-    for (const S of [BELL, RACK]) if (S && Math.hypot(x - S.x, z - S.z) < 6.5) return false; // 범종각·연등대 가림 방지
+    for (const S of [BELL, RACK, TILE]) if (S && Math.hypot(x - S.x, z - S.z) < 6.5) return false; // 범종각·연등대·기와 불사 가림 방지
     for (const T of temples) {
       const along = x * T.ux + z * T.uz, side = Math.abs(x * T.uz - z * T.ux);
       if (along > 0 && along < RG + 2 && side < 3.2) return false; // 박석길
@@ -336,15 +342,20 @@ function plantTrees() {
     const a = Math.random() * Math.PI * 2, r = 9 + Math.pow(Math.random(), .8) * (RB + 70);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (!free(x, z)) continue;
-    const s = .8 + Math.random() * .9, h = 6 * s;
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.random() * 6);
-    trunks.setMatrixAt(n, m.compose(v.set(x, h * .2, z), q, sc.set(s, h * .4, s)));
-    leafA.setMatrixAt(n, m.compose(v.set(x, h * .55, z), q, sc.set(2.3 * s, h * .55, 2.3 * s)));
-    leafB.setMatrixAt(n, m.compose(v.set(x, h * .85, z), q, sc.set(1.6 * s, h * .45, 1.6 * s)));
-    n++;
+    kit.species[kit.pick(W)](x, z, .8 + Math.random() * .9); n++;
+  }
+  // 절마다 둘레 숲
+  for (const T of temples) {
+    const gv = T.style && T.style.grove; if (!gv || !kit.species[gv]) continue;
+    const Y = T.YARD; let m = 0, t2 = 0;
+    while (m < (gv === 'tea' ? 70 : 55) && t2 < 3000) {
+      t2++; const lx = Y.x0 - 12 + Math.random() * (Y.x1 - Y.x0 + 24), lz = Y.z0 - 14 + Math.random() * (Y.z1 - Y.z0 + 12);
+      setFrame(T); const [x, z] = L2W(lx, lz); if (!free(x, z)) continue;
+      kit.species[gv](x, z, gv === 'tea' ? 1 : .8 + Math.random() * .6); m++;
+    }
   }
   if (cur) setFrame(cur);
-  [trunks, leafA, leafB].forEach(im => { im.count = n; im.castShadow = true; scene.add(im); });
+  kit.commit(scene);
 }
 
 /* ───────── 충돌 · 경계 ───────── */
@@ -379,6 +390,13 @@ let blinkT = 2.5, idleT = 0;
 const STATUE_URL = QS.get('statue') || 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@898d0acabdb82f4c5bf3bbe52d99d4619ad7b591/assets/buddha.glb';
 let statueKit = null;
 const statueReady = loadStatue(STATUE_URL, renderer).then(k => (statueKit = k)).catch(e => { dbg('statueError', e.message); return null; });
+const TINT = (() => { const cache = { bronze: new Map(), stone: new Map() };
+  const mk = (kind, fn) => m => { const c = cache[kind]; if (!c.has(m)) { const k = m.clone(); fn(k); c.set(m, k); } return c.get(m); };
+  return {
+    bronze: mk('bronze', k => { k.color.set('#8c7650'); k.metalness = .75; k.roughness = .42; k.emissiveIntensity = .05; }),
+    stone: mk('stone', k => { k.map = null; k.emissiveMap = null; k.emissiveIntensity = 0; k.color.set('#a7a29a'); k.metalness = 0; k.roughness = .95; k.envMapIntensity = .25; }),
+  };
+})();
 async function enshrineStatues() {
   const kit = await statueReady; if (!kit) return;
   let n = 0;
@@ -390,6 +408,12 @@ async function enshrineStatues() {
     const back = sl.z - .27 * s, cz = Math.min(back + d / 2, sl.z + .95 - d / 2);
     st.position.set(sl.x, sl.y, cz);
     old.parent.add(st); sl.statue = st; n++;
+  }
+  // 바깥 불상: 신흥사 통일대불(청동), 관음사 길가 돌부처
+  const tint = (obj, kind) => obj.traverse(o => { if (!o.isMesh) return; o.material = TINT[kind](o.material); if (kind === 'stone') o.castShadow = false; });
+  for (const T of temples) {
+    if (T.bigBuddha && T.site) { const b = T.bigBuddha, st = kit.make(b.h); tint(st, 'bronze'); st.position.set(b.lx, b.ly, b.lz); T.site.add(st); n++; }
+    if (T.mini && T.site) for (const m of T.mini) { const st = kit.make(.95); tint(st, 'stone'); st.position.set(m.lx, m.ly, m.lz); st.rotation.y = m.lx > 0 ? -Math.PI / 2 : Math.PI / 2; T.site.add(st); n++; }
   }
   dbg('statues', n);
 }
@@ -553,6 +577,7 @@ function drawRegionMap(mctx, W, H, big) {
   }
   if (cur) setFrame(cur);
   if (BELL) { const [bx, bz] = P(BELL.x, BELL.z); mctx.fillStyle = '#4f5a3c'; mctx.beginPath(); mctx.arc(bx, bz, big ? 7 : 4, 0, 7); mctx.fill(); }
+  if (TILE) { const [tx, tz] = P(TILE.x, TILE.z); mctx.fillStyle = '#5b636f'; mctx.fillRect(tx - (big ? 8 : 4), tz - (big ? 5 : 3), big ? 16 : 8, big ? 10 : 6); }
   if (RACK) { const [rx, rz] = P(RACK.x, RACK.z); mctx.fillStyle = '#e0a020'; mctx.fillRect(rx - (big ? 9 : 5), rz - 2, big ? 18 : 10, 4); }
   const [ax, az] = P(avatar.position.x, avatar.position.z);
   mctx.save(); mctx.translate(ax, az); mctx.rotate(Math.PI - avatar.rotation.y); mctx.fillStyle = '#d0382b'; mctx.beginPath(); mctx.moveTo(0, -11); mctx.lineTo(7, 7); mctx.lineTo(-7, 7); mctx.closePath(); mctx.fill(); mctx.restore();
@@ -669,6 +694,7 @@ function step() {
 
 /* ───────── 산사 체험 (앉기 · 탑돌이 · 범종 · 향 · 소원 연등 · 바닥 클릭 이동 · 지도 · 사진) ───────── */
 const visited = new Set();
+let TILE = null; const GROW = [];
 let sit = null, sitW = 0, tapdori = null, moveTarget = null, BELL = null, RACK = null, bellAnim = -1, bellCool = 0;
 const rituals = initRituals({ sound, store, toast, done, onUse: () => { if (sit) standUp(); } });
 document.getElementById('btnMoktak').onclick = () => rituals.openMoktak();
@@ -707,7 +733,7 @@ function standUp() { sit = null; updateNear(); }
 function startTapdori(T) {
   if (!T || !T.pagoda) return; if (sit) standUp(); moveTarget = null; markMove(null); pose = null;
   const dx = avatar.position.x - T.pagoda.x, dz = avatar.position.z - T.pagoda.z, phi = Math.atan2(dx, -dz);
-  tapdori = { cx: T.pagoda.x, cz: T.pagoda.z, r: 2.7, phi, start: phi, laps: 0 }; intro = -1;
+  tapdori = { cx: T.pagoda.x, cz: T.pagoda.z, r: T.pagodaR || 2.7, phi, start: phi, laps: 0 }; intro = -1;
   toast('🪷 탑을 오른쪽에 두고 세 바퀴 돌아요 (움직이면 멈춰요)', 3000); updateNear();
 }
 function tapdoriStep(dt) {
@@ -729,7 +755,7 @@ function freeAngles(k) {
   return out;
 }
 function buildBellAndRack(g, add) {
-  const [aBell, aRack] = freeAngles(2), R0 = 14;
+  const [aBell, aRack, aTile] = freeAngles(3), R0 = 14;
   // 범종각
   { const ux = Math.sin(aBell), uz = Math.cos(aBell), x = ux * R0, z = uz * R0, grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = Math.atan2(-ux, -uz); g.add(grp);
     const ad = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = true; m.receiveShadow = true; grp.add(m); return m; };
@@ -761,6 +787,59 @@ function buildBellAndRack(g, add) {
     RACK = { x, z, ux, uz, grp, items: [], stand: [ux * (R0 - 2.2), uz * (R0 - 2.2)] };
     for (const w of store.wishes(REGION.id)) hangWish(w, false);
   }
+  // 기와 불사: 기와에 이름·소원을 적어 올리는 자리 (접수대 + 3단 기와 진열대)
+  { const ux = Math.sin(aTile), uz = Math.cos(aTile), x = ux * R0, z = uz * R0, grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = Math.atan2(-ux, -uz); g.add(grp);
+    const ad = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = true; m.receiveShadow = true; grp.add(m); return m; };
+    const B = (w, h, d, mat, px, py, pz) => ad(new THREE.BoxGeometry(w, h, d), mat, px, py, pz);
+    B(2.2, .08, .8, MAT.trunk, 0, .78, 1.0); for (const sx of [-1, 1]) for (const sz of [-1, 1]) B(.08, .78, .08, MAT.trunk, sx * 1.0, .39, 1.0 + sz * .32);
+    B(.42, .05, .28, MAT.stoneDark, -.6, .84, 1.0); const br = ad(new THREE.CylinderGeometry(.015, .02, .36, 6), MAT.line, -.1, .84, 1.05); br.rotation.z = Math.PI / 2;
+    for (let i = 0; i < 3; i++) { const t = ad(TILE_GEO, TILE_MAT, .62, .86 + i * .05, 1.0); t.rotation.x = -Math.PI / 2; t.scale.set(.8, .8, .8); }
+    for (let r = 0; r < 3; r++) { B(4.4, .1, .55, MAT.trunk, 0, .45 + r * .55, -r * .5); B(4.4, .45 + r * .55, .08, MAT.trunk, 0, (.45 + r * .55) / 2, -r * .5 - .24); }
+    for (const sx of [-1, 1]) B(.12, 2.9, .12, MAT.trunk, sx * 2.3, 1.45, -1.35);
+    B(4.7, .1, .12, MAT.trunk, 0, 2.95, -1.35);
+    const sign = ad(new THREE.PlaneGeometry(1.5, .42), new THREE.MeshStandardMaterial({ map: nameTex('기와 불사', '#3a2418', '#f2cf72', 46), roughness: .7 }), 0, 2.62, -1.28); sign.castShadow = false;
+    const slots = [];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 8; c++) { const m = ad(TILE_GEO, TILE_MAT, -1.75 + c * .5, .5 + r * .55 + .23, -r * .5); slots.push(m); }
+    obstacles.push({ cx: x, cz: z, c: Math.cos(grp.rotation.y), s: -Math.sin(grp.rotation.y), hu: 2.45, hv: 1.55 });
+    TILE = { x, z, ux, uz, grp, slots, k: 0, stand: [ux * (R0 - 2.7), uz * (R0 - 2.7)] };
+    for (const w of store.tiles(REGION.id)) hangTile(w, false);
+  }
+}
+// 기와 한 장 (안쪽이 오목한 암키와 모양) — 글씨를 쓴 기와는 흰 글씨 그림을 입힘
+const TILE_GEO = new THREE.CylinderGeometry(.24, .24, .46, 12, 1, true, -Math.PI * .32, Math.PI * .64);
+const TILE_MAT = new THREE.MeshStandardMaterial({ color: '#5b636f', roughness: .7, side: THREE.DoubleSide, flatShading: true });
+function tileTexture(text) {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 240; const c = cv.getContext('2d');
+  c.fillStyle = '#5b636f'; c.fillRect(0, 0, 256, 240); c.strokeStyle = 'rgba(255,255,255,.08)'; for (let x = 8; x < 256; x += 22) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, 240); c.stroke(); }
+  c.fillStyle = '#fbf7ee'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = 'bold 34px "Nanum Brush Script","Nanum Pen Script","Noto Serif KR",serif';
+  const lines = []; for (let i = 0; i < text.length && lines.length < 3; i += 8) lines.push(text.slice(i, i + 8));
+  lines.forEach((ln, i) => c.fillText(ln, 128, 120 + (i - (lines.length - 1) / 2) * 52));
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function hangTile(w, fresh = true) {
+  if (!TILE) return; const m = TILE.slots[TILE.k % TILE.slots.length]; TILE.k++;
+  if (m.material !== TILE_MAT) { m.material.map && m.material.map.dispose(); m.material.dispose(); }
+  m.material = new THREE.MeshStandardMaterial({ map: tileTexture(w.t || ''), roughness: .7, side: THREE.DoubleSide });
+  if (fresh) { m.userData.base = m.scale.x; m.scale.setScalar(.01); m.userData.grow = 0; GROW.push(m); }
+}
+// 지금 서 있는 절 마당 (연등을 그 절 연등 줄에 달 때)
+function templeHere() {
+  if (!cur || !cur.wire) return null; const [lx, lz] = W2L(avatar.position.x, avatar.position.z), Y = cur.YARD;
+  return lx > Y.x0 && lx < Y.x1 && lz > Y.z0 && lz < Y.z1 + 1 ? cur : null;
+}
+// 절 마당 연등 줄에 이름표 달린 연등 달기 (원래 연등 사이사이에 조금 낮게)
+function hangTempleLantern(T, w, fresh = true) {
+  const W = T.wire; if (!W || !T.site) return; const n = Math.max(1, Math.floor((W.x1 - W.x0 - 1.4) / W.step));
+  if (W.items.length >= n) { const old = W.items.shift(); old.removeFromParent(); }
+  const i = W.k++ % n, lx = W.x0 + .9 + W.step / 2 + i * W.step;
+  const gL = new THREE.Group(); gL.position.set(lx, 2.7, W.z); T.site.add(gL);
+  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(.25, 1), new THREE.MeshStandardMaterial({ color: w.c, emissive: w.c, emissiveIntensity: .45, roughness: .6, flatShading: true })); m.scale.y = .85; gL.add(m);
+  const str = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, .4, 4), MAT.line); str.position.y = .38; gL.add(str);
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const c = cv.getContext('2d'); c.fillStyle = '#fffaf0'; c.fillRect(0, 0, 256, 128); c.fillStyle = '#5a3a22'; c.font = '600 26px sans-serif'; c.textAlign = 'center';
+  const t = w.t || ''; c.fillText(t.slice(0, 10), 128, 52); if (t.length > 10) c.fillText(t.slice(10, 20) + (t.length > 20 ? '…' : ''), 128, 90);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(.46, .23), new THREE.MeshStandardMaterial({ map: tex, roughness: .8, side: THREE.DoubleSide })); tag.position.set(0, -.42, 0); gL.add(tag);
+  W.items.push(gL); if (fresh) { gL.userData.base = 1; gL.scale.setScalar(.01); gL.userData.grow = 0; GROW.push(gL); }
 }
 function strikeBell() {
   if (!BELL || bellCool > 0) return; bellCool = 2.6; bellAnim = 0; if (sit) standUp();
@@ -782,17 +861,38 @@ function hangWish(w, fresh = true) {
 }
 const wishModal = document.getElementById('wishModal');
 let wishColor = WISH_COLORS[0];
-function openWish() {
-  const box = document.getElementById('wishColors'); box.innerHTML = '';
+let wishMode = 'lantern';
+function openWish(mode = 'lantern') {
+  wishMode = mode; const tile = mode === 'tile', T = tile ? null : templeHere(), inp = document.getElementById('wishText');
+  document.getElementById('wishTitle').textContent = tile ? '✍️ 기와 올리기' : '🏮 연등 달기';
+  document.getElementById('wishSub').textContent = (tile ? '기와 한 장에 이름과 소원을 적어 순례 마당 기와 불사 자리에 올려요' : T ? `${T.name} 마당 연등 줄에 이름표를 달아 걸려요` : '순례 마당 소원 연등대에 걸려요 · 절 마당 안에서 누르면 그 절 연등 줄에 달려요') + ' · 지금은 이 기기에서만 보여요';
+  document.getElementById('wishHang').textContent = tile ? '기와 올리기' : '연등 달기';
+  inp.maxLength = tile ? 24 : 40; inp.placeholder = tile ? '이름 · 소원 (24자까지) 예) 김OO 가족 건강' : '소원 한 문장 (40자까지)';
+  const box = document.getElementById('wishColors'); box.innerHTML = ''; box.style.display = tile ? 'none' : 'flex';
   WISH_COLORS.forEach(c => { const b = document.createElement('button'); b.style.background = c; b.className = c === wishColor ? 'on' : ''; b.onclick = () => { wishColor = c; [...box.children].forEach(x => x.className = ''); b.className = 'on'; }; box.appendChild(b); });
   document.getElementById('wishText').value = ''; wishModal.classList.add('show'); setTimeout(() => document.getElementById('wishText').focus(), 50);
 }
-document.getElementById('btnWish').onclick = openWish;
+document.getElementById('btnWish').onclick = () => openWish('lantern');
+document.getElementById('btnTile').onclick = () => { goTile(); openWish('tile'); };
+function goTile() {
+  if (!TILE || Math.hypot(avatar.position.x - TILE.x, avatar.position.z - TILE.z) < 4.2) return; if (sit) standUp(); if (tapdori) stopTapdori();
+  avatar.position.set(TILE.stand[0], 0, TILE.stand[1]); avatar.rotation.y = Math.atan2(TILE.x - TILE.stand[0], TILE.z - TILE.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; intro = -1;
+}
 document.getElementById('wishCancel').onclick = () => wishModal.classList.remove('show');
 document.getElementById('wishHang').onclick = () => {
-  const t = document.getElementById('wishText').value.trim(); if (!t) { toast('소원을 한 문장 적어 주세요'); return; }
+  const t = document.getElementById('wishText').value.trim(); if (!t) { toast(wishMode === 'tile' ? '기와에 적을 이름이나 소원을 써 주세요' : '소원을 한 문장 적어 주세요'); return; }
+  wishModal.classList.remove('show'); sound.chime();
+  if (wishMode === 'tile') {
+    const w = { t: t.slice(0, 24), at: Date.now() }, L = store.tiles(REGION.id); L.push(w); if (L.length > 24) L.shift(); store.save();
+    goTile(); hangTile(w); done('giwa'); toast('✍️ 기와 불사 자리에 기와를 올렸어요', 3000); return;
+  }
+  const T = templeHere();
+  if (T) {
+    const w = { c: wishColor, t: t.slice(0, 40), at: Date.now() }, L = store.tlan(T.name); L.push(w); if (L.length > 30) L.shift(); store.save();
+    hangTempleLantern(T, w); done('wish'); toast(`🏮 ${T.name} 마당 연등 줄에 연등을 달았어요`, 3000); return;
+  }
   const w = { c: wishColor, t: t.slice(0, 40), at: Date.now() }; store.wishes(REGION.id).push(w); if (store.wishes(REGION.id).length > 16) store.wishes(REGION.id).shift(); store.save();
-  hangWish(w); wishModal.classList.remove('show'); sound.chime(); done('wish');
+  hangWish(w); done('wish');
   toast('🏮 순례 마당 소원 연등대에 연등을 걸었어요', 3000);
   if (RACK) { avatar.position.set(RACK.stand[0], 0, RACK.stand[1]); avatar.rotation.y = Math.atan2(RACK.x - RACK.stand[0], RACK.z - RACK.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 5; pitch = .2; }
 };
@@ -816,9 +916,10 @@ function updateCtx(inside, dBow, lx, lz) {
     if (inside && dBow < 2.2 && !sit) acts.push(['🙇 여기서 삼배 올리기', startSambae]);
     if (inside && !sit) acts.push(['🪔 향 올리기', offerIncense]);
     if (inside) acts.push([sit ? '🙂 일어나기' : '🧘 방석에 앉기', toggleSit]);
-    if (!inside && cur && cur.pagoda && Math.hypot(avatar.position.x - cur.pagoda.x, avatar.position.z - cur.pagoda.z) < 4.6) acts.push(['🪷 탑돌이 시작', () => startTapdori(cur)]);
+    if (!inside && cur && cur.pagoda && Math.hypot(avatar.position.x - cur.pagoda.x, avatar.position.z - cur.pagoda.z) < (cur.pagodaR || 2.7) + 1.9) acts.push(['🪷 탑돌이 시작', () => startTapdori(cur)]);
     if (BELL && Math.hypot(avatar.position.x - BELL.x, avatar.position.z - BELL.z) < 3.6) acts.push(['🔔 범종 치기', strikeBell]);
-    if (RACK && Math.hypot(avatar.position.x - RACK.x, avatar.position.z - RACK.z) < 3.8) acts.push(['🏮 소원 연등 걸기', openWish]);
+    if (RACK && Math.hypot(avatar.position.x - RACK.x, avatar.position.z - RACK.z) < 3.8) acts.push(['🏮 소원 연등 걸기', () => openWish('lantern')]);
+    if (TILE && Math.hypot(avatar.position.x - TILE.x, avatar.position.z - TILE.z) < 4.2) acts.push(['✍️ 기와 올리기', () => openWish('tile')]);
   }
   if (tapdori) acts.push(['⏹ 탑돌이 멈추기', () => stopTapdori('탑돌이를 멈췄어요')]);
   const key = acts.map(a => a[0]).join('|'); ctxActs = acts;
@@ -838,6 +939,7 @@ function updateWorld(dt) {
     if (t > 6) { bellAnim = -1; BELL.strG.rotation.x = 0; BELL.bellG.rotation.x = 0; }
   }
   if (moveMark.visible) { moveMark.userData.t += dt; moveMark.material.opacity = .9 * (.6 + .4 * Math.sin(moveMark.userData.t * 6)); }
+  for (let i = GROW.length - 1; i >= 0; i--) { const it = GROW[i]; it.userData.grow = Math.min(1, it.userData.grow + dt * 2); it.scale.setScalar((.01 + .99 * it.userData.grow) * (it.userData.base || 1)); if (it.userData.grow >= 1) { delete it.userData.grow; GROW.splice(i, 1); } }
   if (RACK) for (const it of RACK.items) if (it.userData.grow !== undefined) { it.userData.grow = Math.min(1, it.userData.grow + dt * 2); it.scale.setScalar(.01 + .99 * it.userData.grow); if (it.userData.grow >= 1) delete it.userData.grow; }
   // 연기
   if (smokeT > 0 && smokeAt) { smokeT -= dt; smokeEmit += dt * 14; }
@@ -868,6 +970,7 @@ function openMap() {
   for (const T of temples) { setFrame(T); const [gx, gz] = L2W(0, T.YARD.z1 + 2.5); mapSpots.push({ n: T.name, x: gx, z: gz, go: () => goTemple(T) }); if (T.pagoda) mapSpots.push({ n: `${T.name} 탑돌이`, x: T.pagoda.x, z: T.pagoda.z, small: 1, go: () => { goTemple(T); avatar.position.set(T.pagoda.x + (avatar.position.x - T.pagoda.x) * 0 + T.ux * 3.2, 0, T.pagoda.z + T.uz * 3.2); } }); }
   if (cur) setFrame(cur);
   if (BELL) mapSpots.push({ n: '범종각', x: BELL.x, z: BELL.z, go: () => { avatar.position.set(BELL.stand[0], 0, BELL.stand[1]); avatar.rotation.y = Math.atan2(BELL.x - BELL.stand[0], BELL.z - BELL.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; } });
+  if (TILE) mapSpots.push({ n: '기와 불사', x: TILE.x, z: TILE.z, go: () => { avatar.position.set(TILE.stand[0], 0, TILE.stand[1]); avatar.rotation.y = Math.atan2(TILE.x - TILE.stand[0], TILE.z - TILE.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; } });
   if (RACK) mapSpots.push({ n: '소원 연등대', x: RACK.x, z: RACK.z, go: () => { avatar.position.set(RACK.stand[0], 0, RACK.stand[1]); avatar.rotation.y = Math.atan2(RACK.x - RACK.stand[0], RACK.z - RACK.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; } });
   for (const sp of mapSpots) { const [x, y] = P(sp.x, sp.z); sp.px = x; sp.py = y; if (sp.n === '순례 마당' || sp.small) continue; c.fillStyle = '#9b3b2b'; c.beginPath(); c.arc(x, y, 7, 0, 7); c.fill(); }
   for (const sp of mapSpots.filter(q => !temples.some(T => T.name === q.n))) { c.fillStyle = sp.small ? '#6d5f4b' : '#2e8b74'; c.beginPath(); c.arc(sp.px, sp.py, sp.small ? 5 : 8, 0, 7); c.fill(); c.font = `600 ${sp.small ? 15 : 19}px sans-serif`; c.textAlign = 'center'; c.fillStyle = '#3d2a1c'; c.fillText(sp.n.replace(/^.* /, ''), sp.px, sp.py - 12); }
@@ -928,7 +1031,9 @@ regionModal.addEventListener('pointerdown', e => { if (e.target === regionModal)
   // 법당 조명은 한 벌만 두고 지금 사찰로 옮겨 다님 (조명이 사찰 수만큼 늘면 무거워져서)
   sharedLights = temples[0].hall.lights;
   for (const T of temples) { T.lightPos = T.hall.lights.map(l => l.position.clone()); if (T !== temples[0]) T.hall.lights.forEach(l => l.removeFromParent()); }
+  try { buildBackdrop(scene, ENV, RB); } catch (e) { dbg('backdropError', e.message); }
   buildCommons();
+  for (const T of temples) for (const w of store.tlan(T.name)) hangTempleLantern(T, w, false);
   try { plantTrees(); } catch (e) { dbg('treeError', e.message); }
   enshrineStatues();
   useTemple(temples[0]);

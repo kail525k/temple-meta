@@ -133,7 +133,8 @@
   <button id="btnSit" title="앉기 (3)"><i>🧘</i>앉기</button>
   <button id="btnMoktak" title="목탁 (4)"><i>🪵</i>목탁</button>
   <button id="btnBeads" title="염주 (5)"><i>📿</i>염주</button>
-  <button id="btnWish" title="소원 연등"><i>🏮</i>연등</button>
+  <button id="btnWish" title="연등 달기"><i>🏮</i>연등</button>
+  <button id="btnTile" title="기와 올리기"><i>✍️</i>기와</button>
   <button id="btnPhoto" title="사진 저장"><i>📸</i>사진</button>
 </div>
 <div id="ctxBar"></div>
@@ -142,7 +143,7 @@
 <div id="soundPanel" class="panel card"></div>
 <div id="ritual"><div id="ritualStage"></div><div id="ritualInfo"></div><div id="ritualCtrl"></div><button id="ritualClose">닫기 ✕</button></div>
 <div id="wishModal"><div class="box card">
-  <b>🏮 소원 연등 걸기</b><small>순례 마당 소원 연등대에 걸려요 · 지금은 이 기기에서만 보여요</small>
+  <b id="wishTitle">🏮 소원 연등 걸기</b><small id="wishSub">순례 마당 소원 연등대에 걸려요 · 지금은 이 기기에서만 보여요</small>
   <div id="wishColors"></div>
   <input id="wishText" maxlength="40" placeholder="소원 한 문장 (40자까지)">
   <div class="row"><button id="wishCancel">취소</button><button id="wishHang">연등 걸기</button></div>
@@ -175,6 +176,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=10"></script>
+<script type="module" src="./app.js?v=11"></script>
 </body>
 </html>

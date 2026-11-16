@@ -7,13 +7,15 @@ const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seo
 export function createStore() {
   let d = {}; try { d = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { }
   if (d.day !== today()) { d.day = today(); d.todo = {}; d.counts = {}; }
-  d.todo = d.todo || {}; d.counts = d.counts || {}; d.wishes = d.wishes || {}; d.vol = d.vol || { amb: .35, sfx: .7, ambOn: false };
+  d.todo = d.todo || {}; d.counts = d.counts || {}; d.wishes = d.wishes || {}; d.tiles = d.tiles || {}; d.tlan = d.tlan || {}; d.vol = d.vol || { amb: .35, sfx: .7, ambOn: false };
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) { } };
   return {
     d, save,
     count(k, n = 1) { d.counts[k] = (d.counts[k] || 0) + n; save(); return d.counts[k]; },
     get(k) { return d.counts[k] || 0; },
     wishes(rid) { return d.wishes[rid] || (d.wishes[rid] = []); },
+    tiles(rid) { return d.tiles[rid] || (d.tiles[rid] = []); },       // 기와 불사 (권역별)
+    tlan(name) { return d.tlan[name] || (d.tlan[name] = []); },       // 절 마당 연등 (사찰별)
   };
 }
 
@@ -29,6 +31,7 @@ export const TODO = [
   ['bell', '🔔 범종 치기'],
   ['tap', '🪷 탑돌이 세 바퀴'],
   ['wish', '🏮 소원 연등 걸기'],
+  ['giwa', '✍️ 기와에 소원 적어 올리기'],
   ['visit', '🗺 다른 사찰 한 곳 더 가 보기'],
 ];
 export function initTodo(store, toast, sound) {
