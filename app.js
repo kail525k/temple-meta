@@ -275,7 +275,7 @@ function moveJoy(e) {
 }
 
 /* ───────── 합장 · 절 · 삼배 ───────── */
-let pose = null, poseT = 0, sam = null, bowCount = 0, intro = 0;
+let pose = null, poseT = 0, sam = null, bowCount = 0, intro = 0, poseHold = false;
 const faceHall = () => Math.atan2(-NX, -NZ), behind = () => Math.atan2(NX, NZ);
 const bowPromptEl = document.getElementById('bowPrompt');
 let actx = null;
@@ -437,7 +437,7 @@ function step() {
   // 자세: 합장 · 절 · 삼배
   let hap = 0;
   if (sam) {
-    sam.t += dt; const per = 2.7, n = Math.floor(sam.t / per), t = sam.t - n * per;
+    sam.t += sam.hold ? 0 : dt; const per = 2.7, n = Math.floor(sam.t / per), t = sam.t - n * per;
     if (n >= 3) {
       sam = null; resetBody(); bowCount++; bell(.32); pose = 'hap'; poseT = 1.75; // 합장을 천천히 풀며 마무리
       toast('🙏 삼배를 올렸어요. 마음이 한결 편안해지길 바라요', 3600);
@@ -448,7 +448,7 @@ function step() {
       if (t > 1.2 && sam.rung !== n) { sam.rung = n; bell(.18); toast(`🙇 ${n + 1}배`, 1200); }
     }
   } else if (pose) {
-    poseT += dt; const dur = pose === 'hap' ? 2.2 : 2.0;
+    poseT += poseHold ? 0 : dt; const dur = pose === 'hap' ? 2.2 : 2.0;
     hap = clamp(Math.min(poseT / .35, (dur - poseT) / .45), 0, 1);
     if (pose === 'bow') { body.rotation.x = clamp(Math.min((poseT - .3) / .4, (dur - poseT) / .5), 0, 1) * 0.8; headG.rotation.x = body.rotation.x * .3; }
     if (poseT > dur) { pose = null; resetBody(); }
@@ -509,3 +509,16 @@ function step() {
   canvas.focus();
   loop();
 })();
+
+// 점검용 (주소에 ?dbg 가 있을 때만): 카메라·자세를 고정해 확인
+if (/[?&]dbg/.test(location.search)) window.__t = {
+  front(d = 3, p = .15) { intro = -1; yaw = behind() + Math.PI; dist = d; pitch = p; },
+  side(d = 3, p = .15) { intro = -1; yaw = behind() + Math.PI / 2; dist = d; pitch = p; },
+  back(d = 3, p = .2) { intro = -1; yaw = behind(); dist = d; pitch = p; },
+  hap(hold) { sam = null; pose = 'hap'; poseT = hold ?? 0; poseHold = hold !== undefined; },
+  bow(hold) { sam = null; pose = 'bow'; poseT = hold ?? 0; poseHold = hold !== undefined; },
+  sam(t) { startSambae(); if (t !== undefined) { sam.t = t; sam.hold = true; } },
+  release() { poseHold = false; if (sam) sam.hold = false; },
+  walk(on, run) { keys.KeyW = !!on; keys.ShiftLeft = !!run; },
+  get glb() { return glb; },
+};
