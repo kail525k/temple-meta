@@ -406,6 +406,7 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 let yaw = Math.PI, pitch = 0.24, dist = 6;
 const drag = { id: null, x: 0, y: 0 };
 const ZMIN = 1.4, ZMAX = 45; // 확대·축소 범위 (얼굴 가까이 ~ 권역 전체)
+const PMIN = -0.85, PMAX = 1.48; // 보는 각도: 아래에서 올려다보기(-) ~ 거의 위에서 내려다보기
 const ptrs = new Map(); let pinchD = 0, pinchDist0 = 0, downInfo = null;
 canvas.addEventListener('pointerdown', e => {
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -416,7 +417,7 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinchD > 0) dist = clamp(pinchDist0 * pinchD / Math.max(20, d), ZMIN, ZMAX); return; }
-  if (e.pointerId !== drag.id) return; yaw -= (e.clientX - drag.x) * 0.006; pitch = clamp(pitch + (e.clientY - drag.y) * 0.004, 0.02, 1.45); drag.x = e.clientX; drag.y = e.clientY;
+  if (e.pointerId !== drag.id) return; yaw -= (e.clientX - drag.x) * 0.006; pitch = clamp(pitch + (e.clientY - drag.y) * 0.004, PMIN, PMAX); drag.x = e.clientX; drag.y = e.clientY;
 });
 const endDrag = e => {
   ptrs.delete(e.pointerId); if (ptrs.size < 2) pinchD = 0;
@@ -645,15 +646,18 @@ function step() {
   // 카메라: 법당 안에서는 가깝게, 벽·천장 밖으로 나가지 않게
   let effD = dist, effP = pitch, inside = false, lxA = 0, lzA = 0;
   if (hall) { [lxA, lzA] = W2L(avatar.position.x, avatar.position.z); inside = hall.isInside(lxA, lzA); if (inside) { effD = Math.min(dist, 5.5); effP = Math.min(pitch, .55); } }
-  camGoal.set(avatar.position.x + Math.sin(yaw) * Math.cos(effP) * effD, avatar.position.y + 1.2 + Math.sin(effP) * effD, avatar.position.z + Math.cos(yaw) * Math.cos(effP) * effD);
+  const hd = Math.cos(effP) * effD;
+  camGoal.set(avatar.position.x + Math.sin(yaw) * hd, avatar.position.y + 1.2 + Math.sin(effP) * effD, avatar.position.z + Math.cos(yaw) * hd);
   if (hall && (inside || hall.underRoof(lxA, lzA))) {
     let [cl, cz] = W2L(camGoal.x, camGoal.z); const I = hall.interior;
     if (inside) { cl = clamp(cl, I.ix0 + .3, I.ix1 - .3); cz = Math.max(cz, I.iz0 + .3); }
     if (hall.underRoof(cl, cz)) camGoal.y = Math.min(camGoal.y, hall.ceilY - .7);
     const [x, z] = L2W(cl, cz); camGoal.x = x; camGoal.z = z;
   }
+  // 아래에서 올려다볼 때: 카메라가 바닥 밑으로 들어가지 않게 바닥 바로 위에 붙이고, 시선은 조금 더 위로
+  { let fy = 0; if (hall) { const [fl, fz] = W2L(camGoal.x, camGoal.z); fy = hall.heightAt(fl, fz); } camGoal.y = Math.max(camGoal.y, fy + .16); }
   camera.position.lerp(camGoal, Math.min(1, dt * 8));
-  camera.lookAt(avatar.position.x, avatar.position.y + 1.05, avatar.position.z);
+  camera.lookAt(avatar.position.x, avatar.position.y + 1.05 + Math.max(0, -effP) * Math.min(effD, 3) * .3, avatar.position.z);
   faceFill.position.set(camera.position.x, camera.position.y + 1.2, camera.position.z); faceFill.target.position.set(avatar.position.x, avatar.position.y + 1, avatar.position.z);
   sun.position.set(avatar.position.x + 50, 100, avatar.position.z + 35); sun.target.position.copy(avatar.position);
   if (hall) { glowT += dt; hall.glow.visible = !sam; hall.glow.material.opacity = .35 + .25 * Math.sin(glowT * 3); }
