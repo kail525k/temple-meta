@@ -973,7 +973,7 @@ function openMap() {
   if (TILE) mapSpots.push({ n: '기와 불사', x: TILE.x, z: TILE.z, go: () => { avatar.position.set(TILE.stand[0], 0, TILE.stand[1]); avatar.rotation.y = Math.atan2(TILE.x - TILE.stand[0], TILE.z - TILE.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; } });
   if (RACK) mapSpots.push({ n: '소원 연등대', x: RACK.x, z: RACK.z, go: () => { avatar.position.set(RACK.stand[0], 0, RACK.stand[1]); avatar.rotation.y = Math.atan2(RACK.x - RACK.stand[0], RACK.z - RACK.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; } });
   for (const sp of mapSpots) { const [x, y] = P(sp.x, sp.z); sp.px = x; sp.py = y; if (sp.n === '순례 마당' || sp.small) continue; c.fillStyle = '#9b3b2b'; c.beginPath(); c.arc(x, y, 7, 0, 7); c.fill(); }
-  for (const sp of mapSpots.filter(q => !temples.some(T => T.name === q.n))) { c.fillStyle = sp.small ? '#6d5f4b' : '#2e8b74'; c.beginPath(); c.arc(sp.px, sp.py, sp.small ? 5 : 8, 0, 7); c.fill(); c.font = `600 ${sp.small ? 15 : 19}px sans-serif`; c.textAlign = 'center'; c.fillStyle = '#3d2a1c'; c.fillText(sp.n.replace(/^.* /, ''), sp.px, sp.py - 12); }
+  for (const sp of mapSpots.filter(q => !temples.some(T => T.name === q.n))) { c.fillStyle = sp.small ? '#6d5f4b' : '#2e8b74'; c.beginPath(); c.arc(sp.px, sp.py, sp.small ? 5 : 8, 0, 7); c.fill(); c.font = `600 ${sp.small ? 15 : 19}px sans-serif`; c.textAlign = 'center'; c.fillStyle = '#3d2a1c'; c.fillText(sp.small ? sp.n.replace(/^.* /, '') : sp.n, sp.px, sp.py - 12); }
   mapModal.classList.add('show');
 }
 bigMap.addEventListener('click', e => {
@@ -1057,4 +1057,5 @@ if (/[?&]dbg/.test(location.search)) window.__t = {
   release() { poseHold = false; if (sam) sam.hold = false; },
   walk(on, run) { keys.KeyW = !!on; keys.ShiftLeft = !!run; },
   get glb() { return glb; },
+  go(i, lx, lz) { const T = temples[i]; goTemple(T); if (lz !== undefined) { const [x, z] = L2W(lx, lz); avatar.position.set(x, 0, z); } return T.name; },
 };
