@@ -21,7 +21,7 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
     if (o.isMesh) {
       o.castShadow = true; o.receiveShadow = false; o.frustumCulled = false; meshes.push(o);
       const ms = Array.isArray(o.material) ? o.material : [o.material];
-      ms.forEach(m => { if (m.isMeshStandardMaterial) { m.metalness = 0; m.roughness = Math.max(m.roughness ?? .6, .62); m.envMapIntensity = .6; } });
+      ms.forEach(m => { if (m.isMeshStandardMaterial) { m.metalness = 0; m.roughness = Math.max(m.roughness ?? .6, .62); m.envMapIntensity = .6; if (m.map) { m.emissive = new THREE.Color(1, 1, 1); m.emissiveMap = m.map; m.emissiveIntensity = .16; } } }); // 시트처럼 밝고 부드럽게
     }
     if (o.isBone) bones.push(o);
   });
@@ -131,18 +131,20 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
     }
   }
 
-  let bodyHide = null;
+  const touched = [...new Set([...hapQ.keys(), ...kneelQ.keys(), ...spineBones.map(o => o.b), B.Head, B.Hips].filter(Boolean))];
+  const base = new Map(touched.map(b => [b, { q: b.quaternion.clone(), p: b.position.clone() }])); let haveBase = false;
   function update(dt, st) {
     // 걷기·달리기 섞기
     const wantRun = st.speed > 5 && run ? 1 : 0; runMix += (wantRun - runMix) * Math.min(1, dt * 6);
     if (walk) { walk.setEffectiveWeight(st.walkAmp * (1 - runMix)); walk.timeScale = Math.max(.6, st.speed / 3.6) * 1.15; }
     if (run) { run.setEffectiveWeight(st.walkAmp * runMix); run.timeScale = Math.max(.6, st.speed / 7); }
-    if (!walk && !run) bones.forEach(b => b.quaternion.copy(restQ(b)));
+    // 지난 프레임에 덧씌운 자세를 되돌린 뒤 애니메이션을 진행 (믹서는 값이 안 바뀌면 다시 쓰지 않아서 누적되지 않게)
+    if (haveBase) for (const b of touched) { const v = base.get(b); b.quaternion.copy(v.q); b.position.copy(v.p); }
     mixer.update(dt);
+    for (const b of touched) { const v = base.get(b); v.q.copy(b.quaternion); v.p.copy(b.position); } haveBase = true;
     // 합장
     if (st.hap > 0) for (const [b, q] of hapQ) b.quaternion.slerp(q, st.hap);
     // 무릎 꿇기
-    if (B.Hips && !hipsAnimated) B.Hips.position.copy(rest.get(B.Hips).p);
     if (st.kneel > 0) {
       for (const [b, q] of kneelQ) b.quaternion.slerp(q, st.kneel);
       if (B.Hips) B.Hips.position.addScaledVector(dropVec, st.kneel);
