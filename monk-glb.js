@@ -176,7 +176,7 @@ function findEyes(meshes, headBone) {
     let headIdx = -1; if (mesh.isSkinnedMesh) headIdx = mesh.skeleton.bones.indexOf(headBone);
     const headW = i => { if (headIdx < 0 || !si) return 1; let w = 0; for (let k = 0; k < 4; k++) if (si.getComponent(i, k) === headIdx) w += sw.getComponent(i, k); return w; };
     const idx = g.index ? g.index.array : null, triCount = idx ? idx.length / 3 : pos.count / 3;
-    const toW = (i, out) => { out.fromBufferAttribute(pos, i); return mesh.localToWorld(out); };
+    const toW = (i, out) => { mesh.getVertexPosition(i, out); return mesh.localToWorld(out); }; // 양자화·스키닝까지 반영한 실제 위치
     for (let t = 0; t < triCount; t++) {
       const a = idx ? idx[t * 3] : t * 3, b = idx ? idx[t * 3 + 1] : t * 3 + 1, c = idx ? idx[t * 3 + 2] : t * 3 + 2;
       if (headW(a) + headW(b) + headW(c) < 1.5) continue;
