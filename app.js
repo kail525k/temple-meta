@@ -1058,10 +1058,9 @@ function onState(p) {
   P.last = performance.now(); P.g.visible = true;
 }
 function updatePeers(dt) {
-  const now = performance.now(), k = Math.min(1, dt * 9);
+  const k = Math.min(1, dt * 9); // 접속 목록(presence)에서 나가면 사라짐 · 다른 창을 보고 있으면 마지막 자세로 멈춰 있음
   for (const P of peers.values()) {
     if (!P.goal) continue;
-    if (now - P.last > 25000) { P.g.visible = false; continue; }
     const g = P.g; g.position.x += (P.goal.x - g.position.x) * k; g.position.y += (P.goal.y - g.position.y) * k; g.position.z += (P.goal.z - g.position.z) * k;
     let d = P.goal.ry - g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); g.rotation.y += d * k;
     if (P.glb && P.goalSt) {
