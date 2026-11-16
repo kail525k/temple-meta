@@ -1,9 +1,9 @@
 // 온라인 사찰 참배 체험판 — 권역(서울·경남 등)마다 한 장면에 큰 사찰들을 축소해 모아 두고, 사찰마다 법당 하나를 실제 크기로 재현 (위레브)
 import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
-import { loadMonkGLB } from './monk-glb.js?v=2';
+import { loadMonkGLB } from './monk-glb.js?v=3';
 import { buildHall } from './hall.js?v=6';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, standingGwaneum, treeKit } from './regional.js?v=4';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, standingGwaneum, treeKit } from './regional.js?v=5';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
 import { REGIONS } from './temples.js?v=5';
@@ -391,8 +391,9 @@ const { avatar, body, headG, torso, kasa, legs, eyeGroups, closedEyes, faceOpen,
 scene.add(avatar, faceFill, faceFill.target);
 // Meshy로 만든 아기 스님 3D 모델(시트 그대로). 못 불러오면 지금의 코드 아바타를 그대로 씀
 const MONK_URL = new URLSearchParams(location.search).get('monk') || 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@ea753afac051478b6d31f64e96f39f54abba9fec/assets/baby-monk.glb';
+const MONK_CLOSED = 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@d9c6562f438451c20bcc6069d71190ec17a99342/assets/monk-eyes-closed.webp'; // 눈 감은 얼굴 (Meshy AI 텍스처 편집)
 let glb = null;
-const glbReady = loadMonkGLB(MONK_URL, { onProgress: f => { const m = document.getElementById('loadMsg'); if (m && !document.getElementById('loading').classList.contains('hide')) m.innerHTML = `아기 스님을 모시는 중… ${Math.round(f * 100)}%`; } })
+const glbReady = loadMonkGLB(MONK_URL, { closedUrl: MONK_CLOSED, onProgress: f => { const m = document.getElementById('loadMsg'); if (m && !document.getElementById('loading').classList.contains('hide')) m.innerHTML = `아기 스님을 모시는 중… ${Math.round(f * 100)}%`; } })
   .then(m => { glb = m; avatar.add(m.root); body.visible = false; dbg('monk', m.info); return m; })
   .catch(e => { dbg('monkError', e.message); return null; });
 let blinkT = 2.5, idleT = 0;
@@ -1043,7 +1044,7 @@ function ensurePeer(id, nick) {
     const g = new THREE.Group(); g.visible = false; scene.add(g);
     P = { id, nick: '', g, glb: null, label: null, goal: null, goalSt: null, st: { sit: 0, walkAmp: 0, speed: 0, hap: 0, kneel: 0, bend: 0, headX: 0, headZ: 0, closed: false, blink: false }, last: 0, blinkT: 2 + Math.random() * 3 };
     peers.set(id, P);
-    if (peers.size <= 16) loadMonkGLB(MONK_URL).then(m => { if (peers.get(id) !== P) return; P.glb = m; g.add(m.root); }).catch(e => dbg('peerModelError', e.message)); // 16명까지 아기 스님 모습, 그 이상은 이름표만
+    if (peers.size <= 16) loadMonkGLB(MONK_URL, { closedUrl: MONK_CLOSED }).then(m => { if (peers.get(id) !== P) return; P.glb = m; g.add(m.root); }).catch(e => dbg('peerModelError', e.message)); // 16명까지 아기 스님 모습, 그 이상은 이름표만
   }
   if (nick && nick !== P.nick) { P.nick = nick; if (P.label) { P.g.remove(P.label); P.label.material.map.dispose(); } P.label = nickSprite(nick); P.g.add(P.label); }
   return P;

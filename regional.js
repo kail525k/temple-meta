@@ -288,14 +288,14 @@ export function buildBackdrop(scene, env, RB) {
   const mGreen = M('#6f8d5e'), mDark = M('#5d7a52'), mRock = M('#9a9a92'), mSnow = M('#f4f6f8');
   const n = 34;
   for (let i = 0; i < n; i++) {
-    const a = i / n * Math.PI * 2 + Math.random() * .12, r = RB + 110 + Math.random() * 70;
-    const hh = mt.h * (.55 + Math.random() * .5), rad = hh * (1.2 + Math.random() * .5);
+    const a = i / n * Math.PI * 2 + Math.random() * .12;
+    const hh = mt.h * (.55 + Math.random() * .5), rad = Math.min(70, hh * (1.1 + Math.random() * .4)), r = RB + 45 + rad + Math.random() * 50; // 산자락이 사찰 마당·바다를 덮지 않게
     const c = new THREE.Mesh(new THREE.ConeGeometry(rad, hh, 7, 1), i % 2 ? mGreen : mDark); c.position.set(Math.sin(a) * r, hh / 2 - 2, Math.cos(a) * r); c.rotation.y = Math.random() * 3; g.add(c);
     if (mt.rock && hh > mt.h * .8) { const top = new THREE.Mesh(new THREE.ConeGeometry(rad * .28, hh * .26, 6), mt.snow ? mSnow : mRock); top.position.set(c.position.x, hh - 2 - hh * .13 + .5, c.position.z); top.rotation.y = c.rotation.y; g.add(top); }
   }
   if (mt.halla) { // 한라산: 남쪽으로 넓고 완만한 큰 산 + 작은 오름들
-    const hm = new THREE.Mesh(new THREE.ConeGeometry(260, 95, 12, 1), M('#5f7f55')); hm.position.set(0, 45, RB + 230); g.add(hm);
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(22, 70, 22, 12), M('#8c8f86')); cap.position.set(0, 86, RB + 230); g.add(cap);
+    const hm = new THREE.Mesh(new THREE.ConeGeometry(200, 95, 12, 1), M('#5f7f55')); hm.position.set(0, 45, RB + 260); g.add(hm);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(22, 55, 22, 12), M('#8c8f86')); cap.position.set(0, 86, RB + 260); g.add(cap);
     for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2, r = RB + 40 + Math.random() * 60, hh = 8 + Math.random() * 10; const o = new THREE.Mesh(new THREE.SphereGeometry(hh * 2, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), M('#7f9c62')); o.scale.y = .5; o.position.set(Math.sin(a) * r, -1, Math.cos(a) * r); g.add(o); }
   }
   if (env.city) { // 서울: 둘레 빌딩 숲

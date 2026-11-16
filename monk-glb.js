@@ -9,7 +9,13 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
+// 눈 감은 얼굴: Meshy 'AI 텍스처 편집'으로 같은 모델 텍스처에 눈을 감겨 만든 그림(UV 동일) — 눈 감을 때 텍스처만 바꿔 끼움
+const closedCache = new Map();
+function loadClosedTex(url, like) {
+  if (!closedCache.has(url)) closedCache.set(url, new THREE.TextureLoader().loadAsync(url).then(t => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; return t; }).catch(() => null));
+  return closedCache.get(url).then(t => { if (t && like) { t.wrapS = like.wrapS; t.wrapT = like.wrapT; t.anisotropy = like.anisotropy; t.needsUpdate = true; } return t; });
+}
+export async function loadMonkGLB(url, { height = 1.11, onProgress, closedUrl = null } = {}) {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
   const gltf = await loader.loadAsync(url, e => onProgress && e.total && onProgress(e.loaded / e.total));
   const scene = gltf.scene, root = new THREE.Group(), turn = new THREE.Group();
@@ -142,6 +148,11 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
     }
   }
 
+  // 감은 눈 텍스처 준비
+  const skinMats = []; meshes.forEach(o => (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.map) { m.userData.openMap = m.map; skinMats.push(m); } }));
+  let closedTex = null, lastShut = false;
+  if (closedUrl && skinMats.length) loadClosedTex(closedUrl, skinMats[0].map).then(t => { if (t) { closedTex = t; lids.forEach(m => { m.visible = false; }); } });
+
   const touched = [...new Set([...hapQ.keys(), ...lapQ.keys(), ...sitQ.keys(), ...kneelQ.keys(), ...spineBones.map(o => o.b), B.Head, B.Hips].filter(Boolean))];
   const base = new Map(touched.map(b => [b, { q: b.quaternion.clone(), p: b.position.clone() }])); let haveBase = false;
   function update(dt, st) {
@@ -172,8 +183,10 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress } = {}) {
     if (headAx && (st.headX || st.headZ)) {
       B.Head.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(headAx.x, st.headX || 0)).multiply(new THREE.Quaternion().setFromAxisAngle(headAx.z, st.headZ || 0));
     }
-    // 눈
-    const shut = st.closed || st.blink; lids.forEach(m => { m.visible = shut; });
+    // 눈: 감은 얼굴 텍스처가 있으면 텍스처를 바꾸고, 없으면 예전처럼 눈꺼풀을 덮음
+    const shut = !!(st.closed || st.blink);
+    if (closedTex) { if (shut !== lastShut) { lastShut = shut; for (const m of skinMats) { const t = shut ? closedTex : m.userData.openMap; m.map = t; if (m.emissiveMap) m.emissiveMap = t; } } }
+    else lids.forEach(m => { m.visible = shut; });
   }
   return { root, scene, mixer, update, info, lids, B };
 }
