@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>용주사 대웅보전 · 온라인 참배 체험판</title>
+<meta name="description" content="실제 법당 자리를 바탕으로, 법당 안에 들어가 삼배를 올리는 온라인 참배 체험판">
+<style>
+  :root{--ink:#3b3226;--paper:rgba(255,250,240,.92);--line:rgba(80,60,30,.15);--accent:#9b3b2b;--jade:#2e8b74}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:#cfe7f5;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;color:var(--ink)}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 20px rgba(60,40,10,.12);backdrop-filter:blur(6px)}
+  #title{position:fixed;left:12px;top:max(12px,env(safe-area-inset-top));padding:10px 14px;max-width:min(calc(100vw - 168px),340px)}
+  #title .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+  #title .row .badge{margin-top:0}
+  #title h1{margin:0;font-size:17px;letter-spacing:-.3px}
+  #title h1 small{font-weight:500;color:#8a7a62;font-size:12px;margin-left:4px}
+  #title p{margin:3px 0 0;font-size:12px;color:#6d5f4b;line-height:1.45}
+  #title .badge{display:inline-block;margin-top:6px;font-size:11px;padding:2px 8px;border-radius:99px;background:#efe3c8;color:#6d5232}
+  #title .badge.err{background:#fde2dd;color:#a3341f}
+  #minimap{position:fixed;right:12px;top:max(12px,env(safe-area-inset-top));width:132px;height:132px;padding:0}
+  #near{position:fixed;left:12px;top:calc(max(12px,env(safe-area-inset-top)) + 128px);padding:8px 14px;font-size:13px;display:none;pointer-events:none;max-width:min(calc(100vw - 24px),340px)}
+  #near b{font-size:14px}
+  #near span{display:block;color:#8a7a62;font-size:11px;margin-top:2px}
+  #actions{position:fixed;right:12px;bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  #actions button{border:0;border-radius:99px;padding:10px 16px;font-size:14px;font-weight:600;color:var(--ink);background:var(--paper);box-shadow:0 4px 14px rgba(60,40,10,.15);cursor:pointer;font-family:inherit}
+  #actions button.primary{background:var(--accent);color:#fff}
+  #actions button:active{transform:scale(.96)}
+  #joy{position:fixed;left:18px;bottom:max(22px,env(safe-area-inset-bottom));width:116px;height:116px;border-radius:50%;background:rgba(255,250,240,.45);border:1px solid rgba(80,60,30,.18);touch-action:none;display:none}
+  #knob{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;background:rgba(255,250,240,.95);box-shadow:0 3px 10px rgba(0,0,0,.15)}
+  body.touch #joy{display:block}
+  #help{position:fixed;left:12px;bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));font-size:12px;padding:8px 12px;color:#6d5f4b}
+  body.touch #help{display:none}
+  #attrib{position:fixed;left:0;right:0;bottom:0;text-align:center;font-size:10px;color:rgba(50,40,25,.7);padding:3px 8px calc(3px + env(safe-area-inset-bottom));pointer-events:none;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+  #dbgBtn{border:0;border-radius:99px;background:#e9e4da;font-size:11px;padding:2px 8px;cursor:pointer;font-family:inherit;color:#6d5f4b}
+  #dbg{position:fixed;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 146px);z-index:5;width:min(92vw,330px);max-height:46vh;overflow:auto;margin:0;padding:10px 12px;font:11px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;display:none;color:#2b2b2b}
+  #dbg.show{display:block}
+  #loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(#e9f3f8,#f6efe0);z-index:20;transition:opacity .6s}
+  #loading.hide{opacity:0;pointer-events:none}
+  #loading .lotus{font-size:46px;animation:breathe 2.4s ease-in-out infinite}
+  #loading p{margin:14px 0 0;font-size:14px;color:#6d5f4b;text-align:center;line-height:1.6}
+  @keyframes breathe{50%{transform:scale(1.12)}}
+  #modal{position:fixed;inset:0;background:rgba(30,25,15,.45);display:none;align-items:center;justify-content:center;z-index:30;padding:14px}
+  #modal.show{display:flex}
+  #modal .box{width:min(960px,100%);height:min(640px,86vh);display:flex;flex-direction:column;overflow:hidden}
+  #modal header{display:flex;align-items:center;gap:10px;padding:10px 12px 8px 16px;border-bottom:1px solid var(--line)}
+  #modal header div{flex:1}
+  #modal header b{font-size:15px}
+  #modal header small{display:block;font-size:11px;color:#8a7a62}
+  #modal header button{border:0;background:#efe3c8;border-radius:99px;padding:7px 14px;font-weight:600;cursor:pointer;font-family:inherit}
+  #panoWrap{position:relative;flex:1;background:#ddd}
+  #pano{position:absolute;left:0;top:0;width:100%;height:100%}
+  #panoMsg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--paper);padding:12px 16px;border-radius:12px;font-size:13px;text-align:center;max-width:80%;display:none;line-height:1.5}
+  #modal footer{font-size:10px;color:#8a7a62;padding:6px 14px}
+  #toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);padding:8px 14px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none}
+  #toast.show{opacity:1}
+  #bowPrompt{position:fixed;left:50%;bottom:calc(max(26px,env(safe-area-inset-bottom)) + 70px);transform:translateX(-50%);display:none;border:0;border-radius:99px;padding:13px 22px;font-size:16px;font-weight:700;color:#fff;background:var(--accent);box-shadow:0 6px 20px rgba(120,40,20,.35);cursor:pointer;font-family:inherit;animation:pulse 2s ease-in-out infinite;z-index:6}
+  @keyframes pulse{50%{transform:translateX(-50%) scale(1.06)}}
+  @media (max-width:520px){#title h1{font-size:15px}#title{max-width:calc(100vw - 144px)}#minimap{width:108px;height:108px}#dbg{top:calc(max(12px,env(safe-area-inset-top)) + 122px)}#actions button{padding:9px 13px;font-size:13px}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js"}}</script>
+</head>
+<body>
+<canvas id="c" tabindex="0"></canvas>
+
+<div id="loading"><div class="lotus">🪷</div><p id="loadMsg">용주사 대웅보전으로 가는 중…<br>브이월드에서 실제 법당 위치를 불러오고 있어요</p></div>
+
+<div id="title" class="card">
+  <h1>용주사 대웅보전 <small>龍珠寺 · 경기 화성</small></h1>
+  <p>법당 안에 들어가 부처님께 삼배를 올리는 온라인 참배 체험판</p>
+  <div class="row"><span id="badge" class="badge">불러오는 중…</span><button id="dbgBtn" title="디버그 정보">🛠 상태</button></div>
+</div>
+<canvas id="minimap" class="card" width="264" height="264"></canvas>
+<pre id="dbg" class="card"></pre>
+<div id="near" class="card"></div>
+
+<div id="actions">
+  <button id="btnHapjang">🙏 합장</button>
+  <button id="btnBow">🙇 절하기</button>
+  <button id="btnHall">🛕 법당 안으로</button>
+  <button id="btnHome">📍 처음 위치</button>
+  <button id="btnPano" class="primary">📷 실제 모습 보기</button>
+</div>
+<div id="joy"><div id="knob"></div></div>
+<div id="help" class="card">WASD·방향키 이동 · Shift 달리기 · 드래그 시점 회전 · 휠 확대 · 법당 안 빛나는 방석에서 E 또는 🙇 = 삼배</div>
+<div id="toast" class="card"></div>
+<button id="bowPrompt">🙇 여기서 삼배 올리기</button>
+<div id="attrib">법당 위치·크기: 브이월드(국토교통부) 도로명주소 건물 · 거리뷰 ⓒ NAVER Corp. · 법당 안팎 모습은 실제를 바탕으로 한 재현이라 실제와 달라요</div>
+
+<div id="modal">
+  <div class="box card">
+    <header>
+      <div><b>실제 모습 보기</b><small id="panoSub">지금 서 있는 곳 근처의 네이버 거리뷰예요</small></div>
+      <button id="btnClose">닫기</button>
+    </header>
+    <div id="panoWrap"><div id="pano"></div><div id="panoMsg"></div></div>
+    <footer>거리뷰 ⓒ NAVER Corp. · 사진은 촬영 시점 기준이라 현재 모습과 다를 수 있어요</footer>
+  </div>
+</div>
+
+<script type="module" src="./app.js?v=1"></script>
+</body>
+</html>
