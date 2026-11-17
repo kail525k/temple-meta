@@ -1287,7 +1287,7 @@ function openRegions() {
   // 작은 절 제보: 스님·종무소·신도가 알려 주면 검토해서 넣음
   const rp = document.createElement('div'); rp.className = 'rg report';
   rp.innerHTML = `<b>🙏 우리 절도 넣어 주세요</b><span>지도에 없는 작은 절을 알려 주시면 검토해서 실제 모습대로 순례길에 넣어요 · 스님·종무소·신도 누구나</span><div class="go"><button>사찰 제보하기</button></div>`;
-  rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=1').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
+  rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=2').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
   regionList.appendChild(rp);
   regionModal.classList.add('show');
 }

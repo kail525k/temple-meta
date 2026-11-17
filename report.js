@@ -23,7 +23,7 @@ const CSS = `
 #reportForm{overflow:auto;padding:12px 16px 16px;display:grid;gap:10px}
 #reportForm label{display:grid;gap:4px;font-size:13px;font-weight:600;color:#4a3a28}
 #reportForm label i{font-style:normal;color:#b5452e}
-#reportForm label small{font-weight:400;color:#8a7a62;font-size:11.5px}
+#reportForm label small{font-weight:400;color:#8a7a62;font-size:11.5px;display:block;margin-top:1px}
 #reportForm input,#reportForm select,#reportForm textarea{font:inherit;font-size:14px;padding:9px 10px;border:1px solid #d9ccb3;border-radius:10px;background:#fffdf8;color:#2b1d14;width:100%;box-sizing:border-box}
 #reportForm textarea{min-height:64px;resize:vertical}
 #reportForm .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -42,20 +42,20 @@ const HTML = `
 <div class="box card">
   <header><div><b>🙏 우리 절도 순례길에 넣어 주세요</b><small>지도에 아직 없는 사찰을 알려 주시면 검토해서 실제 모습대로 만들어 넣어요 · 스님·종무소·신도 누구나 제보할 수 있어요</small></div><button type="button" data-close>닫기</button></header>
   <form id="reportForm" autocomplete="on">
-    <label>사찰 이름 <i>*</i><input name="temple_name" maxlength="60" placeholder="예: ○○사, ○○암" required></label>
+    <label><span>사찰 이름 <i>*</i></span><input name="temple_name" maxlength="60" placeholder="예: ○○사, ○○암" required></label>
     <div class="row">
-      <label>시·도<select name="sido"><option value="">선택</option>${SIDO.map(s => `<option>${s}</option>`).join('')}</select></label>
-      <label>주소<input name="address" maxlength="200" placeholder="도로명 또는 지번 주소"></label>
+      <label><span>시·도</span><select name="sido"><option value="">선택</option>${SIDO.map(s => `<option>${s}</option>`).join('')}</select></label>
+      <label><span>주소</span><input name="address" maxlength="200" placeholder="도로명 또는 지번 주소"></label>
     </div>
-    <label>지도 링크 <small>네이버·카카오·구글 지도에서 '공유' 누른 주소 (주소를 적었으면 비워도 돼요)</small><input name="map_url" maxlength="500" inputmode="url" placeholder="https://naver.me/…"></label>
+    <label><span>지도 링크 <small>네이버·카카오·구글 지도에서 '공유' 누른 주소 (주소를 적었으면 비워도 돼요)</small></span><input name="map_url" maxlength="500" inputmode="url" placeholder="https://naver.me/…"></label>
     <div class="row">
-      <label>제보하시는 분<select name="role"><option>스님</option><option>종무소</option><option>신도</option><option>기타</option></select></label>
-      <label>법명·이름<input name="reporter" maxlength="40" placeholder="예: ○○ 스님"></label>
+      <label><span>제보하시는 분</span><select name="role"><option>스님</option><option>종무소</option><option>신도</option><option>기타</option></select></label>
+      <label><span>법명·이름</span><input name="reporter" maxlength="40" placeholder="예: ○○ 스님"></label>
     </div>
-    <label>연락처 <i>*</i> <small>전화번호나 이메일 · 검토 결과와 추가 사진 요청에만 써요 (공개되지 않아요)</small><input name="contact" maxlength="100" placeholder="010-…  또는  name@…" required></label>
-    <label>전각과 모신 부처님 <small>예: 대웅전 석가모니불 좌상·양옆 보살 입상 / 관음전 관세음보살 / 바닷가 와불 / 3층 석탑</small><textarea name="halls" maxlength="1500"></textarea></label>
-    <label>사진 링크 <small>홈페이지·블로그·카페·드라이브 등 사진이 있는 곳 (여러 개면 줄을 바꿔 적어 주세요)</small><textarea name="photos" maxlength="1000" placeholder="https://…"></textarea></label>
-    <label>하고 싶은 말 <small>절의 내력, 꼭 넣고 싶은 곳, 법회·행사 등</small><textarea name="note" maxlength="1000"></textarea></label>
+    <label><span>연락처 <i>*</i> <small>전화번호나 이메일 · 검토 결과와 추가 사진 요청에만 써요 (공개되지 않아요)</small></span><input name="contact" maxlength="100" placeholder="010-…  또는  name@…" required></label>
+    <label><span>전각과 모신 부처님 <small>예: 대웅전 석가모니불 좌상·양옆 보살 입상 / 관음전 관세음보살 / 바닷가 와불 / 3층 석탑</small></span><textarea name="halls" maxlength="1500"></textarea></label>
+    <label><span>사진 링크 <small>홈페이지·블로그·카페·드라이브 등 사진이 있는 곳 (여러 개면 줄을 바꿔 적어 주세요)</small></span><textarea name="photos" maxlength="1000" placeholder="https://…"></textarea></label>
+    <label><span>하고 싶은 말 <small>절의 내력, 꼭 넣고 싶은 곳, 법회·행사 등</small></span><textarea name="note" maxlength="1000"></textarea></label>
     <label class="agree"><input type="checkbox" name="agree"> <span>연락처(전화·이메일)를 제보 검토와 결과 안내에만 쓰고, 반영이 끝나면 지우는 데 동의해요. 동의하지 않으면 제보를 받을 수 없어요.</span></label>
     <div class="msg" aria-live="polite"></div>
     <button class="send" type="submit">제보 보내기</button>
