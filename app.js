@@ -581,6 +581,10 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyE') useContext();
   if (e.code === 'Space') e.preventDefault();
   if (e.code === 'KeyC') toggleSit();
+  if (e.code === 'BracketLeft') setSens(sensLv - 1);
+  if (e.code === 'BracketRight') setSens(sensLv + 1);
+  if (e.code === 'KeyG') document.getElementById('btnHall').click();
+  if (e.code === 'KeyH') document.getElementById('btnHome').click();
   if (e.code === 'KeyM') openMap();
   if (e.code === 'Tab') { e.preventDefault(); openRegions(); }
   if (e.code === 'KeyF') { fpv = !fpv; toast(fpv ? '👀 아기 스님 눈으로 봐요 (F 다시 누르면 돌아와요)' : '🎥 3인칭 시점', 1600); }
@@ -602,7 +606,7 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinchD > 0) dist = clamp(pinchDist0 * pinchD / Math.max(20, d), ZMIN, ZMAX); return; }
-  if (e.pointerId !== drag.id || isLocked()) return; yaw -= (e.clientX - drag.x) * 0.006; pitch = clamp(pitch + (e.clientY - drag.y) * 0.004, PMIN, PMAX); drag.x = e.clientX; drag.y = e.clientY;
+  if (e.pointerId !== drag.id || isLocked()) return; yaw -= (e.clientX - drag.x) * 0.005 * SENS(); pitch = clamp(pitch + (e.clientY - drag.y) * 0.005 * SENS(), PMIN, PMAX); drag.x = e.clientX; drag.y = e.clientY;
 });
 const endDrag = e => {
   ptrs.delete(e.pointerId); if (ptrs.size < 2) pinchD = 0;
@@ -618,6 +622,18 @@ const endDrag = e => {
     downInfo = null;
   }
 };
+// 마우스 감도 10단계 ([ ] 키 또는 왼쪽 아래 −/+), 기기에 저장
+const SENS_STEPS = [.35, .5, .65, .8, 1, 1.2, 1.45, 1.75, 2.1, 2.5];
+let sensLv = (() => { try { const v = +localStorage.getItem('templeMeta.sens'); return v >= 1 && v <= 10 ? v : 5; } catch (e) { return 5; } })();
+const SENS = () => SENS_STEPS[sensLv - 1];
+function setSens(lv) {
+  sensLv = Math.max(1, Math.min(10, lv)); try { localStorage.setItem('templeMeta.sens', sensLv); } catch (e) { }
+  const el = document.getElementById('sensVal'); if (el) el.textContent = sensLv;
+  toast(`🖱️ 마우스 감도 ${sensLv} / 10`, 1100);
+}
+{ const v = document.getElementById('sensVal'); if (v) v.textContent = sensLv;
+  const dn = document.getElementById('sensDown'), up = document.getElementById('sensUp');
+  if (dn) dn.onclick = () => setSens(sensLv - 1); if (up) up.onclick = () => setSens(sensLv + 1); }
 // 3인칭 마우스 시점 (총게임처럼): 화면을 한 번 누르면 마우스로 바로 둘러보고 WASD로 이동, Esc로 해제
 const FINE = matchMedia('(pointer: fine)').matches;
 const isLocked = () => document.pointerLockElement === canvas;
@@ -630,7 +646,7 @@ function lockMouse(ev) {
 document.addEventListener('pointerlockerror', () => dbg('pointerLock', 'error'));
 addEventListener('mousemove', e => {
   if (!isLocked()) return;
-  yaw -= e.movementX * 0.0024; pitch = clamp(pitch + e.movementY * 0.0019, PMIN, PMAX); intro = -1;
+  yaw -= e.movementX * 0.0021 * SENS(); pitch = clamp(pitch + e.movementY * 0.0021 * SENS(), PMIN, PMAX); intro = -1;
 });
 document.addEventListener('pointerlockchange', () => {
   document.body.classList.toggle('locked', isLocked());
@@ -931,7 +947,7 @@ function step() {
   camGoal.copy(camBlock(camGoal, avatar.position.y + 1.15));
   // 아래에서 올려다볼 때: 카메라가 바닥 밑으로 들어가지 않게 바닥 바로 위에 붙이고, 시선은 조금 더 위로
   { let fy = 0; if (hall) { const [fl, fz] = W2L(camGoal.x, camGoal.z); fy = hall.heightAt(fl, fz); } camGoal.y = Math.max(camGoal.y, fy + .16); }
-  camera.position.lerp(camGoal, Math.min(1, dt * 8));
+  camera.position.lerp(camGoal, Math.min(1, dt * (isLocked() || drag.id !== null ? 30 : 8))); // 마우스로 돌릴 땐 바로 따라가서 어지럽지 않게
   { const cd = Math.hypot(camera.position.x - avatar.position.x, camera.position.y - avatar.position.y - 1.1, camera.position.z - avatar.position.z); avatar.visible = cd > .8; } // 벽에 바짝 붙어 카메라가 머리까지 오면 몸을 숨겨 시야 확보
   camera.lookAt(avatar.position.x + shX, avatar.position.y + 1.05 + Math.max(0, -effP) * Math.min(effD, 3) * .3, avatar.position.z + shZ);
   if (fpv && !sit) { // F: 1인칭 (아기 스님 눈높이)
