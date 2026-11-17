@@ -802,7 +802,7 @@ function step() {
   if (moving) {
     if (!tapdori) {
       const p = avatar.position, nx = p.x + mx * speed * dt, nz = p.z + mz * speed * dt; let ok = true;
-      if (!blockedAt(nx, nz, feetY)) { p.x = nx; p.z = nz; } else if (!blockedAt(nx, p.z, feetY)) p.x = nx; else if (!blockedAt(p.x, nz, feetY)) p.z = nz; else ok = false;
+      if (blockedAt(p.x, p.z, feetY) || !blockedAt(nx, nz, feetY)) { // 이미 물체 안(순간이동 직후)이면 빠져나갈 수 있게 p.x = nx; p.z = nz; } else if (!blockedAt(nx, p.z, feetY)) p.x = nx; else if (!blockedAt(p.x, nz, feetY)) p.z = nz; else ok = false;
       if (!ok && moveTarget) { moveTarget = null; markMove(null); } // 막혀서 못 가면 멈춤
       pushOut(p, 0.42); clampBound(p);
     }
