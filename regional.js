@@ -302,7 +302,7 @@ export function buildExtras(h, T) {
     }
     if (kind === 'fish') { // 연화대 옆 황어 떼(수천 마리) · 물고기 밥 판매대 · 방생 수조 — 실제 휴휴암처럼
       const cx = h.fishX ?? 0, cz = h.fishZ ?? h.YZ0 - 6, at = h.fishAt || { lx: cx, lz: h.YZ0 - 1.4 };
-      const school = createSchool(h.site, { cx, cz, rx: 5.6, rz: 3.1, n: 680, extra: 40 });
+      const school = createSchool(h.site, { cx, cz, rx: 5.8, rz: 3.0, n: 680, extra: 40 });
       // 판매대: 물고기 밥(봉지) + 방생 물고기 수조 두 개
       const st = h.fishStall || { lx: cx - 3.4, lz: h.YZ0 + 2.6 }, g = new THREE.Group(); g.position.set(st.lx, 0, st.lz); g.rotation.y = st.ry || 0; h.site.add(g);
       const P = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
