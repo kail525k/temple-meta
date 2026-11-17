@@ -32,6 +32,8 @@
   body.touch #joy{display:block}
   #help{position:fixed;left:12px;bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));font-size:11.5px;padding:8px 12px;color:#6d5f4b;max-width:250px;line-height:1.5}
   body.touch #help{display:none}
+  #aim{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,250,235,.9);box-shadow:0 0 0 1.5px rgba(60,40,20,.45);pointer-events:none;display:none;z-index:3}
+  body.locked #aim{display:block}body.locked #c{cursor:none}
   #attrib{position:fixed;left:0;right:0;bottom:0;text-align:center;font-size:10px;color:rgba(50,40,25,.7);padding:3px 8px calc(3px + env(safe-area-inset-bottom));pointer-events:none;text-shadow:0 1px 0 rgba(255,255,255,.6)}
   #dbgBtn{border:0;border-radius:99px;background:#e9e4da;font-size:11px;padding:2px 8px;cursor:pointer;font-family:inherit;color:#6d5f4b}
   #dbg{position:fixed;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 182px);z-index:5;width:min(92vw,330px);max-height:46vh;overflow:auto;margin:0;padding:10px 12px;font:11px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;display:none;color:#2b2b2b}
@@ -155,7 +157,8 @@
   <canvas id="bigMap" width="720" height="720"></canvas>
 </div></div>
 <div id="joy"><div id="knob"></div></div>
-<div id="help" class="card">WASD·바닥 클릭 이동 · Shift 달리기 · 드래그 시점 · 휠/핀치 확대·축소 · E 상황 버튼 · 1 합장 2 절 3 앉기 4 목탁 5 염주 · 미니맵 누르면 지도</div>
+<div id="help" class="card"><b>화면 클릭 → 마우스로 둘러보기</b> (Esc 해제) · WASD·↑↓ 이동 · ←→ 돌기 · Shift 달리기 · 휠 확대·축소 · E 상황 버튼 · 1 합장 2 절 3 앉기 4 목탁 5 염주 · 미니맵 누르면 지도</div>
+<div id="aim"></div>
 <div id="toast" class="card"></div>
 <button id="bowPrompt">🙇 여기서 삼배 올리기</button>
 <div id="attrib">법당 위치·크기: 브이월드(국토교통부) 도로명주소 건물 · 거리뷰 ⓒ NAVER Corp. · 법당 안팎 모습은 실제를 바탕으로 한 재현이라 실제와 달라요</div>
@@ -178,6 +181,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=22"></script>
+<script type="module" src="./app.js?v=23"></script>
 </body>
 </html>

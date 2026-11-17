@@ -467,6 +467,7 @@ async function enshrineStatues() {
     (f.ph || []).forEach(o => { o.visible = false; }); n++;
   }));
   await Promise.all(jobs);
+  for (const T of temples) T.occ = null; // 불상이 들어왔으니 카메라 가림 목록을 다시 모음
   dbg('statues', n);
 }
 
@@ -493,12 +494,29 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinchD > 0) dist = clamp(pinchDist0 * pinchD / Math.max(20, d), ZMIN, ZMAX); return; }
-  if (e.pointerId !== drag.id) return; yaw -= (e.clientX - drag.x) * 0.006; pitch = clamp(pitch + (e.clientY - drag.y) * 0.004, PMIN, PMAX); drag.x = e.clientX; drag.y = e.clientY;
+  if (e.pointerId !== drag.id || isLocked()) return; yaw -= (e.clientX - drag.x) * 0.006; pitch = clamp(pitch + (e.clientY - drag.y) * 0.004, PMIN, PMAX); drag.x = e.clientX; drag.y = e.clientY;
 });
 const endDrag = e => {
   ptrs.delete(e.pointerId); if (ptrs.size < 2) pinchD = 0;
-  if (e.pointerId === drag.id) { drag.id = null; if (e.type === 'pointerup' && downInfo && Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y) < 7 && performance.now() - downInfo.t < 400) clickMove(e); downInfo = null; }
+  if (e.pointerId === drag.id) {
+    drag.id = null;
+    const tap = e.type === 'pointerup' && downInfo && Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y) < 7 && performance.now() - downInfo.t < 400;
+    if (tap) { if (FINE && e.pointerType === 'mouse') lockMouse(); else clickMove(e); } // PC: 화면을 누르면 3인칭 마우스 시점, 터치: 누른 곳으로 걷기
+    downInfo = null;
+  }
 };
+// 3인칭 마우스 시점 (총게임처럼): 화면을 한 번 누르면 마우스로 바로 둘러보고 WASD로 이동, Esc로 해제
+const FINE = matchMedia('(pointer: fine)').matches;
+const isLocked = () => document.pointerLockElement === canvas;
+function lockMouse() { if (!rituals.open && !isLocked() && canvas.requestPointerLock) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { } } }
+addEventListener('mousemove', e => {
+  if (!isLocked()) return;
+  yaw -= e.movementX * 0.0024; pitch = clamp(pitch + e.movementY * 0.0019, PMIN, PMAX); intro = -1;
+});
+document.addEventListener('pointerlockchange', () => {
+  document.body.classList.toggle('locked', isLocked());
+  if (isLocked() && !store.d.tpsTip) { store.d.tpsTip = 1; store.save(); toast('🖱️ 마우스로 둘러보고 WASD로 걸어요 · Esc를 누르면 마우스가 풀려요', 4200); }
+});
 canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
 canvas.addEventListener('wheel', e => { dist = clamp(dist * Math.exp(e.deltaY * .0013), ZMIN, ZMAX); e.preventDefault(); }, { passive: false });
 addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; if (e.code === 'Equal' || e.code === 'NumpadAdd') dist = clamp(dist / 1.25, ZMIN, ZMAX); if (e.code === 'Minus' || e.code === 'NumpadSubtract') dist = clamp(dist * 1.25, ZMIN, ZMAX); });
@@ -658,11 +676,39 @@ const clock = new THREE.Clock(); let walkT = 0, walkAmp = 0, frames = 0, fpsT = 
 const stopIntro = () => { intro = -1; };
 canvas.addEventListener('pointerdown', stopIntro); addEventListener('keydown', stopIntro); joyEl.addEventListener('pointerdown', stopIntro);
 const camGoal = new THREE.Vector3();
+const camRay = new THREE.Raycaster(), _cPivot = new THREE.Vector3(), _cDir = new THREE.Vector3(), _cOut = new THREE.Vector3();
+// 카메라를 가리는 것들(법당 벽·기둥·지붕·담·바위·불상 등): 사찰마다 한 번 모아 둠. 바닥판·연등·나무 잎은 뺌
+function occluders(T) {
+  if (T.occ) return T.occ;
+  const list = [], sph = new THREE.Sphere();
+  (T.site || T.hall.group).updateMatrixWorld(true);
+  (T.site || T.hall.group).traverse(o => {
+    if (!o.isMesh || o.isInstancedMesh || !o.visible) return;
+    const g = o.geometry, t = g.type; if (t === 'PlaneGeometry' || t === 'CircleGeometry' || t === 'RingGeometry') return;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m || m.transparent || m.side === THREE.BackSide) return;
+    if (!g.boundingSphere) g.computeBoundingSphere(); sph.copy(g.boundingSphere).applyMatrix4(o.matrixWorld); if (sph.radius < .35) return;
+    list.push(o);
+  });
+  dbg('occ.' + T.name, list.length);
+  return (T.occ = list);
+}
+function camBlock(goal, pivotY) {
+  if (!cur) return goal;
+  _cPivot.set(avatar.position.x, pivotY, avatar.position.z); _cDir.subVectors(goal, _cPivot); const len = _cDir.length(); if (len < .3) return goal;
+  _cDir.divideScalar(len); camRay.set(_cPivot, _cDir); camRay.near = .25; camRay.far = len;
+  let hit = null;
+  const hits = camRay.intersectObjects(occluders(cur), false); if (hits.length) hit = hits[0];
+  if (!hit) return goal;
+  const d = Math.max(.35, hit.distance - .3); return _cOut.copy(_cPivot).addScaledVector(_cDir, d);
+}
 function loop() { requestAnimationFrame(loop); try { step(); } catch (e) { if (!DBG.loopError) dbg('loopError', e.message); } }
 function step() {
   const dt = Math.min(clock.getDelta(), 0.05);
   // 이동
-  let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x;
+  // ← → : 몸과 시점을 함께 돌리기 (방향키만으로도 등 뒤 시점 유지) · A D : 옆걸음 · W S ↑ ↓ : 앞뒤
+  const turn = (keys.ArrowLeft ? 1 : 0) - (keys.ArrowRight ? 1 : 0);
+  if (turn && !rituals.open) { yaw += turn * 2.1 * dt; intro = -1; }
+  let ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + joy.x;
   let iz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) + joy.y;
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   if (sam && il > .5) { sam = null; resetBody(); toast('삼배를 멈췄어요'); }
@@ -680,7 +726,8 @@ function step() {
   if (moving) {
     if (!tapdori) { avatar.position.x += mx * speed * dt; avatar.position.z += mz * speed * dt; }
     if (!tapdori) { pushOut(avatar.position, 0.42); clampBound(avatar.position); }
-    let d = Math.atan2(mx, mz) - avatar.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); avatar.rotation.y += d * Math.min(1, dt * 10);
+    const face = isLocked() && !moveTarget && !tapdori && iz <= .05 ? yaw + Math.PI : Math.atan2(mx, mz); // 마우스 시점: 시선 방향을 보고 옆걸음
+    let d = face - avatar.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); avatar.rotation.y += d * Math.min(1, dt * 10);
     walkT += dt * speed * 2; body.position.y = Math.abs(Math.sin(walkT)) * 0.06; body.rotation.z = Math.sin(walkT) * 0.05;
     walkAmp = Math.min(1, walkAmp + dt * 6);
   } else if (!sam) { body.position.y *= 0.85; body.rotation.z *= 0.85; walkAmp = Math.max(0, walkAmp - dt * 6); }
@@ -734,10 +781,13 @@ function step() {
     if (hall.underRoof(cl, cz)) camGoal.y = Math.min(camGoal.y, hall.ceilY - .7);
     const [x, z] = L2W(cl, cz); camGoal.x = x; camGoal.z = z;
   }
+  // 카메라가 벽·지붕·바위를 뚫고 들어가지 않게: 머리에서 카메라 쪽으로 광선을 쏘아 막히면 앞으로 당김
+  let shX = 0, shZ = 0; if (isLocked() && !inside) { shX = Math.cos(yaw) * .42; shZ = -Math.sin(yaw) * .42; camGoal.x += shX; camGoal.z += shZ; } // 어깨 너머 시점
+  camGoal.copy(camBlock(camGoal, avatar.position.y + 1.15));
   // 아래에서 올려다볼 때: 카메라가 바닥 밑으로 들어가지 않게 바닥 바로 위에 붙이고, 시선은 조금 더 위로
   { let fy = 0; if (hall) { const [fl, fz] = W2L(camGoal.x, camGoal.z); fy = hall.heightAt(fl, fz); } camGoal.y = Math.max(camGoal.y, fy + .16); }
   camera.position.lerp(camGoal, Math.min(1, dt * 8));
-  camera.lookAt(avatar.position.x, avatar.position.y + 1.05 + Math.max(0, -effP) * Math.min(effD, 3) * .3, avatar.position.z);
+  camera.lookAt(avatar.position.x + shX, avatar.position.y + 1.05 + Math.max(0, -effP) * Math.min(effD, 3) * .3, avatar.position.z + shZ);
   faceFill.position.set(camera.position.x, camera.position.y + 1.2, camera.position.z); faceFill.target.position.set(avatar.position.x, avatar.position.y + 1, avatar.position.z);
   sun.position.set(avatar.position.x + 50, 100, avatar.position.z + 35); sun.target.position.copy(avatar.position);
   if (hall) { glowT += dt; hall.glow.visible = !sam; hall.glow.material.opacity = .35 + .25 * Math.sin(glowT * 3); }
