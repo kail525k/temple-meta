@@ -85,7 +85,7 @@
   #tools button:hover{background:rgba(155,59,43,.08)}#tools button:active{transform:scale(.94)}
   #ctxBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(26px,env(safe-area-inset-bottom) + 18px) + 74px);display:flex;gap:8px;z-index:6;flex-wrap:wrap;justify-content:center;max-width:94vw}
   #ctxBar button{border:0;border-radius:99px;padding:10px 16px;font-size:14px;font-weight:700;background:var(--paper);color:var(--ink);box-shadow:0 4px 14px rgba(60,40,10,.18);cursor:pointer;font-family:inherit}
-  #ctxBar button.main{background:var(--accent);color:#fff;font-size:15px;padding:12px 20px;animation:pulse 2s ease-in-out infinite}
+  #ctxBar button.main{background:var(--accent);color:#fff;font-size:15px;padding:12px 20px;animation:pulse2 2s ease-in-out infinite}@keyframes pulse2{50%{transform:scale(1.06)}}
   #topBtns{position:fixed;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 140px);display:flex;gap:6px;z-index:5}
   #topBtns button{border:0;border-radius:99px;padding:6px 11px;font-size:13px;font-weight:700;background:var(--paper);box-shadow:0 3px 10px rgba(60,40,10,.12);cursor:pointer;font-family:inherit;color:var(--ink)}
   #minimap{cursor:pointer}
@@ -132,6 +132,45 @@
   #bowPrompt{position:fixed;left:50%;bottom:calc(max(26px,env(safe-area-inset-bottom)) + 70px);transform:translateX(-50%);display:none;border:0;border-radius:99px;padding:13px 22px;font-size:16px;font-weight:700;color:#fff;background:var(--accent);box-shadow:0 6px 20px rgba(120,40,20,.35);cursor:pointer;font-family:inherit;animation:pulse 2s ease-in-out infinite;z-index:6}
   @keyframes pulse{50%{transform:translateX(-50%) scale(1.06)}}
   @media (max-width:520px){#title h1{font-size:15px}#title{max-width:calc(100vw - 144px)}#minimap{width:108px;height:108px}#dbg{top:calc(max(12px,env(safe-area-inset-top)) + 122px)}#actions{width:156px}#actions button{height:36px;padding:0 10px;font-size:13px}}
+  #actions em{display:none;font-style:normal}
+  /* ── 휴대폰·태블릿(터치): 화면을 덜 가리게 ──
+     위: 사찰 이름 한 줄(누르면 펼침) · 작은 지도 · 오른쪽 아이콘 한 줄
+     아래: 의식 도구 줄(맨 아래 가로) · 그 위 왼쪽 조이스틱, 오른쪽 점프 · 상황 버튼은 조이스틱 위 가운데 */
+  body.touch{--sb:max(8px,env(safe-area-inset-bottom));--st:max(10px,env(safe-area-inset-top))}
+  body.touch #title{left:10px;top:var(--st);padding:7px 12px;max-width:calc(100vw - 112px);cursor:pointer;border-radius:12px}
+  body.touch #title h1{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  body.touch #title h1 small{font-size:11px}
+  body.touch #title h1::after{content:' ▾';font-size:10px;color:#a8977a;font-weight:400}
+  body.touch #title p,body.touch #title .row,body.touch #title #attrib{display:none}
+  body.touch #title.open{max-width:min(calc(100vw - 112px),360px)}
+  body.touch #title.open h1{white-space:normal}body.touch #title.open h1::after{content:' ▴'}
+  body.touch #title.open p{display:block}body.touch #title.open .row{display:flex}
+  body.touch #title.open #attrib{display:block;position:static;text-align:left;padding:6px 0 0;font-size:10px;line-height:1.45;color:#8a7a62;text-shadow:none}
+  body.touch #attrib{display:none}
+  body.touch #minimap{width:84px;height:84px;top:var(--st);right:10px;border-radius:12px}
+  body.touch #topBtns{top:calc(var(--st) + 92px);right:10px;flex-direction:column;align-items:flex-end;gap:6px}
+  body.touch #topBtns button{padding:6px 9px;font-size:12px;min-width:48px;box-shadow:0 2px 8px rgba(60,40,10,.12)}
+  body.touch #actions{top:calc(var(--st) + 210px);bottom:auto;right:10px;width:auto;align-items:flex-end;gap:6px}
+  body.touch #actions button,body.touch #actions a{width:48px;height:46px;padding:0;flex-direction:column;justify-content:center;gap:2px;border-radius:13px;margin-top:0}
+  body.touch #actions button span,body.touch #actions a span{display:none}
+  body.touch #actions em{display:block;font-size:10px;font-weight:700;line-height:1}
+  body.touch #actions button i,body.touch #actions a i{width:auto;font-size:17px}
+  body.touch #near{top:calc(var(--st) + 48px);left:10px;max-width:calc(100vw - 80px);padding:6px 12px;font-size:12px}
+  body.touch .panel{top:calc(var(--st) + 92px);right:66px;left:auto;width:min(calc(100vw - 80px),300px);max-height:calc(100% - var(--st) - 260px);overflow:auto}
+  body.touch #tools{left:8px;right:8px;transform:none;bottom:var(--sb);max-width:none;overflow-x:auto;justify-content:space-between;padding:3px;border-radius:16px;gap:0;scrollbar-width:none}
+  body.touch #tools::-webkit-scrollbar{display:none}
+  body.touch #tools button{min-width:44px;flex:1 0 44px;padding:4px 1px;font-size:10.5px;gap:1px}
+  body.touch #tools button i{font-size:19px}
+  body.touch #joy{left:12px;bottom:calc(var(--sb) + 62px);width:104px;height:104px}
+  body.touch #knob{width:44px;height:44px;margin:-22px 0 0 -22px}
+  body.touch #btnJump{right:14px;bottom:calc(var(--sb) + 80px);width:56px;height:56px;font-size:20px}
+  body.touch #ctxBar{bottom:calc(var(--sb) + 178px)}
+  body.touch #bowPrompt{bottom:calc(var(--sb) + 178px)}
+  body.touch #bellPull{bottom:calc(var(--sb) + 232px)}
+  body.touch #toast{bottom:calc(var(--sb) + 286px);max-width:88vw;text-align:center}
+  body.touch #dbg{top:calc(var(--st) + 48px);right:auto;left:10px;width:min(calc(100vw - 80px),330px)}
+  /* 가로로 눕힌 휴대폰: 높이가 낮으니 오른쪽 아이콘을 작은 지도 왼쪽에 가로로 */
+  @media (max-height:560px){body.touch #actions{top:var(--st);right:102px;flex-direction:row}body.touch #topBtns{top:calc(var(--st) + 92px)}body.touch .panel{max-height:calc(100% - var(--st) - 110px)}body.touch #ctxBar,body.touch #bowPrompt{bottom:calc(var(--sb) + 64px)}body.touch #toast{bottom:calc(var(--sb) + 120px)}body.touch #bellPull{bottom:calc(var(--sb) + 116px)}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 </head>
@@ -150,10 +189,10 @@
 <div id="near" class="card"></div>
 
 <div id="actions">
-  <button id="btnRegion"><i>🗺</i><span>다른 지역·사찰</span><kbd>Tab</kbd></button>
-  <button id="btnHall"><i>🛕</i><span>법당 안으로</span><kbd>G</kbd></button>
-  <button id="btnHome"><i>📍</i><span>순례 마당</span><kbd>H</kbd></button>
-  <button id="btnPano" class="primary"><i>📷</i><span>실제 모습 보기</span></button>
+  <button id="btnRegion"><i>🗺</i><span>다른 지역·사찰</span><em>지역</em><kbd>Tab</kbd></button>
+  <button id="btnHall"><i>🛕</i><span>법당 안으로</span><em>법당</em><kbd>G</kbd></button>
+  <button id="btnHome"><i>📍</i><span>순례 마당</span><em>마당</em><kbd>H</kbd></button>
+  <button id="btnPano" class="primary"><i>📷</i><span>실제 모습 보기</span><em>실제</em></button>
 </div>
 <div id="tools" class="card">
   <button id="btnHapjang" title="합장 (1)"><i>🙏</i>합장</button>
@@ -208,6 +247,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=59"></script>
+<script type="module" src="./app.js?v=60"></script>
 </body>
 </html>

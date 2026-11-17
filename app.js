@@ -688,6 +688,10 @@ addEventListener('mouseup', e => { if (e.button === 2) aimZoom = false; });
 addEventListener('blur', () => { aimZoom = false; });
 addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomBy(1 / 1.45); if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomBy(1.45); });
 if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
+if (document.body.classList.contains('touch')) { // 휴대폰: 사찰 이름 카드는 한 줄로 접어 두고, 누르면 설명·출처·상태까지 펼침
+  const tt = document.getElementById('title'), at = document.getElementById('attrib'); if (at) tt.appendChild(at);
+  tt.addEventListener('click', e => { if (!e.target.closest('button,a')) tt.classList.toggle('open'); });
+}
 const joyEl = document.getElementById('joy'), knob = document.getElementById('knob');
 { const jb = document.getElementById('btnJump'); if (jb) { const on = e => { e.preventDefault(); jumpBtn = true; }, off = () => { jumpBtn = false; }; jb.addEventListener('pointerdown', on); jb.addEventListener('pointerup', off); jb.addEventListener('pointercancel', off); jb.addEventListener('pointerleave', off); } }
 const joy = { id: null, x: 0, y: 0 };
@@ -797,7 +801,7 @@ document.getElementById('btnPano').onclick = openPano;
 if (OFFLINE) { // 거리뷰는 사이트에서: 버튼을 사이트 링크로 바꿈
   const b = document.getElementById('btnPano'), a = document.createElement('a');
   a.id = 'btnPano'; a.className = b.className; a.href = SITE; a.target = '_blank'; a.rel = 'noopener';
-  a.innerHTML = '<i>🌐</i><span>사이트에서 거리뷰</span>'; b.replaceWith(a);
+  a.innerHTML = '<i>🌐</i><span>사이트에서 거리뷰</span><em>거리뷰</em>'; b.replaceWith(a);
 }
 document.getElementById('btnClose').onclick = () => modal.classList.remove('show');
 
