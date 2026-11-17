@@ -237,8 +237,8 @@ function buildSite(info, T) {
   }
   for (const sx of [-1, 1]) { add(new THREE.CylinderGeometry(.16, .18, 3, 10), MAT.red, sx * 1.6, 1.5, YZ1); col(sx * 1.6, YZ1, .25, .25); }
   box(4.2, .3, 1.2, MAT.wallCap, 0, 3.1, YZ1); box(3.6, .25, .3, MAT.red, 0, 2.8, YZ1);
-  if (!yg) { // 석등 (법당 바로 앞) — 해동용궁사는 그 자리에 사사자 석탑
   const SL = D / 2 + 4.4;
+  if (!yg) { // 석등 (법당 바로 앞) — 해동용궁사는 그 자리에 사사자 석탑
   add(new THREE.CylinderGeometry(.42, .5, .3, 8), MAT.stone, 0, .15, SL); add(new THREE.CylinderGeometry(.12, .14, .95, 8), MAT.stone, 0, .78, SL);
   box(.62, .14, .62, MAT.stone, 0, 1.3, SL); box(.46, .5, .46, MAT.stone, 0, 1.62, SL); box(.3, .26, .48, MAT.fire, 0, 1.62, SL);
   add(new THREE.ConeGeometry(.52, .38, 8), MAT.stoneDark, 0, 2.06, SL); add(new THREE.SphereGeometry(.1, 10, 8), MAT.stoneDark, 0, 2.3, SL);
@@ -803,7 +803,7 @@ function step() {
   if (moving) {
     if (!tapdori) {
       const p = avatar.position, nx = p.x + mx * speed * dt, nz = p.z + mz * speed * dt; let ok = true;
-      if (blockedAt(p.x, p.z, feetY) || !blockedAt(nx, nz, feetY)) { // 이미 물체 안(순간이동 직후)이면 빠져나갈 수 있게 p.x = nx; p.z = nz; } else if (!blockedAt(nx, p.z, feetY)) p.x = nx; else if (!blockedAt(p.x, nz, feetY)) p.z = nz; else ok = false;
+      if (blockedAt(p.x, p.z, feetY) || !blockedAt(nx, nz, feetY)) { p.x = nx; p.z = nz; } else if (!blockedAt(nx, p.z, feetY)) p.x = nx; else if (!blockedAt(p.x, nz, feetY)) p.z = nz; else ok = false; // 이미 물체 안(순간이동 직후)이면 빠져나갈 수 있게
       if (!ok && moveTarget) { moveTarget = null; markMove(null); } // 막혀서 못 가면 멈춤
       pushOut(p, 0.42); clampBound(p);
     }
