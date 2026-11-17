@@ -5,7 +5,7 @@
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=8';
-import { createSchool, tankFish } from './fish.js?v=3';
+import { createSchool, tankFish } from './fish.js?v=4';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const R = {
@@ -311,16 +311,16 @@ export function buildExtras(h, T) {
       for (const sx of [-1, 1]) P(new THREE.CylinderGeometry(.05, .05, 2.3, 6), wood2, sx * 1.25, 1.15, -.42);
       const aw = P(new THREE.BoxGeometry(2.9, .06, 1.4), M('#c8402f'), 0, 2.28, .1); aw.rotation.x = .18;
       for (let i = 0; i < 6; i++) P(new THREE.BoxGeometry(.24, .065, 1.41), M('#f3eee4'), -1.2 + i * .48, 2.285, .1).rotation.x = .18;
-      const glass = new THREE.MeshStandardMaterial({ color: '#7fc3cf', transparent: true, opacity: .45, roughness: .1, metalness: .1, depthWrite: false });
+      const glass = new THREE.MeshStandardMaterial({ color: '#6fb6c6', transparent: true, opacity: .32, roughness: .05, metalness: .1, depthWrite: false }), surf = new THREE.MeshStandardMaterial({ color: '#9fd8e2', transparent: true, opacity: .55, roughness: .1, depthWrite: false });
       const tanks = [];
-      for (const tx of [-.65, .65]) { const tk = P(new THREE.BoxGeometry(1.0, .5, .62), glass, tx, 1.16, 0); tk.castShadow = false; const tg = new THREE.Group(); tg.position.set(tx, 0, 0); g.add(tg); tanks.push(tankFish(tg, .45, .28, 1.02, 7)); }
+      for (const [tx, kind] of [[-.65, 'ureok'], [.65, 'hwangeo']]) { const tk = P(new THREE.BoxGeometry(1.0, .5, .62), glass, tx, 1.16, 0); tk.castShadow = false; const top = P(new THREE.PlaneGeometry(.96, .58), surf, tx, 1.36, 0); top.rotation.x = -Math.PI / 2; top.castShadow = false; P(new THREE.BoxGeometry(1.06, .05, .68), wood2, tx, .92, 0); const tg = new THREE.Group(); tg.position.set(tx, 0, 0); g.add(tg); tanks.push(tankFish(tg, .45, .28, 1.0, kind === 'ureok' ? 4 : 9, kind)); }
       for (let i = 0; i < 5; i++) P(new THREE.BoxGeometry(.16, .22, .08), M(i % 2 ? '#e8c45a' : '#d9a441'), -1.1 + i * .2, 1.02, .38);  // 물고기 밥 봉지
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .5), new THREE.MeshStandardMaterial({ map: h.nameTex('방생 물고기 · 물고기 밥', '#2b1d14', '#f2cf72', 40), roughness: .6 })); sign.position.set(0, 1.92, .47); sign.rotation.x = -.05; g.add(sign);
-      const note = new THREE.Mesh(new THREE.PlaneGeometry(2.0, .26), new THREE.MeshStandardMaterial({ map: h.nameTex('작은 물고기 5마리 · 큰 물고기 2마리 · 밥 한 봉지', '#f6efe2', '#3a2a1c', 34), roughness: .7 })); note.position.set(0, .7, .455); g.add(note);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .5), new THREE.MeshStandardMaterial({ map: h.nameTex('방생 물고기 · 물고기 밥', '#2b1d14', '#f2cf72', 40, '', 660), roughness: .6 })); sign.position.set(0, 1.92, .47); sign.rotation.x = -.05; g.add(sign);
+      const note = new THREE.Mesh(new THREE.PlaneGeometry(2.3, .32), new THREE.MeshStandardMaterial({ map: h.nameTex('작은 물고기 5마리 · 큰 물고기 2마리 · 물고기 밥', '#f6efe2', '#3a2a1c', 34, '', 990), roughness: .7 })); note.position.set(0, .68, .455); g.add(note);
       col(st.lx, st.lz, 1.4, .5);
       out.fish = { school, at, stall: st, feedTo: { lx: cx, lz: cz + 1.6 } };
-      let loaded = false; // Meshy로 만든 황어·우럭 모델은 휴휴암에 처음 왔을 때 불러옴 (못 불러오면 직접 만든 모양 그대로)
-      out.anim = dt => { if (!loaded) { loaded = true; school.loadModel('hwangeo', './assets/fish-hwangeo.glb?v=1'); school.loadModel('ureok', './assets/fish-ureok.glb?v=1'); } school.update(dt); for (const a of tanks) a(dt); };
+      let loaded = false; // Meshy로 만든 황어·우럭 모델은 휴휴암에 처음 왔을 때 불러옴 (못 불러오면 직접 만든 모양 그대로) → 수조 물고기도 같은 모델로
+      out.anim = dt => { if (!loaded) { loaded = true; for (const k of ['hwangeo', 'ureok']) school.loadModel(k, `./assets/fish-${k}.glb?v=1`).then(ok => { if (ok) for (const a of tanks) a.use(k, school.model(k)); }); } school.update(dt); for (const a of tanks) a(dt); };
     }
     if (kind === 'stoneBuddhas') { // 제주 관음사: 길 양옆에 줄지어 앉은 돌부처 (불상은 모델을 불러온 뒤 올림)
       out.mini = [];

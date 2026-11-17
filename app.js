@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=3';
 import { buildHall } from './hall.js?v=8';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=15';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=16';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
 import { REGIONS } from './temples.js?v=7';
@@ -284,12 +284,14 @@ function buildSite(info, T) {
   return { L, D };
 }
 // 글자판 텍스처 (현판·표지석)
-function nameTex(text, bg, fg, px = 44, sub = '') {
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = sub ? 256 : 138; const c = cv.getContext('2d');
+function nameTex(text, bg, fg, px = 44, sub = '', cw = 512) {
+  const cv = document.createElement('canvas'); cv.width = cw; cv.height = sub ? 256 : 138; const c = cv.getContext('2d');
   c.fillStyle = bg; c.fillRect(0, 0, cv.width, cv.height);
   c.strokeStyle = fg; c.lineWidth = 6; c.strokeRect(10, 10, cv.width - 20, cv.height - 20);
   c.fillStyle = fg; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.font = `bold ${px * 2}px "Noto Serif KR","Nanum Myeongjo",serif`; c.fillText(text, cv.width / 2, sub ? 100 : cv.height / 2 + 4);
+  c.font = `bold ${px * 2}px "Noto Serif KR","Nanum Myeongjo",serif`; const tw = c.measureText(text).width; // 글이 길면 판에 맞게 줄임
+  if (tw > cv.width - 48) c.font = `bold ${Math.floor(px * 2 * (cv.width - 48) / tw)}px "Noto Serif KR","Nanum Myeongjo",serif`;
+  c.fillText(text, cv.width / 2, sub ? 100 : cv.height / 2 + 4);
   if (sub) { c.font = `600 ${px}px "Noto Sans KR",sans-serif`; c.fillText(sub, cv.width / 2, 190); }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }

@@ -96,6 +96,7 @@ export function createSchool(site, { cx, cz, rx = 5.5, rz = 3.6, n = 650, extra 
   let t = 0;
   const api = {
     mesh, center: { x: cx, z: cz }, inside,
+    model: k => k === 'ureok' ? uMesh : mesh,
     // 밥 한 줌 던지기: from(사이트 좌표의 손 위치) → to 근처에 흩뿌림
     throwFood(from, to, count = 26) {
       let k = 0;
@@ -208,10 +209,12 @@ export function createSchool(site, { cx, cz, rx = 5.5, rz = 3.6, n = 650, extra 
 }
 
 // 방생 수조 안의 작은 물고기들 (판매대 장식)
-export function tankFish(group, w, d, y, n = 8) {
-  const g = fishGeo('hwangeo'), m = swimMat(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .4, metalness: .3, side: THREE.DoubleSide }));
+export function tankFish(group, w, d, y, n = 8, kind = 'hwangeo') {
+  const g = fishGeo(kind), m = swimMat(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .4, metalness: kind === 'ureok' ? .1 : .3, side: THREE.DoubleSide }));
   const im = new THREE.InstancedMesh(g, m, n); im.frustumCulled = false; group.add(im);
   const S = Array.from({ length: n }, (_, i) => ({ a: Math.random() * 6.3, r: .1 + Math.random() * .2, sp: (.5 + Math.random() * .6) * (i % 2 ? 1 : -1), y: y + Math.random() * .2 }));
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(.2, .2, .2), up = new THREE.Vector3(0, 1, 0);
-  return dt => { S.forEach((s, i) => { s.a += s.sp * dt; q.setFromAxisAngle(up, -s.a + (s.sp > 0 ? 0 : Math.PI)); im.setMatrixAt(i, m4.compose(v.set(Math.cos(s.a) * s.r * w * 2, s.y, Math.sin(s.a) * s.r * d * 2), q, sc)); }); im.instanceMatrix.needsUpdate = true; };
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), k0 = kind === 'ureok' ? .3 : .22, sc = new THREE.Vector3(k0, k0, k0), up = new THREE.Vector3(0, 1, 0);
+  const fn = dt => { S.forEach((s, i) => { s.a += s.sp * dt; q.setFromAxisAngle(up, -s.a + (s.sp > 0 ? 0 : Math.PI)); im.setMatrixAt(i, m4.compose(v.set(Math.cos(s.a) * s.r * w * 2, s.y, Math.sin(s.a) * s.r * d * 2), q, sc)); }); im.instanceMatrix.needsUpdate = true; };
+  fn.use = (k, src) => { if (k !== kind || !src) return; im.geometry = src.geometry; im.material = src.material; };
+  return fn;
 }
