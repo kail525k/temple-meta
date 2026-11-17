@@ -399,8 +399,8 @@ function clampBound(p) {
 const { avatar, body, headG, torso, kasa, legs, eyeGroups, closedEyes, faceOpen, placeArms, faceFill } = createBabyMonk();
 scene.add(avatar, faceFill, faceFill.target);
 // Meshy로 만든 아기 스님 3D 모델(시트 그대로). 못 불러오면 지금의 코드 아바타를 그대로 씀
-const MONK_URL = new URLSearchParams(location.search).get('monk') || 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@ea753afac051478b6d31f64e96f39f54abba9fec/assets/baby-monk.glb';
-const MONK_CLOSED = 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@d9c6562f438451c20bcc6069d71190ec17a99342/assets/monk-eyes-closed.webp'; // 눈 감은 얼굴 (Meshy AI 텍스처 편집)
+const MONK_URL = new URLSearchParams(location.search).get('monk') || './assets/baby-monk.glb'; // 이 사이트에서 직접 (외부 CDN이 큰 저장소를 막는 일이 있어서)
+const MONK_CLOSED = './assets/monk-eyes-closed.webp'; // 눈 감은 얼굴 (Meshy AI 텍스처 편집)
 let glb = null;
 const glbReady = loadMonkGLB(MONK_URL, { closedUrl: MONK_CLOSED, onProgress: f => { const m = document.getElementById('loadMsg'); if (m && !document.getElementById('loading').classList.contains('hide')) m.innerHTML = `아기 스님을 모시는 중… ${Math.round(f * 100)}%`; } })
   .then(m => { glb = m; avatar.add(m.root); body.visible = false; dbg('monk', m.info); return m; })
@@ -411,16 +411,16 @@ let blinkT = 2.5, idleT = 0;
 // sakya 석가(항마촉지인) · amita 아미타(선정인) · yaksa 약사(약합) · biro 비로자나(지권인) · bosal 앉은 보살 · bosalS 선 보살
 // disciple 선 제자 · chunsu 천수관음 · buddhaS 선 부처 · budai 포대화상. 아직 없는 모델은 비슷한 모델이나 코드로 그린 자리표시로 대신함
 const ASSET = 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@';
-const STATUE_URL = QS.get('statue') || ASSET + '898d0acabdb82f4c5bf3bbe52d99d4619ad7b591/assets/buddha.glb';
+const STATUE_URL = QS.get('statue') || './assets/buddha.glb';
 const KIT_SHA = QS.get('kits') || '5a35011cef232382400aa936e99f3a9cc8ae72ae';
 const KIT_HAVE = new Set(['amita', 'biro', 'yaksa', 'bosal', 'bosalS', 'disciple', 'chunsu', 'buddhaS', 'budai', 'yongwang', 'dongja', 'wabul', 'buldu']);
-const KIT_URL = k => k === 'sakya' ? STATUE_URL : KIT_HAVE.has(k) ? `${ASSET}${KIT_SHA}/assets/statue-${k}.glb` : null;
+const KIT_URL = k => k === 'sakya' ? STATUE_URL : KIT_HAVE.has(k) ? `./assets/statue-${k}.glb?v=${KIT_SHA.slice(0, 7)}` : null; // 이 사이트에서 직접 (jsDelivr가 큰 저장소를 403으로 막음)
 const KIT_FALLBACK = { amita: 'sakya', yaksa: 'sakya', biro: 'sakya', bosal: 'sakya', dongja: 'disciple' };
 const KIT_H = { sakya: 2.0, amita: 2.0, yaksa: 2.0, biro: 2.0, bosal: 1.9, bosalS: 2.45, disciple: 2.1, chunsu: 2.5, buddhaS: 2.6, budai: 2.0, wabul: 2.6, yongwang: 2.6, dongja: 1.5, buldu: 6 };
 const kitCache = new Map();
 function kitFor(k) {
   if (!kitCache.has(k)) {
-    const url = KIT_URL(k), local = KIT_HAVE.has(k) ? `./assets/statue-${k}.glb` : null; // CDN이 막히면 이 사이트에서 직접
+    const url = KIT_URL(k), local = KIT_HAVE.has(k) ? `${ASSET}${KIT_SHA}/assets/statue-${k}.glb` : null; // 사이트에서 못 받으면 CDN으로 한 번 더
     const p = url ? loadStatue(url, renderer).catch(e => { dbg('kitError.' + k, e.message); return local ? loadStatue(local, renderer).catch(() => null) : null; }) : Promise.resolve(null);
     kitCache.set(k, p.then(kit => kit || (KIT_FALLBACK[k] ? kitFor(KIT_FALLBACK[k]) : null)));
   }
