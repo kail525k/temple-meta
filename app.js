@@ -392,7 +392,7 @@ function pushOut(p, r) {
 }
 /* ───────── 부딪힘·밟고 서기: 화면의 모든 물체를 하나의 덩어리(바닥 모양 + 높이)로 봄 ─────────
    낮은 것(계단·받침·광장 단·바위)은 걸어 오르고, 조금 높은 것은 Space로 뛰어 올라가고, 높은 것은 못 지나감 (스노클링 메타버스와 같은 방식) */
-const STEP = .48, BODY_R = .3, HEAD = 1.05;
+const STEP = .6, BODY_R = .24, HEAD = 1.05; // 걸어 오를 수 있는 턱 높이(계단 두 칸까지) · 몸 반지름 · 머리 높이
 let TREE_SOLIDS = [], COMMONS = null;
 const SOLID = { list: [], grid: new Map(), cell: 3 };
 const ROUND = new Set(['CylinderGeometry', 'ConeGeometry', 'SphereGeometry', 'IcosahedronGeometry', 'DodecahedronGeometry', 'OctahedronGeometry', 'LatheGeometry', 'CapsuleGeometry']);
@@ -923,7 +923,7 @@ function toggleSit() {
   if (hall && hall.isInside(lx, lz)) {
     let best = hall.cushions[0], bd = 1e9; for (const c of hall.cushions) { const d = Math.hypot(c.lx - lx, c.lz - lz); if (d < bd) { bd = d; best = c; } }
     const [x, z] = L2W(best.lx, best.lz); avatar.position.x = x; avatar.position.z = z; avatar.rotation.y = faceHall();
-    sit = { t: 0, seatY: .09, inHall: true }; yaw = behind() + .5; dist = Math.max(dist, 3.2); pitch = .32;
+    sit = { t: 0, seatY: 0, inHall: true }; yaw = behind() + .5; dist = Math.max(dist, 3.2); pitch = .32;
     toast('🧘 방석에 앉아 마음을 고요히… (움직이면 일어나요)', 3200);
   } else { sit = { t: 0, seatY: 0, inHall: false }; toast('🌿 잠깐 앉아 쉬어요 (움직이면 일어나요)'); }
   updateNear();
