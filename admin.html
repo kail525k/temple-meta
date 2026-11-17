@@ -152,12 +152,12 @@ async function loadMonks() {
   }).join('') || '<div class="empty" style="padding:10px 0">아직 초대한 스님이 없어요</div>';
 }
 $('mMake').onclick = async () => {
-  $('mMsg').className = 'msg'; $('mMsg').textContent = ''; const name = $('mName').value.trim();
+  $('mMsg').className = 'msg'; $('mMsg').textContent = ''; const name = $('mName').value.trim().replace(/\s*스님$/, '');
   if (!name) { $('mMsg').textContent = '법명을 적어 주세요'; return; }
   $('mMake').disabled = true;
   try {
     const j = await call('monk_invite', { region: $('mRegion').value, temple: $('mTemple').value, name });
-    const txt = `🪷 절로 스님 인증 초대 코드: ${j.code}\n1) https://temple-meta.vercel.app 에 들어가세요\n2) 오른쪽 위 👥 버튼 → "스님이신가요? 인증 코드 넣기"\n3) 코드 ${j.code} 를 넣고 [인증] (14일 안에 한 번만)\n인증한 기기에서 "🪷 ${$('mTemple').value} ${name.replace(/\s*스님$/, '')} 스님"으로 보여요.`;
+    const txt = `🪷 절로 스님 인증 초대 코드: ${j.code}\n1) https://temple-meta.vercel.app 에 들어가세요\n2) 오른쪽 위 👥 버튼 → "스님이신가요? 인증 코드 넣기"\n3) 코드 ${j.code} 를 넣고 [인증] (14일 안에 한 번만)\n인증한 기기에서 "🪷 ${$('mTemple').value} ${name} 스님"으로 보여요.`;
     $('mOut').innerHTML = `<div class="code">${esc(j.code)}</div><textarea readonly>${esc(txt)}</textarea><div class="row"><button id="mCopy">안내 문구 복사</button></div>`;
     $('mCopy').onclick = () => { navigator.clipboard.writeText(txt).then(() => alertMsg('복사했어요. 스님께 문자·카톡으로 보내 드리세요'), () => alertMsg('복사가 안 되면 위 글을 길게 눌러 복사해 주세요')); };
     $('mName').value = ''; await loadMonks();
