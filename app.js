@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=3';
 import { buildHall } from './hall.js?v=8';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=10';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=11';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
 import { REGIONS } from './temples.js?v=7';
@@ -247,7 +247,7 @@ function buildSite(info, T) {
   // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
   const YG = yg ? yonggungFrame({ L, D, YX, YZ1 }) : null;
   const PZ = yg ? YG.PZ : D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, nameTex, site, fig: [] };
-  if (hyu) { H.fishX = -6.2; H.fishZ = YZ0 - 7; H.fishFeedZ = YZ0 - 5; H.fishAt = { lx: -6.2, lz: YZ0 - 1.4 }; }
+  if (hyu) { H.fishX = -6.2; H.fishZ = YZ0 - 6.6; H.fishAt = { lx: -6.2, lz: YZ0 - 2.4 }; H.fishStall = { lx: -9.2, lz: YZ0 + 2.7 }; }
   if (st.sea) T.seaRect = buildSea(H, hyu ? { gap: [-10.2, -2.2, 3.4], side: st.seaSide || 0 } : yg ? { gap: YG.gap } : {});
   if (yg && T.seaRect) T.seaRect.inlet = { x0: -YX - 7, x1: -YX + .3, z0: YZ0 - 1, z1: YG.ZB + .5 };
   if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(yg ? 2.0 : 2.7, pg.r + .75); } else T.pagoda = null;
@@ -1122,7 +1122,18 @@ function updateCtx(inside, dBow, lx, lz) {
     if (BELL && Math.hypot(avatar.position.x - BELL.x, avatar.position.z - BELL.z) < 3.6) acts.push(['🔔 범종 치기', strikeBell]);
     if (RACK && Math.hypot(avatar.position.x - RACK.x, avatar.position.z - RACK.z) < 3.8) acts.push(['🏮 소원 연등 걸기', () => openWish('lantern')]);
     if (TILE && Math.hypot(avatar.position.x - TILE.x, avatar.position.z - TILE.z) < 4.2) acts.push(['✍️ 기와 올리기', () => openWish('tile')]);
-    if (!inside && cur && cur.fish && Math.hypot(lx - cur.fish.at.lx, lz - cur.fish.at.lz) < 5) acts.push(['🐟 황어에게 밥 주기', () => { cur.fish.feed(12); sound.bead(); toast('🐟 황어 떼가 몰려와요 · 생명을 살리는 방생 바다예요', 3200); }]);
+    if (!inside && cur && cur.fish) { // 휴휴암: 판매대에서 물고기 밥·방생 물고기를 받아 연화대 끝에서 던지거나 놓아 줌
+      const F = cur.fish, dSt = Math.hypot(lx - F.stall.lx, lz - F.stall.lz), dAt = Math.hypot(lx - F.at.lx, lz - F.at.lz);
+      if (dSt < 3.2) {
+        acts.push([fishFood > 0 ? `🛍️ 물고기 밥 더 받기 (지금 ${fishFood}줌)` : '🛍️ 물고기 밥 한 봉지 받기', () => { fishFood += 8; sound.bead(); toast('🛍️ 물고기 밥 한 봉지(8줌)를 받았어요 · 실제 휴휴암에서는 입구에서 현금 2,000원 · 연화대 끝에서 던져 보세요', 4200); updateNear(); }]);
+        if (!bucket) { acts.push(['🐟 방생 물고기 받기 · 작은 황어 5마리', () => takeBucket('hwangeo')]); acts.push(['🐟 방생 물고기 받기 · 큰 우럭 2마리', () => takeBucket('ureok')]); }
+      }
+      if (dAt < 3.4) {
+        if (fishFood > 0) acts.push([`🐟 물고기 밥 던지기 (${fishFood}줌)`, throwFish]);
+        if (bucket) acts.push(['🙏 방생하기', releaseFish]);
+        if (!fishFood && !bucket) acts.push(['🛍️ 판매대에서 물고기 밥·방생 물고기 받아 오기', () => { const [x, z] = L2W(F.stall.lx, F.stall.lz + 1.6); moveTarget = { x, z, t: 0 }; markMove(new THREE.Vector3(x, avatar.position.y, z)); }]);
+      }
+    }
   }
   if (tapdori) acts.push(['⏹ 탑돌이 멈추기', () => stopTapdori('탑돌이를 멈췄어요')]);
   const key = acts.map(a => a[0]).join('|'); ctxActs = acts;
@@ -1130,6 +1141,35 @@ function updateCtx(inside, dBow, lx, lz) {
   acts.forEach(([t, fn], i) => { const b = document.createElement('button'); b.textContent = t; if (i === 0) b.className = 'main'; b.onclick = () => fn(); ctxBar.appendChild(b); });
 }
 function useContext() { if (ctxActs[0]) ctxActs[0][1](); else if (sit) standUp(); }
+// 휴휴암 물고기 밥·방생
+let fishFood = 0, bucket = null, bucketMesh = null;
+function handLocal() { const fw = 0.55, x = avatar.position.x + Math.sin(avatar.rotation.y) * fw, z = avatar.position.z + Math.cos(avatar.rotation.y) * fw; const [lx, lz] = W2L(x, z); return { x: lx, y: avatar.position.y + 1.0, z: lz }; }
+function aimLocal(dist = 3.6) { // 바라보는 쪽 물 위 (못 맞히면 황어 떼 가운데쯤)
+  const F = cur.fish, x = avatar.position.x + Math.sin(avatar.rotation.y) * dist, z = avatar.position.z + Math.cos(avatar.rotation.y) * dist, [lx, lz] = W2L(x, z);
+  return F.school.inside(lx, lz, .6) ? { x: lx, z: lz } : { x: F.feedTo.lx, z: F.feedTo.lz };
+}
+function faceSea() { const F = cur.fish, [x, z] = L2W(F.feedTo.lx, F.feedTo.lz); avatar.rotation.y = Math.atan2(x - avatar.position.x, z - avatar.position.z); }
+function throwFish() {
+  if (!cur || !cur.fish || fishFood <= 0) return; faceSea();
+  fishFood--; cur.fish.school.throwFood(handLocal(), aimLocal(), 24 + Math.floor(Math.random() * 8)); sound.bead();
+  pose = 'bow'; poseT = 1.5; poseHold = false; // 팔을 앞으로 뻗듯 몸을 살짝 숙이며 던짐
+  if (!store.d.fishTip) { store.d.fishTip = 1; store.save(); toast('🐟 황어 떼가 밥을 향해 몰려와요! 수천 마리가 사는 연화대 앞바다예요', 3600); }
+  else if (!fishFood) toast('봉지가 비었어요 · 판매대에서 한 봉지 더 받을 수 있어요', 2600);
+  updateNear();
+}
+function takeBucket(kind) {
+  bucket = kind; sound.bead();
+  if (!bucketMesh) { bucketMesh = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: '#3d7fc4', roughness: .5 }); const b = new THREE.Mesh(new THREE.CylinderGeometry(.16, .12, .24, 14, 1, true), m); m.side = THREE.DoubleSide; bucketMesh.add(b); const w = new THREE.Mesh(new THREE.CircleGeometry(.15, 14), new THREE.MeshStandardMaterial({ color: '#4fa3b8', roughness: .2 })); w.rotation.x = -Math.PI / 2; w.position.y = .08; bucketMesh.add(w); const hd = new THREE.Mesh(new THREE.TorusGeometry(.15, .012, 6, 16, Math.PI), MAT.line); hd.position.y = .12; bucketMesh.add(hd); }
+  bucketMesh.position.set(.32, .45, .18); avatar.add(bucketMesh);
+  toast(kind === 'ureok' ? '🪣 새끼 우럭 2마리를 양동이에 담았어요 (현장 2만 원) · 연화대 끝 바닷가에서 놓아 주세요' : '🪣 황어 5마리를 양동이에 담았어요 (현장 2만 원) · 연화대 끝 바닷가에서 놓아 주세요', 4200);
+  updateNear();
+}
+function releaseFish() {
+  if (!cur || !cur.fish || !bucket) return; faceSea();
+  cur.fish.school.release(bucket, handLocal(), aimLocal(3.0)); sound.bell ? sound.bell(.25) : sound.bead(); pose = 'hap'; poseT = 0; poseHold = false;
+  toast(bucket === 'ureok' ? '🙏 우럭이 깊은 바다로 헤엄쳐 가요 · 생명을 살리는 방생, 공덕을 지었어요' : '🙏 황어들이 무리 속으로 헤엄쳐 가요 · 생명을 살리는 방생, 공덕을 지었어요', 4200);
+  bucket = null; if (bucketMesh) avatar.remove(bucketMesh); updateNear();
+}
 document.getElementById('btnSit').onclick = toggleSit;
 
 // 매 프레임: 연기 · 종 · 표시
@@ -1142,7 +1182,7 @@ function updateWorld(dt) {
     if (t > 6) { bellAnim = -1; BELL.strG.rotation.x = 0; BELL.bellG.rotation.x = 0; }
   }
   if (moveMark.visible) { moveMark.userData.t += dt; moveMark.material.opacity = .9 * (.6 + .4 * Math.sin(moveMark.userData.t * 6)); }
-  for (const T of temples) if (T.anim) T.anim(dt);
+  for (const T of temples) if (T.anim && T === cur) T.anim(dt); // 지금 있는 사찰만 (황어 떼 등)
   for (let i = GROW.length - 1; i >= 0; i--) { const it = GROW[i]; it.userData.grow = Math.min(1, it.userData.grow + dt * 2); it.scale.setScalar((.01 + .99 * it.userData.grow) * (it.userData.base || 1)); if (it.userData.grow >= 1) { delete it.userData.grow; GROW.splice(i, 1); } }
   if (RACK) for (const it of RACK.items) if (it.userData.grow !== undefined) { it.userData.grow = Math.min(1, it.userData.grow + dt * 2); it.scale.setScalar(.01 + .99 * it.userData.grow); if (it.userData.grow >= 1) delete it.userData.grow; }
   // 연기

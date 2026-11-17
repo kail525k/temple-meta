@@ -5,6 +5,7 @@
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=8';
+import { createSchool, tankFish } from './fish.js?v=1';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const R = {
@@ -299,26 +300,26 @@ export function buildExtras(h, T) {
       const bd = add(new THREE.PlaneGeometry(1.1, .34), new THREE.MeshStandardMaterial({ map: h.nameTex('연화대', '#2b1d14', '#f2cf72', 46), roughness: .6 }), 5.6, .9, z + 1.6, false);
       add(new THREE.CylinderGeometry(.04, .05, .9, 6), h.MAT.trunk, 5.6, .45, z + 1.55);
     }
-    if (kind === 'fish') { // 황어 떼: 연화대 앞바다를 맴돌다 '밥 주기'를 하면 몰려듦
-      const N = 46, geo = new THREE.ConeGeometry(.09, .42, 5); geo.rotateX(Math.PI / 2);
-      const im = new THREE.InstancedMesh(geo, R.fish, N); im.castShadow = false; h.site.add(im);
-      const cx = h.fishX ?? 0, cz = h.fishZ ?? h.YZ0 - 3.2, F = [], m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(1, .7, 1), up = new THREE.Vector3(0, 1, 0);
-      for (let i = 0; i < N; i++) F.push({ a: Math.random() * 6.3, r: 1.2 + Math.random() * 3.2, sp: (.4 + Math.random() * .5) * (Math.random() < .5 ? 1 : -1), x: 0, z: 0, ph: Math.random() * 6 });
-      let feed = 0; const fx = h.fishX ?? 1.5, fz = h.fishFeedZ ?? h.YZ0 - 1.4;
-      out.fish = { feed(t = 10) { feed = t; }, at: h.fishAt || { lx: 1.5, lz: h.YZ0 + 1.2 } };
-      out.anim = dt => {
-        feed = Math.max(0, feed - dt);
-        F.forEach((f, i) => {
-          f.a += f.sp * dt * (feed > 0 ? 2.2 : 1);
-          const tx = feed > 0 ? fx + Math.cos(f.a) * f.r * .35 : cx + Math.cos(f.a) * f.r * 1.6, tz = feed > 0 ? fz - .6 + Math.sin(f.a) * f.r * .25 : cz + Math.sin(f.a) * f.r;
-          const nx = f.x + (tx - f.x) * Math.min(1, dt * 1.6), nz = f.z + (tz - f.z) * Math.min(1, dt * 1.6);
-          const hd = Math.atan2(nx - f.x, nz - f.z); f.x = nx; f.z = nz;
-          q.setFromAxisAngle(up, hd + Math.sin(performance.now() / 160 + f.ph) * .25);
-          im.setMatrixAt(i, m4.compose(v.set(f.x, .075 + (feed > 0 ? Math.abs(Math.sin(performance.now() / 120 + f.ph)) * .06 : 0), f.z), q, sc));
-        });
-        im.instanceMatrix.needsUpdate = true;
-      };
-      for (const f of F) { f.x = cx + Math.cos(f.a) * f.r * 1.6; f.z = cz + Math.sin(f.a) * f.r; }
+    if (kind === 'fish') { // 연화대 옆 황어 떼(수천 마리) · 물고기 밥 판매대 · 방생 수조 — 실제 휴휴암처럼
+      const cx = h.fishX ?? 0, cz = h.fishZ ?? h.YZ0 - 6, at = h.fishAt || { lx: cx, lz: h.YZ0 - 1.4 };
+      const school = createSchool(h.site, { cx, cz, rx: 5.6, rz: 3.1, n: 680, extra: 40 });
+      // 판매대: 물고기 밥(봉지) + 방생 물고기 수조 두 개
+      const st = h.fishStall || { lx: cx - 3.4, lz: h.YZ0 + 2.6 }, g = new THREE.Group(); g.position.set(st.lx, 0, st.lz); g.rotation.y = st.ry || 0; h.site.add(g);
+      const P = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
+      const wood = M('#8a5d3b'), wood2 = M('#6d4528');
+      P(new THREE.BoxGeometry(2.6, .9, .9), wood, 0, .45, 0);
+      for (const sx of [-1, 1]) P(new THREE.CylinderGeometry(.05, .05, 2.3, 6), wood2, sx * 1.25, 1.15, -.42);
+      const aw = P(new THREE.BoxGeometry(2.9, .06, 1.4), M('#c8402f'), 0, 2.28, .1); aw.rotation.x = .18;
+      for (let i = 0; i < 6; i++) P(new THREE.BoxGeometry(.24, .065, 1.41), M('#f3eee4'), -1.2 + i * .48, 2.285, .1).rotation.x = .18;
+      const glass = new THREE.MeshStandardMaterial({ color: '#7fc3cf', transparent: true, opacity: .45, roughness: .1, metalness: .1, depthWrite: false });
+      const tanks = [];
+      for (const tx of [-.65, .65]) { const tk = P(new THREE.BoxGeometry(1.0, .5, .62), glass, tx, 1.16, 0); tk.castShadow = false; const tg = new THREE.Group(); tg.position.set(tx, 0, 0); g.add(tg); tanks.push(tankFish(tg, .45, .28, 1.02, 7)); }
+      for (let i = 0; i < 5; i++) P(new THREE.BoxGeometry(.16, .22, .08), M(i % 2 ? '#e8c45a' : '#d9a441'), -1.1 + i * .2, 1.02, .38);  // 물고기 밥 봉지
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .5), new THREE.MeshStandardMaterial({ map: h.nameTex('방생 물고기 · 물고기 밥', '#2b1d14', '#f2cf72', 40), roughness: .6 })); sign.position.set(0, 1.92, .47); sign.rotation.x = -.05; g.add(sign);
+      const note = new THREE.Mesh(new THREE.PlaneGeometry(2.0, .26), new THREE.MeshStandardMaterial({ map: h.nameTex('작은 물고기 5마리 · 큰 물고기 2마리 · 밥 한 봉지', '#f6efe2', '#3a2a1c', 34), roughness: .7 })); note.position.set(0, .7, .455); g.add(note);
+      col(st.lx, st.lz, 1.4, .5);
+      out.fish = { school, at, stall: st, feedTo: { lx: cx, lz: cz + 1.6 } };
+      out.anim = dt => { school.update(dt); for (const a of tanks) a(dt); };
     }
     if (kind === 'stoneBuddhas') { // 제주 관음사: 길 양옆에 줄지어 앉은 돌부처 (불상은 모델을 불러온 뒤 올림)
       out.mini = [];
