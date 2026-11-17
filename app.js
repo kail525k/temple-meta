@@ -1480,26 +1480,26 @@ function monkSprite(text) {
 }
 // 가사(袈裟): 괴색 조각 천을 이어 붙인 모양, 왼쪽 어깨에서 오른쪽 옆구리로 비스듬히 두름 · 가슴뼈에 붙여 절·앉기 동작을 따라감
 let KASAYA_MAT = null;
-function kasayaMat() {
+function kasayaMat() { // 붉은 가사: 조각 천(조·엽)을 금빛 테로 이어 붙인 모양 — 기본 아기 스님의 갈색 가사와 한눈에 구분
   if (KASAYA_MAT) return KASAYA_MAT;
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const c = cv.getContext('2d');
-  c.fillStyle = '#93452c'; c.fillRect(0, 0, 256, 128);
-  for (let i = 0; i < 9; i++) { c.fillStyle = i % 2 ? 'rgba(0,0,0,.06)' : 'rgba(255,220,180,.05)'; c.fillRect(i * 29, 0, 29, 128); }
-  c.strokeStyle = '#6a2c18'; c.lineWidth = 3; for (let x = 0; x <= 256; x += 29) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, 128); c.stroke(); }
-  for (const y of [43, 86]) { c.beginPath(); c.moveTo(0, y); c.lineTo(256, y); c.stroke(); }
-  c.strokeStyle = '#c99a4a'; c.lineWidth = 4; c.strokeRect(2, 2, 252, 124);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  return KASAYA_MAT = new THREE.MeshStandardMaterial({ map: t, roughness: .85, side: THREE.DoubleSide });
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 192; const c = cv.getContext('2d');
+  c.fillStyle = '#a5321f'; c.fillRect(0, 0, 512, 192);
+  for (let i = 0; i < 14; i++) for (let k = 0; k < 3; k++) { c.fillStyle = (i + k) % 2 ? 'rgba(60,0,0,.12)' : 'rgba(255,190,150,.07)'; c.fillRect(i * 36.6, k * 64, 36.6, 64); }
+  c.strokeStyle = '#d9ad52'; c.lineWidth = 4; for (let x = 0; x <= 512; x += 36.6) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, 192); c.stroke(); }
+  for (const y of [64, 128]) { c.beginPath(); c.moveTo(0, y); c.lineTo(512, y); c.stroke(); }
+  c.lineWidth = 9; c.strokeRect(4, 4, 504, 184);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping;
+  return KASAYA_MAT = new THREE.MeshStandardMaterial({ map: t, roughness: .8, side: THREE.DoubleSide });
 }
-function addKasaya(m) {
+function addKasaya(m) { // 몸통을 두르고 왼쪽 어깨로 넘어가는 가사 · 가슴뼈에 붙여 절·앉기 동작을 따라감
   if (!m || m.kasaya || !m.B) return; const sp = m.B.Spine2 || m.B.Spine1 || m.B.Spine; if (!sp) return;
   m.root.updateMatrixWorld(true);
   const c = sp.getWorldPosition(new THREE.Vector3()); m.root.worldToLocal(c);
-  const sc = m.root.getWorldScale(new THREE.Vector3()).x || 1;
-  const g = new THREE.Group(), mat = kasayaMat(), R = .165 / sc;
-  const wrap = new THREE.Mesh(new THREE.CylinderGeometry(R, R * 1.08, .2 / sc, 28, 1, true, -1.75, 3.5), mat); wrap.rotation.z = .5; wrap.castShadow = true; g.add(wrap);
-  const strap = new THREE.Mesh(new THREE.CylinderGeometry(R * .98, R * .98, .07 / sc, 20, 1, true, Math.PI * .35, Math.PI * 1.1), mat); strap.rotation.set(0, 0, Math.PI / 2 + .5); strap.position.set(.03 / sc, .06 / sc, 0); g.add(strap); // 어깨 넘어가는 자락
-  g.position.set(c.x, c.y - .03 / sc, c.z);
+  const sc = m.root.getWorldScale(new THREE.Vector3()).x || 1, u = 1 / sc, mat = kasayaMat();
+  const g = new THREE.Group();
+  const wrap = new THREE.Mesh(new THREE.CylinderGeometry(.176 * u, .228 * u, .35 * u, 32, 1, true), mat); wrap.rotation.z = .3; wrap.castShadow = true; g.add(wrap);
+  const strap = new THREE.Mesh(new THREE.TorusGeometry(.15 * u, .045 * u, 6, 20, Math.PI), mat); strap.rotation.y = Math.PI / 2; strap.scale.set(1, 1, .32); strap.position.set(.1 * u, .075 * u, .005 * u); g.add(strap); // 왼쪽 어깨 자락
+  g.position.set(c.x, .395 * u, c.z + .008 * u);
   m.root.add(g); m.root.updateMatrixWorld(true); sp.attach(g); m.kasaya = g;
 }
 function removeKasaya(m) { if (m && m.kasaya) { m.kasaya.removeFromParent(); m.kasaya = null; } }
