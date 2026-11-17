@@ -121,12 +121,15 @@ export function createSchool(site, { cx, cz, rx = 5.5, rz = 3.6, n = 650, extra 
       try {
         const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
         const gltf = await loader.loadAsync(url); let src = null; gltf.scene.traverse(o => { if (!src && o.isMesh) src = o; }); if (!src) return false;
-        gltf.scene.updateMatrixWorld(true); const g = src.geometry.clone(); g.applyMatrix4(src.matrixWorld);
+        gltf.scene.updateMatrixWorld(true); const g = src.geometry.clone();
+        for (const k of ['position', 'normal']) { const a = g.attributes[k]; if (a && !(a.array instanceof Float32Array)) { const f = new Float32Array(a.count * 3); for (let i = 0; i < a.count; i++) f.set([a.getX(i), a.getY(i), a.getZ(i)], i * 3); g.setAttribute(k, new THREE.BufferAttribute(f, 3)); } }
+        g.applyMatrix4(src.matrixWorld);
         g.computeBoundingBox(); const b = g.boundingBox, s = new THREE.Vector3(); b.getSize(s); const c = new THREE.Vector3(); b.getCenter(c); g.translate(-c.x, -c.y, -c.z);
         if (s.x > s.z) g.rotateY(-Math.PI / 2);                     // 몸길이를 z축으로
         g.computeBoundingBox(); const L = g.boundingBox.max.z - g.boundingBox.min.z; g.scale(1 / L, 1 / L, 1 / L);
-        // 머리 쪽(꼭짓점이 더 몰린 쪽)을 +z로
-        const p = g.attributes.position; let mz = 0; for (let i = 0; i < p.count; i++) mz += p.getZ(i); if (mz / p.count < 0) g.rotateY(Math.PI);
+        // 머리 쪽을 +z로: 머리 쪽 몸통이 꼬리자루보다 옆으로 두꺼움
+        const p = g.attributes.position; let wH = 0, wT = 0; for (let i = 0; i < p.count; i++) { const z = p.getZ(i), ax = Math.abs(p.getX(i)); if (z > .15 && z < .35) wH = Math.max(wH, ax); else if (z < -.15 && z > -.35) wT = Math.max(wT, ax); } if (wT > wH) g.rotateY(Math.PI);
+        g.computeBoundingBox(); const bb = g.boundingBox; g.translate(0, -(bb.max.y + bb.min.y) / 2, 0); g.computeVertexNormals();
         const base = src.material.clone(); base.side = THREE.DoubleSide; base.metalness = Math.min(base.metalness ?? 0, kind === 'hwangeo' ? .35 : .1); base.roughness = Math.max(base.roughness ?? .5, .35);
         const target = kind === 'ureok' ? uMesh : mesh; target.geometry.dispose(); target.geometry = g; target.material = swimMat(base);
         return true;

@@ -5,7 +5,7 @@
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=8';
-import { createSchool, tankFish } from './fish.js?v=2';
+import { createSchool, tankFish } from './fish.js?v=3';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const R = {
@@ -319,7 +319,8 @@ export function buildExtras(h, T) {
       const note = new THREE.Mesh(new THREE.PlaneGeometry(2.0, .26), new THREE.MeshStandardMaterial({ map: h.nameTex('작은 물고기 5마리 · 큰 물고기 2마리 · 밥 한 봉지', '#f6efe2', '#3a2a1c', 34), roughness: .7 })); note.position.set(0, .7, .455); g.add(note);
       col(st.lx, st.lz, 1.4, .5);
       out.fish = { school, at, stall: st, feedTo: { lx: cx, lz: cz + 1.6 } };
-      out.anim = dt => { school.update(dt); for (const a of tanks) a(dt); };
+      let loaded = false; // Meshy로 만든 황어·우럭 모델은 휴휴암에 처음 왔을 때 불러옴 (못 불러오면 직접 만든 모양 그대로)
+      out.anim = dt => { if (!loaded) { loaded = true; school.loadModel('hwangeo', './assets/fish-hwangeo.glb?v=1'); school.loadModel('ureok', './assets/fish-ureok.glb?v=1'); } school.update(dt); for (const a of tanks) a(dt); };
     }
     if (kind === 'stoneBuddhas') { // 제주 관음사: 길 양옆에 줄지어 앉은 돌부처 (불상은 모델을 불러온 뒤 올림)
       out.mini = [];
