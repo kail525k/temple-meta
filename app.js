@@ -412,8 +412,8 @@ let blinkT = 2.5, idleT = 0;
 // disciple 선 제자 · chunsu 천수관음 · buddhaS 선 부처 · budai 포대화상. 아직 없는 모델은 비슷한 모델이나 코드로 그린 자리표시로 대신함
 const ASSET = 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@';
 const STATUE_URL = QS.get('statue') || ASSET + '898d0acabdb82f4c5bf3bbe52d99d4619ad7b591/assets/buddha.glb';
-const KIT_SHA = QS.get('kits') || '7f52a095652224ef590cb2bcc162f45179176112';
-const KIT_HAVE = new Set(['biro', 'yaksa', 'bosal', 'bosalS', 'disciple', 'chunsu', 'buddhaS']); // 아미타·포대화상은 다음에 추가
+const KIT_SHA = QS.get('kits') || '9d6246685b3ce50906233eec17c3c7c32859b7ee';
+const KIT_HAVE = new Set(['amita', 'biro', 'yaksa', 'bosal', 'bosalS', 'disciple', 'chunsu', 'buddhaS', 'budai']);
 const KIT_URL = k => k === 'sakya' ? STATUE_URL : KIT_HAVE.has(k) ? `${ASSET}${KIT_SHA}/assets/statue-${k}.glb` : null;
 const KIT_FALLBACK = { amita: 'sakya', yaksa: 'sakya', biro: 'sakya', bosal: 'sakya' };
 const KIT_H = { sakya: 2.0, amita: 2.0, yaksa: 2.0, biro: 2.0, bosal: 1.9, bosalS: 2.45, disciple: 2.1, chunsu: 2.5, buddhaS: 2.6, budai: 2.0 };
