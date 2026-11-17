@@ -1495,7 +1495,7 @@ function addKasaya(m) { // 몸통을 두르고 왼쪽 어깨로 넘어가는 가
   if (!m || m.kasaya || !m.B) return; const sp = m.B.Spine2 || m.B.Spine1 || m.B.Spine; if (!sp) return;
   m.root.updateMatrixWorld(true);
   const c = sp.getWorldPosition(new THREE.Vector3()); m.root.worldToLocal(c);
-  const sc = m.root.getWorldScale(new THREE.Vector3()).x || 1, u = 1 / sc, mat = kasayaMat();
+  const u = 1, mat = kasayaMat(); // 모델 자체 단위(키 1.11)로 만듦 → 아바타 전체 크기(0.74 등)는 그대로 따라감
   const g = new THREE.Group();
   const wrap = new THREE.Mesh(new THREE.CylinderGeometry(.176 * u, .228 * u, .35 * u, 32, 1, true), mat); wrap.rotation.z = .3; wrap.castShadow = true; g.add(wrap);
   const strap = new THREE.Mesh(new THREE.TorusGeometry(.15 * u, .045 * u, 6, 20, Math.PI), mat); strap.rotation.y = Math.PI / 2; strap.scale.set(1, 1, .32); strap.position.set(.1 * u, .075 * u, .005 * u); g.add(strap); // 왼쪽 어깨 자락
