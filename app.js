@@ -1292,13 +1292,13 @@ function updateCtx(inside, dBow, lx, lz) {
     if (!inside && cur && cur.fish) { // 휴휴암: 판매대에서 물고기 밥·방생 물고기를 받아 연화대 끝에서 던지거나 놓아 줌
       const F = cur.fish, dSt = Math.hypot(lx - F.stall.lx, lz - F.stall.lz), dAt = Math.hypot(lx - F.at.lx, lz - F.at.lz);
       if (dSt < 3.2) {
-        acts.push([fishFood > 0 ? `🛍️ 물고기 밥 더 받기 (지금 ${fishFood}줌)` : '🛍️ 물고기 밥 한 봉지 받기', () => { fishFood += 8; sound.bead(); toast('🛍️ 물고기 밥 한 봉지(8줌)를 받았어요 · 실제 휴휴암에서는 입구에서 현금 2,000원 · 연화대 끝에서 던지고 싶은 물을 클릭하세요', 4200); updateNear(); }]);
-        if (!bucket) { acts.push(['🐟 방생 물고기 받기 · 작은 황어 5마리', () => takeBucket('hwangeo')]); acts.push(['🐟 방생 물고기 받기 · 큰 우럭 2마리', () => takeBucket('ureok')]); }
+        acts.push([fishFood > 0 ? `🛍️ 밥 더 받기 (${fishFood}줌)` : '🛍️ 물고기 밥 받기', () => { fishFood += 8; sound.bead(); toast('🛍️ 물고기 밥 한 봉지(8줌)를 받았어요 · 실제 휴휴암에서는 입구에서 현금 2,000원 · 연화대 끝에서 던지고 싶은 물을 클릭하세요', 4200); updateNear(); }]);
+        if (!bucket) { acts.push(['🐟 방생 황어 5마리', () => takeBucket('hwangeo')]); acts.push(['🐟 방생 우럭 2마리', () => takeBucket('ureok')]); }
       }
       if (dAt < 4.6) {
-        if (fishFood > 0) acts.push([`🐟 물고기 밥 던지기 (${fishFood}줌)`, throwFish]);
+        if (fishFood > 0) acts.push([`🐟 밥 던지기 (${fishFood}줌)`, throwFish]);
         if (bucket) acts.push(['🙏 방생하기', releaseFish]);
-        if (!fishFood && !bucket) acts.push(['🛍️ 판매대에서 물고기 밥·방생 물고기 받아 오기', () => { const [x, z] = L2W(F.stall.lx, F.stall.lz + 1.6); moveTarget = { x, z, t: 0 }; markMove(new THREE.Vector3(x, avatar.position.y, z)); }]);
+        if (!fishFood && !bucket) acts.push(['🛍️ 판매대로 가기', () => { const [x, z] = L2W(F.stall.lx, F.stall.lz + 1.6); moveTarget = { x, z, t: 0 }; markMove(new THREE.Vector3(x, avatar.position.y, z)); }]);
       }
     }
   }
