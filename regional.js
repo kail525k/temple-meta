@@ -154,7 +154,9 @@ function stoneTiers(h, x, z, n, s = 1, bronze = false) {
 function octa9(h, x, z) {
   const { a: GA, b: GB } = GR(), P = parts(), C = (rt, rb, hh, mat, y, faceted = true) => P.cyl(rt, rb, hh, 8, mat, 0, y + hh / 2, 0, faceted);
   C(1.75, 1.8, .3, GB, 0); C(1.5, 1.6, .26, GA, .3);
-  for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, pt = new THREE.SphereGeometry(.2, 8, 6); pt.scale(1, .55, .7); pt.rotateY(a); P.put(pt, GA, Math.sin(a) * 1.3, .66, Math.cos(a) * 1.3); } // 복련(엎은 연꽃)
+  P.cyl(1.22, 1.5, .2, 16, GA, 0, .66, 0); // 연꽃 받침 몸
+  for (let i = 0; i < 16; i++) { const a = (i + .5) / 16 * Math.PI * 2, pt = new THREE.SphereGeometry(1, 12, 8); pt.scale(.27, .05, .3); pt.rotateX(.55); pt.rotateY(a); P.put(pt, GA, Math.sin(a) * 1.3, .7, Math.cos(a) * 1.3); // 복련: 엎어 놓은 연잎
+    const tip = new THREE.SphereGeometry(1, 8, 6); tip.scale(.07, .04, .09); tip.rotateX(.2); tip.rotateY(a); P.put(tip, GA, Math.sin(a) * 1.55, .58, Math.cos(a) * 1.55); } // 잎 끝이 살짝 들림
   C(1.0, 1.25, .2, GB, .56); C(.92, .92, .32, GA, .76); C(1.12, .95, .12, GB, 1.08); // 중대석·갑석
   let y = 1.2;
   for (let i = 0; i < 9; i++) {

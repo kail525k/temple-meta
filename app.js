@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=3';
 import { buildHall } from './hall.js?v=8';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=20';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=21';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=2';
 import { REGIONS } from './temples.js?v=7';
@@ -1108,7 +1108,7 @@ function buildBellAndRack(g, add) {
     for (const sx of [-1, 1]) B(.12, 3.5, .12, MAT.trunk, sx * 2.3, 1.75, -1.35);
     B(4.7, .1, .12, MAT.trunk, 0, 3.5, -1.35);
     const sign = ad(new THREE.PlaneGeometry(1.5, .42), new THREE.MeshStandardMaterial({ map: nameTex('기와 불사', '#3a2418', '#f2cf72', 46), roughness: .7 }), 0, 3.12, -1.28); sign.castShadow = false;
-    const cntSign = ad(new THREE.PlaneGeometry(2.2, .3), new THREE.MeshStandardMaterial({ map: nameTex('지금까지 0장', '#f6efe2', '#3a2a1c', 34, '', 760), roughness: .7 }), 0, 2.72, -1.28); cntSign.castShadow = false; // 누적 기와 수
+    const cntSign = ad(new THREE.PlaneGeometry(1.95, .27), new THREE.MeshStandardMaterial({ map: nameTex('지금까지 0장', '#f6efe2', '#3a2a1c', 34, '', 760), roughness: .7 }), 0, .6, 1.37); cntSign.castShadow = false; // 누적 기와 수
     const slots = [];
     for (let r = 0; r < 3; r++) for (let c = 0; c < 8; c++) { const m = ad(TILE_GEO, TILE_MAT, -1.75 + c * .5, 1.1 + r * .55 + .23, -r * .5); slots.push(m); }
     obstacles.push({ cx: x, cz: z, c: Math.cos(grp.rotation.y), s: -Math.sin(grp.rotation.y), hu: 2.45, hv: 1.55 });
