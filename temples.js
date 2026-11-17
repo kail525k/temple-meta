@@ -32,7 +32,7 @@ export const REGIONS = [
     { name: '대흥사', hall: '대웅보전', altar: 'yaksa sakya amita', buddhas: 3, lat: 34.4740, lng: 126.6165, where: '해남' },
     { name: '백양사', hall: '대웅전', altar: 'bosal sakya bosal', buddhas: 3, lat: 35.4405, lng: 126.8810, where: '장성', style: { extras: ['pond'], grove: 'maple' } },
     { name: '선암사', hall: '대웅전', altar: 'sakya', buddhas: 3, lat: 35.0005, lng: 127.3335, where: '순천', style: { extras: ['bridge'] } },
-    { name: '대운사', hall: '대웅전', altar: 'bosal sakya bosal', buddhas: 3, lat: 35.02, lng: 126.39, where: '무안 망운면', addr: '전라남도 무안군 망운면 망운로 43-16' },
+    { name: '대운사', hall: '대웅전', altar: 'bosal sakya bosal', buddhas: 3, lat: 35.02, lng: 126.39, where: '무안 망운면', addr: '전라남도 무안군 망운면 망운로 43-16', note: '마을 안 작은 절 · 숲을 등진 법당', style: { pagoda: 'none' } }, // 항공사진: 법당 뒤 숲, 앞마당, 길가 요사채 두 채, 석탑 없음
   ] },
   { id: 'gyeongbuk', name: '경북·대구', env: { trees: { pine: .6, maple: .2, broad: .2 }, mtn: { h: 56 }, grass: '#a7ba7b', note: '신라 석탑 · 소나무' }, temples: [
     { name: '불국사', hall: '대웅전', altar: 'disciple bosalS sakya bosalS disciple', buddhas: 3, lat: 35.7900, lng: 129.3320, where: '경주', note: '석가탑과 다보탑', style: { pagoda: 'pair' } },

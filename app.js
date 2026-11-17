@@ -6,7 +6,7 @@ import { buildHall } from './hall.js?v=8';
 import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=21';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=2';
-import { REGIONS } from './temples.js?v=8';
+import { REGIONS } from './temples.js?v=9';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=3';
 
 /* ───────── 설정 ───────── */
@@ -136,7 +136,7 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const ss = (a, b, t) => { const x = clamp((t - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); };
 
 // 법당 고르기: 설정 좌표에 가장 가까운 절 건물 → 위치·정면 방향·크기
-function pickHall(feats, ref, templeName) {
+function pickHall(feats, ref, templeName, byAddr = false) {
   let best = null;
   for (const f of feats) {
     const g = f.geometry, name = (f.properties.buld_nm || '').trim();
@@ -147,6 +147,8 @@ function pickHall(feats, ref, templeName) {
       const o = obb(ring), cu = (o.mnU + o.mxU) / 2, cv = (o.mnV + o.mxV) / 2;
       const cx = cu * o.c - cv * o.s, cz = cu * o.s + cv * o.c;
       let score = Math.hypot(cx, cz) + (area < 60 ? 50 : 0) + (name.includes(templeName) ? 0 : 25);
+      // 주소로 찾은 작은 절: 한 번지에 법당·요사채가 같은 이름으로 여러 채 → 주소 점(보통 길가 요사채)보다 가장 큰 채를 법당으로 (항공사진으로 확인)
+      if (byAddr) score = name.includes(templeName) && Math.hypot(cx, cz) < 40 ? 30 - Math.min(area, 600) / 25 : 99;
       if (!best || score < best.score) best = { score, o, cx, cz, area, name };
     }
   }
@@ -1563,7 +1565,7 @@ async function startTogether() {
     try {
       const d = await vworldBuildings(T.ref), r = d && d.response;
       if (!r || r.status !== 'OK') { const e = r && r.error; throw new Error(e ? `${e.code} ${e.text}` : r && r.status === 'NOT_FOUND' ? '주변 건물 자료 없음(기본 크기로 지음)' : '응답 형식 오류'); }
-      T.info = pickHall(r.result.featureCollection.features, T.ref, t.name);
+      T.info = pickHall(r.result.featureCollection.features, T.ref, t.name, !!t.addr && /^도로명주소/.test(T.via));
       if (!T.info) throw new Error('법당 건물을 찾지 못함');
       ok++;
     } catch (e) { dbg('vworld.' + t.name, e.message); T.info = defaultHall(); }
