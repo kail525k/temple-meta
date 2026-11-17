@@ -40,10 +40,10 @@
   #near b{font-size:14px}
   #near span{display:block;color:#8a7a62;font-size:11px;margin-top:2px}
   #actions{position:fixed;right:12px;bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));display:flex;flex-direction:column;gap:6px;width:176px}
-  #actions button{display:flex;align-items:center;gap:9px;width:100%;border:0;border-radius:12px;padding:9px 11px;font-size:14px;font-weight:600;line-height:1.2;text-align:left;color:var(--ink);background:var(--paper);box-shadow:0 3px 12px rgba(60,40,10,.13);cursor:pointer;font-family:inherit}
+  #actions button{display:flex;align-items:center;gap:9px;width:100%;height:40px;border:0;border-radius:12px;padding:0 11px;font-size:14px;font-weight:600;line-height:1.2;text-align:left;color:var(--ink);background:var(--paper);box-shadow:0 3px 12px rgba(60,40,10,.13);cursor:pointer;font-family:inherit}
   #actions button i{font-style:normal;flex:none;width:20px;text-align:center;font-size:15px;line-height:1}
   #actions button span{flex:1;white-space:nowrap}
-  #actions button kbd{flex:none;font:700 10.5px/1 inherit;color:#9a8b72;background:rgba(80,60,30,.07);border-radius:5px;padding:3px 5px;min-width:20px;text-align:center}
+  #actions button kbd{flex:none;font-family:inherit;font-size:10.5px;font-weight:700;line-height:1;color:#9a8b72;background:rgba(80,60,30,.07);border-radius:5px;padding:3px 5px;min-width:20px;text-align:center}
   body.touch #actions button kbd{display:none}
   #actions button.primary{background:var(--accent);color:#fff;margin-top:2px}
   #actions button:active{transform:scale(.96)}
@@ -129,7 +129,7 @@
   #toast.show{opacity:1}
   #bowPrompt{position:fixed;left:50%;bottom:calc(max(26px,env(safe-area-inset-bottom)) + 70px);transform:translateX(-50%);display:none;border:0;border-radius:99px;padding:13px 22px;font-size:16px;font-weight:700;color:#fff;background:var(--accent);box-shadow:0 6px 20px rgba(120,40,20,.35);cursor:pointer;font-family:inherit;animation:pulse 2s ease-in-out infinite;z-index:6}
   @keyframes pulse{50%{transform:translateX(-50%) scale(1.06)}}
-  @media (max-width:520px){#title h1{font-size:15px}#title{max-width:calc(100vw - 144px)}#minimap{width:108px;height:108px}#dbg{top:calc(max(12px,env(safe-area-inset-top)) + 122px)}#actions{width:156px}#actions button{padding:8px 10px;font-size:13px}}
+  @media (max-width:520px){#title h1{font-size:15px}#title{max-width:calc(100vw - 144px)}#minimap{width:108px;height:108px}#dbg{top:calc(max(12px,env(safe-area-inset-top)) + 122px)}#actions{width:156px}#actions button{height:36px;padding:0 10px;font-size:13px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 </head>
@@ -205,6 +205,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=50"></script>
+<script type="module" src="./app.js?v=51"></script>
 </body>
 </html>
