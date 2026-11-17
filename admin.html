@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>사찰 제보 관리 · 온라인 사찰 순례</title>
+<style>
+  :root{--ink:#2b1d14;--sub:#8a7a62;--line:#e6dcc8;--bg:#f6efe2;--card:#fffaf0;--accent:#8c3a2a}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Noto Sans KR",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  header{position:sticky;top:0;z-index:2;background:#fffaf0ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
+  header b{font-size:17px;flex:1}header small{color:var(--sub);font-size:12px;display:block;font-weight:400}
+  main{max-width:860px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+  h2{font-size:16px;margin:0 0 10px}
+  ol{margin:6px 0 0;padding-left:20px}ol li{margin:6px 0}
+  code{background:#efe6d4;border-radius:6px;padding:1px 6px;font-size:13px}
+  a{color:var(--accent)}
+  button{font:inherit;border:0;border-radius:99px;padding:8px 14px;font-weight:600;cursor:pointer;background:#efe6d4;color:var(--ink)}
+  button.main{background:var(--accent);color:#fff}
+  button:disabled{opacity:.55;cursor:default}
+  input,textarea,select{font:inherit;font-size:14px;padding:9px 10px;border:1px solid #d9ccb3;border-radius:10px;background:#fffdf8;color:var(--ink)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .msg{font-size:13px;color:#b5452e;min-height:18px;margin-top:6px}
+  .ok{color:#2f7a3e}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .tabs button{background:#fff;border:1px solid var(--line)}
+  .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .item h3{margin:0;font-size:16px}.item .meta{color:var(--sub);font-size:12px;margin:2px 0 8px}
+  .item dl{display:grid;grid-template-columns:96px 1fr;gap:4px 10px;margin:0 0 10px;font-size:14px}
+  .item dt{color:var(--sub)}.item dd{margin:0;white-space:pre-wrap;word-break:break-all}
+  .badge{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:2px}
+  .b-new{background:#fde2d6;color:#a3361f}.b-review{background:#fff0c2;color:#7a5a00}.b-done{background:#d9f0dc;color:#2f6b3a}.b-reject{background:#e6e1d8;color:#6b6252}
+  .item textarea{width:100%;min-height:54px}
+  .empty{color:var(--sub);text-align:center;padding:30px 0}
+  @media (max-width:520px){.item dl{grid-template-columns:1fr}.item dt{margin-top:6px}}
+</style>
+</head>
+<body>
+<header><div style="flex:1"><b>🙏 사찰 제보 관리</b><small>스님·종무소·신도가 보낸 작은 절 제보를 검토해서 순례길에 넣어요</small></div><button id="btnTest" hidden>테스트 알림</button><button id="btnOut" hidden>로그아웃</button></header>
+<main>
+  <section id="setup" class="card" hidden>
+    <h2>① 텔레그램 알림 연결 (처음 한 번만)</h2>
+    <ol>
+      <li>텔레그램에서 <b>@BotFather</b>를 찾아 대화를 열고 <code>/newbot</code> 을 보내요.</li>
+      <li>봇 이름(예: <code>사찰순례 알림</code>)과 아이디(끝이 <code>bot</code>, 예: <code>temple_report_bot</code>)를 정하면 <b>토큰</b>(긴 글자)을 줘요. 토큰은 다른 사람에게 보여 주지 마세요.</li>
+      <li><a href="https://supabase.com/dashboard/project/tozyoprymcvznkeqmrqp/functions/secrets" target="_blank" rel="noopener">Supabase → Edge Functions → Secrets</a> 에서 이름 <code>TELEGRAM_BOT_TOKEN</code>, 값에 토큰을 붙여 넣고 저장해요.</li>
+      <li>방금 만든 봇과 대화를 열고 <code>/start</code> 를 보내요.</li>
+      <li>아래 <b>연결 확인</b>을 누르면 봇이 "알림이 연결되었어요"라고 답해요.</li>
+    </ol>
+    <div class="row" style="margin-top:10px"><button class="main" id="btnLink">연결 확인</button><span id="setupState" style="font-size:13px;color:var(--sub)"></span></div>
+    <div class="msg" id="setupMsg"></div>
+  </section>
+
+  <section id="login" class="card" hidden>
+    <h2>② 텔레그램 코드로 로그인</h2>
+    <p style="margin:0 0 10px;font-size:14px;color:var(--sub)">연결된 텔레그램으로 6자리 코드를 보내 드려요. 비밀번호는 필요 없어요.</p>
+    <div class="row"><button class="main" id="btnCode">코드 받기</button><input id="code" inputmode="numeric" maxlength="6" placeholder="6자리 코드" style="width:130px"><button id="btnLogin">로그인</button></div>
+    <div class="msg" id="loginMsg"></div>
+  </section>
+
+  <section id="list" hidden>
+    <div class="tabs" id="tabs"></div>
+    <div id="items"></div>
+  </section>
+</main>
+<script>
+const FN = 'https://tozyoprymcvznkeqmrqp.supabase.co/functions/v1/temple-admin';
+const KEY = 'sb_publishable_7FGPTjvPHWj-oF_EiiSjcg_MI63-mqE';
+const $ = id => document.getElementById(id);
+const ERR = {
+  no_token: 'Supabase에 TELEGRAM_BOT_TOKEN이 아직 없어요 (위 ③번)', not_linked: '봇에게 /start 를 보낸 뒤 연결 확인을 눌러 주세요',
+  wait: '코드를 방금 보냈어요. 40초 뒤에 다시 받을 수 있어요', too_many: '오늘 코드를 너무 많이 받았어요. 내일 다시 해 주세요',
+  bad_code: '6자리 숫자를 넣어 주세요', expired: '코드가 없거나 10분이 지났어요. 다시 받아 주세요', wrong_code: '코드가 맞지 않아요', too_many_tries: '여러 번 틀렸어요. 코드를 다시 받아 주세요',
+  auth: '로그인이 풀렸어요. 다시 로그인해 주세요',
+};
+const errText = e => { const m = String(e && e.message || e); for (const k in ERR) if (m.includes(k)) return ERR[k]; if (m.includes('telegram:')) return '텔레그램이 거절했어요: ' + m.split('telegram:')[1] + ' (토큰을 다시 확인해 주세요)'; return '잠시 뒤에 다시 해 주세요 (' + m + ')'; };
+let token = ''; try { token = localStorage.getItem('templeAdmin.token') || ''; } catch (e) { }
+async function call(action, extra = {}) {
+  const r = await fetch(FN, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: KEY }, body: JSON.stringify({ action, token, ...extra }) });
+  const j = await r.json().catch(() => ({ error: 'http_' + r.status }));
+  if (j.error) { if (j.error === 'auth') { token = ''; try { localStorage.removeItem('templeAdmin.token'); } catch (e) { } } throw new Error(j.error); }
+  return j;
+}
+const L = { new: '새 제보', review: '검토 중', done: '반영 완료', reject: '보류' };
+let items = [], tab = 'new';
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function links(s) { return esc(s).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`); }
+function render() {
+  const n = k => items.filter(i => k === 'all' || i.status === k).length;
+  $('tabs').innerHTML = ['new', 'review', 'done', 'reject', 'all'].map(k => `<button data-k="${k}" class="${tab === k ? 'on' : ''}">${k === 'all' ? '전체' : L[k]} ${n(k)}</button>`).join('');
+  const list = items.filter(i => tab === 'all' || i.status === tab);
+  $('items').innerHTML = list.length ? list.map(i => `
+    <article class="card item" data-id="${i.id}">
+      <h3>#${i.id} ${esc(i.temple_name)}<span class="badge b-${i.status}">${L[i.status]}</span></h3>
+      <div class="meta">${new Date(i.created_at).toLocaleString('ko-KR')} 접수${i.sido ? ' · ' + esc(i.sido) : ''} · ${esc(i.role)}${i.reporter ? ' ' + esc(i.reporter) : ''}</div>
+      <dl>
+        ${i.address ? `<dt>주소</dt><dd>${esc(i.address)}</dd>` : ''}
+        ${i.map_url ? `<dt>지도</dt><dd>${links(i.map_url)}</dd>` : ''}
+        <dt>연락처</dt><dd>${i.contact ? esc(i.contact) : '<span style="color:var(--sub)">(지움)</span>'}</dd>
+        ${i.halls ? `<dt>전각·부처님</dt><dd>${esc(i.halls)}</dd>` : ''}
+        ${i.photos ? `<dt>사진</dt><dd>${links(i.photos)}</dd>` : ''}
+        ${i.note ? `<dt>하고 싶은 말</dt><dd>${esc(i.note)}</dd>` : ''}
+      </dl>
+      <textarea placeholder="검토 메모 (나만 보여요)">${esc(i.admin_note || '')}</textarea>
+      <div class="row" style="margin-top:8px">
+        ${['new', 'review', 'done', 'reject'].filter(k => k !== i.status).map(k => `<button data-act="status" data-v="${k}">${L[k]}(으)로</button>`).join('')}
+        <button data-act="note">메모 저장</button>
+        ${i.contact && (i.status === 'done' || i.status === 'reject') ? '<button data-act="clear">결과 안내 끝 · 연락처 지우기</button>' : ''}
+      </div>
+    </article>`).join('') : `<div class="empty">${tab === 'all' ? '아직 제보가 없어요' : L[tab] + ' 제보가 없어요'}</div>`;
+}
+$('tabs').onclick = e => { const k = e.target.dataset.k; if (k) { tab = k; render(); } };
+$('items').onclick = async e => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const art = b.closest('article'), id = +art.dataset.id, note = art.querySelector('textarea').value;
+  if (b.dataset.act === 'clear' && !confirmClear()) return;
+  b.disabled = true;
+  try {
+    if (b.dataset.act === 'status') await call('update', { id, status: b.dataset.v, admin_note: note });
+    else if (b.dataset.act === 'note') await call('update', { id, admin_note: note });
+    else if (b.dataset.act === 'clear') await call('update', { id, clear_contact: true });
+    await load();
+  } catch (err) { b.disabled = false; alertMsg(errText(err)); if (!token) boot(); }
+};
+function confirmClear() { return window.confirm('제보하신 분께 결과를 알려 드렸나요? 연락처를 지우면 되돌릴 수 없어요.'); }
+function alertMsg(m) { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9;max-width:90vw'; d.textContent = m; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); }
+async function load() { const j = await call('list'); items = j.items || []; render(); }
+
+async function boot() {
+  for (const s of ['setup', 'login', 'list']) $(s).hidden = true;
+  $('btnTest').hidden = $('btnOut').hidden = true;
+  if (token) { try { await load(); $('list').hidden = false; $('btnTest').hidden = $('btnOut').hidden = false; return; } catch (e) { if (token) { $('list').hidden = false; $('items').innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; } } }
+  let st = { token: false, linked: false };
+  try { st = await call('status'); } catch (e) { $('setup').hidden = false; $('setupMsg').textContent = errText(e); return; }
+  if (!st.token || !st.linked) { $('setup').hidden = false; $('setupState').textContent = st.token ? '토큰 확인됨 ✓ · 이제 봇에게 /start 를 보내 주세요' : '아직 토큰이 없어요 (①~③)'; return; }
+  $('login').hidden = false;
+}
+$('btnLink').onclick = async () => { $('setupMsg').textContent = ''; $('btnLink').disabled = true; try { const j = await call('link'); if (j.linked) { $('setupMsg').className = 'msg ok'; $('setupMsg').textContent = '연결되었어요! 텔레그램을 확인해 보세요'; setTimeout(boot, 1200); } else $('setupMsg').textContent = '봇에게 /start 를 보냈는지 확인해 주세요'; } catch (e) { $('setupMsg').textContent = errText(e); } finally { $('btnLink').disabled = false; } };
+$('btnCode').onclick = async () => { $('loginMsg').className = 'msg'; $('loginMsg').textContent = ''; $('btnCode').disabled = true; try { await call('code'); $('loginMsg').className = 'msg ok'; $('loginMsg').textContent = '텔레그램으로 코드를 보냈어요'; $('code').focus(); } catch (e) { $('loginMsg').textContent = errText(e); } finally { setTimeout(() => $('btnCode').disabled = false, 3000); } };
+async function doLogin() { $('loginMsg').className = 'msg'; $('loginMsg').textContent = ''; try { const j = await call('login', { code: $('code').value }); token = j.token; try { localStorage.setItem('templeAdmin.token', token); } catch (e) { } $('code').value = ''; boot(); } catch (e) { $('loginMsg').textContent = errText(e); } }
+$('btnLogin').onclick = doLogin; $('code').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
+$('btnTest').onclick = async () => { try { await call('test'); alertMsg('텔레그램으로 테스트 알림을 보냈어요'); } catch (e) { alertMsg(errText(e)); } };
+$('btnOut').onclick = async () => { try { await call('logout'); } catch (e) { } token = ''; try { localStorage.removeItem('templeAdmin.token'); } catch (e) { } boot(); };
+boot();
+</script>
+</body>
+</html>
