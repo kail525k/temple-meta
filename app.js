@@ -3,11 +3,11 @@ import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=3';
 import { buildHall } from './hall.js?v=8';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=19';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=20';
 import { loadStatue } from './statue.js?v=1';
-import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
+import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=2';
 import { REGIONS } from './temples.js?v=7';
-import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=2';
+import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=3';
 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
@@ -585,6 +585,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyE') useContext();
   if (e.code === 'Space') e.preventDefault();
+  if (bellHold && (e.code === 'KeyS' || e.code === 'ArrowDown')) bellPullStart();
   if (e.code === 'KeyC') toggleSit();
   if (e.code === 'BracketLeft') setSens(sensLv - 1);
   if (e.code === 'BracketRight') setSens(sensLv + 1);
@@ -595,7 +596,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyF') { fpv = !fpv; toast(fpv ? '👀 아기 스님 눈으로 봐요 (F 다시 누르면 돌아와요)' : '🎥 3인칭 시점', 1600); }
   if (e.code === 'Digit1') doHap(); if (e.code === 'Digit2') tryBow(); if (e.code === 'Digit3') toggleSit(); if (e.code === 'Digit4') rituals.openMoktak(); if (e.code === 'Digit5') rituals.openBeads();
 });
-addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'KeyS' || e.code === 'ArrowDown') bellPullEnd(); });
 let yaw = Math.PI, pitch = 0.24, dist = 6;
 let feetY = 0, vy = 0, grounded = true, jumpLatch = false, lastY = 0, jumpBtn = false, fpv = false; // 점프·1인칭
 const drag = { id: null, x: 0, y: 0 };
@@ -603,6 +604,7 @@ const ZMIN = 1.4, ZMAX = 110; // 확대·축소 범위 (얼굴 가까이 ~ 권�
 const PMIN = -0.85, PMAX = 1.48; // 보는 각도: 아래에서 올려다보기(-) ~ 거의 위에서 내려다보기
 const ptrs = new Map(); let pinchD = 0, pinchDist0 = 0, downInfo = null;
 canvas.addEventListener('pointerdown', e => {
+  if (bellHold && e.button === 0 && (e.pointerType === 'mouse' || isLocked())) { bellPullStart(); return; }
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinchD = Math.hypot(a.x - b.x, a.y - b.y); pinchDist0 = dist; drag.id = null; downInfo = null; return; }
   if (drag.id !== null) return; drag.id = e.pointerId; drag.x = e.clientX; drag.y = e.clientY; canvas.setPointerCapture(e.pointerId);
@@ -614,6 +616,7 @@ canvas.addEventListener('pointermove', e => {
   if (e.pointerId !== drag.id || isLocked()) return; yaw -= (e.clientX - drag.x) * 0.005 * SENS(); pitch = clamp(pitch + (e.clientY - drag.y) * 0.005 * SENS(), PMIN, PMAX); drag.x = e.clientX; drag.y = e.clientY;
 });
 const endDrag = e => {
+  if (bellHold && bellHold.pulling && e.button === 0 && e.pointerType === 'mouse') { bellPullEnd(); ptrs.delete(e.pointerId); return; }
   ptrs.delete(e.pointerId); if (ptrs.size < 2) pinchD = 0;
   if (e.pointerId === drag.id) {
     drag.id = null;
@@ -658,6 +661,7 @@ document.addEventListener('pointerlockchange', () => {
   if (isLocked() && !store.d.tpsTip) { store.d.tpsTip = 1; store.save(); toast('🖱️ 마우스로 둘러보고 WASD로 걸어요 · Esc를 누르면 마우스가 풀려요', 4200); }
 });
 canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) bellPullEnd(); }); addEventListener('blur', () => bellPullEnd());
 canvas.addEventListener('wheel', e => { e.preventDefault(); zoomBy(Math.exp(e.deltaY * .0024)); }, { passive: false });
 // 휠: 한 번에 크게 확대·축소 · 끝까지 당기면 1인칭(FPS), 1인칭에서 밀면 다시 3인칭
 let zoomLatch = 0;
@@ -868,6 +872,7 @@ function step() {
   // 스노클링 메타버스와 같은 방식: W A S D·방향키 = 카메라 기준 앞뒤·옆, Space 점프, Shift 달리기, 마우스(클릭 후)·드래그로 시점
   let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x;
   let iz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) + joy.y;
+  if (bellHold) { if (keys.KeyW || keys.KeyA || keys.KeyD || keys.ArrowUp || keys.ArrowLeft || keys.ArrowRight || Math.hypot(joy.x, joy.y) > .6) releaseBellRope(); else { ix = 0; iz = 0; } }
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   if (sam && il > .5) { sam = null; resetBody(); toast('삼배를 멈췄어요'); }
   if (il > .05) { moveTarget = null; if (sit) standUp(); if (tapdori) stopTapdori('탑돌이를 멈췄어요'); }
@@ -902,7 +907,7 @@ function step() {
     const p = avatar.position, seat = sit ? sit.seatY * sitW : 0;
     if (Math.abs(p.y - lastY) > 1e-4) { feetY = p.y; vy = 0; grounded = true; } // 순간이동(사찰 옮기기·앉기)
     const gh = groundAt(p.x, p.z, feetY), jumpKey = (keys.Space || jumpBtn) && !rituals.open;
-    if (jumpKey && grounded && !jumpLatch && !sit && !sam && pose !== 'bow' && !tapdori) { vy = 4.7; grounded = false; jumpLatch = true; moveTarget = null; markMove(null); }
+    if (jumpKey && grounded && !jumpLatch && !sit && !sam && pose !== 'bow' && !tapdori && !bellHold) { vy = 4.7; grounded = false; jumpLatch = true; moveTarget = null; markMove(null); }
     if (!jumpKey) jumpLatch = false;
     if (!grounded || feetY > gh + .32) { grounded = false; vy -= 14 * dt; feetY += vy * dt; if (feetY <= gh) { feetY = gh; vy = 0; grounded = true; } }
     else { feetY += (gh - feetY) * Math.min(1, dt * 16); grounded = true; }
@@ -991,7 +996,7 @@ const moveMark = new THREE.Mesh(new THREE.RingGeometry(.22, .34, 28), new THREE.
 moveMark.rotation.x = -Math.PI / 2; moveMark.visible = false; scene.add(moveMark);
 function markMove(p) { if (!p) { moveMark.visible = false; return; } moveMark.position.set(p.x, avatar.position.y + .05, p.z); moveMark.visible = true; moveMark.userData.t = 0; }
 function clickMove(e) {
-  if (sam || rituals.open) return;
+  if (sam || rituals.open || bellHold) return;
   const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
   if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -avatar.position.y), _p) || _p.distanceTo(avatar.position) > 70) return;
@@ -1048,19 +1053,39 @@ function buildBellAndRack(g, add) {
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) { ad(new THREE.CylinderGeometry(.15, .17, 3.3, 10), MAT.red, sx * 1.85, 1.65, sz * 1.85); const [wx, wz] = [x + (sx * 1.85) * Math.cos(grp.rotation.y) + (sz * 1.85) * Math.sin(grp.rotation.y), z - (sx * 1.85) * Math.sin(grp.rotation.y) + (sz * 1.85) * Math.cos(grp.rotation.y)]; obstacles.push({ cx: wx, cz: wz, c: 1, s: 0, hu: .25, hv: .25 }); }
     const roof = ad(new THREE.ConeGeometry(3.7, 1.5, 4), MAT.wallCap, 0, 4.05, 0); roof.rotation.y = Math.PI / 4;
     ad(new THREE.BoxGeometry(4.2, .22, .22), MAT.red, 0, 3.15, 0);
-    const bellProf = [[0, 0], [.64, 0], [.62, .14], [.53, .55], [.47, .95], [.41, 1.12], [.27, 1.2], [0, 1.23]].map(([r, y]) => new THREE.Vector2(r, y));
-    const bellM = new THREE.MeshStandardMaterial({ color: '#4f5a3c', metalness: .55, roughness: .45 });
-    const bellG = new THREE.Group(); bellG.position.set(0, 3.05, 0); grp.add(bellG);
-    const bellMesh = new THREE.Mesh(new THREE.LatheGeometry(bellProf, 32), bellM); bellMesh.position.y = -2.0; bellMesh.castShadow = true; bellG.add(bellMesh);
-    const band = new THREE.Mesh(new THREE.TorusGeometry(.6, .025, 6, 32), bellM); band.rotation.x = Math.PI / 2; band.position.y = -1.86; bellG.add(band);
-    const hook = new THREE.Mesh(new THREE.TorusGeometry(.12, .035, 8, 16), MAT.line); hook.position.y = -.72; bellG.add(hook);
-    const rope = new THREE.Mesh(new THREE.CylinderGeometry(.02, .02, .7, 6), MAT.line); rope.position.y = -.35; bellG.add(rope);
-    // 당목(종 치는 통나무): 마당 쪽에 매달림
-    const strG = new THREE.Group(); strG.position.set(0, 2.6, 1.15); grp.add(strG);
-    const log = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, 1.5, 12), MAT.trunk); log.rotation.x = Math.PI / 2; log.position.set(0, -1.05, .35); log.castShadow = true; strG.add(log);
-    for (const sx of [-.45, .45]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.012, .012, 1.05, 4), MAT.line); r.position.set(0, -.52, .35 + sx); strG.add(r); }
-    obstacles.push({ cx: x, cz: z, c: 1, s: 0, hu: .75, hv: .75 });
-    BELL = { x, z, ux, uz, bellG, strG, stand: [ux * (R0 - 2.4), uz * (R0 - 2.4)] };
+    // 명동(울림 구덩이): 종 바로 아래 바닥을 둥글게 파 소리가 울리게
+    ad(new THREE.CylinderGeometry(.98, .98, .02, 36), new THREE.MeshStandardMaterial({ color: '#2a241f', roughness: 1 }), 0, .085, 0);
+    { const rim = ad(new THREE.TorusGeometry(1.04, .07, 6, 36), MAT.stoneDark, 0, .1, 0); rim.rotation.x = Math.PI / 2; }
+    // 범종: 우리 종처럼 낮게(아래가 바닥에서 약 40cm) 매달린 청동 종 — 용뉴·음통, 상대·하대, 유곽(젖꼭지 9개씩 4곳), 당좌(치는 자리 연꽃)
+    const S = 1.55, PIV = 3.08, BY = .4 - PIV, HS = .4 + .38 * S; // HS: 당좌 높이
+    const bellM = new THREE.MeshStandardMaterial({ color: '#5a6246', metalness: .62, roughness: .42 }), bellD = new THREE.MeshStandardMaterial({ color: '#465036', metalness: .6, roughness: .5 });
+    const prof = [[0, 0], [.66, 0], [.65, .05], [.61, .15], [.56, .45], [.51, .82], [.47, 1.06], [.41, 1.17], [.26, 1.24], [0, 1.25]].map(([r, y]) => new THREE.Vector2(r * S, y * S));
+    const bellG = new THREE.Group(); bellG.position.set(0, PIV, 0); grp.add(bellG);
+    const bm = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = true; bellG.add(m); return m; };
+    bm(new THREE.LatheGeometry(prof, 48), bellM, 0, BY, 0);
+    for (const [yy, rr] of [[.08, .655], [.13, .62], [1.1, .455], [1.15, .43]]) { const t = bm(new THREE.TorusGeometry(rr * S, .028 * S, 6, 48), bellD, 0, BY + yy * S, 0); t.rotation.x = Math.PI / 2; } // 하대·상대
+    for (let k = 0; k < 4; k++) { // 유곽: 네모 테두리 안에 젖꼭지(유두) 9개
+      const a = Math.PI / 4 + k * Math.PI / 2, rr = .5 * S + .012, yy = BY + .9 * S, f = new THREE.Group(); f.position.set(Math.sin(a) * rr, yy, Math.cos(a) * rr); f.rotation.y = a; bellG.add(f);
+      const fr = new THREE.Mesh(new THREE.BoxGeometry(.36, .34, .025), bellD); fr.rotation.x = -.11; f.add(fr);
+      for (let u = -1; u <= 1; u++) for (let v = -1; v <= 1; v++) { const n = new THREE.Mesh(new THREE.SphereGeometry(.03, 8, 6), bellM); n.position.set(u * .1, v * .095, .03 + v * .012); f.add(n); }
+    }
+    for (const a of [0, Math.PI]) { // 당좌: 당목이 닿는 연꽃 자리 (앞뒤)
+      const rr = .567 * S + .01, f = new THREE.Group(); f.position.set(Math.sin(a) * rr, HS, Math.cos(a) * rr); f.position.y -= PIV; f.rotation.y = a; bellG.add(f);
+      const d = new THREE.Mesh(new THREE.CylinderGeometry(.15, .15, .03, 20), bellD); d.rotation.x = Math.PI / 2 - .05; f.add(d);
+      for (let k = 0; k < 8; k++) { const pa = k / 8 * Math.PI * 2, pt = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 6), bellM); pt.scale.set(1, 1, .4); pt.position.set(Math.cos(pa) * .1, Math.sin(pa) * .1, .025); f.add(pt); }
+    }
+    bm(new THREE.CylinderGeometry(.07 * S, .09 * S, .28 * S, 12), bellD, -.12 * S, BY + 1.36 * S, 0); // 음통
+    { const dr = bm(new THREE.TorusGeometry(.12 * S, .045 * S, 8, 16, Math.PI * 1.15), bellD, .04 * S, BY + 1.3 * S, 0); dr.rotation.z = -.2; } // 용뉴 (고리 모양 용)
+    bm(new THREE.CylinderGeometry(.02, .02, PIV - (.4 + 1.42 * S), 6), MAT.line, .04 * S, -(PIV - (.4 + 1.42 * S)) / 2, 0); // 고리 줄
+    // 당목: 밧줄 두 가닥에 매달린 통나무 · 뒤끝에 손으로 당기는 줄
+    const LR = PIV - HS, LOGZ = 1.85;
+    const strG = new THREE.Group(); strG.position.set(0, PIV, LOGZ); grp.add(strG);
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(.12, .13, 1.7, 14), MAT.trunk); log.rotation.x = Math.PI / 2; log.position.set(0, -LR, 0); log.castShadow = true; strG.add(log);
+    for (const zz of [-.85, .85]) { const cap = new THREE.Mesh(new THREE.CircleGeometry(.12, 14), new THREE.MeshStandardMaterial({ color: '#9a7350', roughness: .9 })); cap.position.set(0, -LR, zz + Math.sign(zz) * .002); cap.rotation.y = zz > 0 ? 0 : Math.PI; strG.add(cap); }
+    for (const zz of [-.55, .55]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.014, .014, LR, 5), MAT.line); r.position.set(0, -LR / 2, zz); strG.add(r); }
+    const pullRope = new THREE.Mesh(new THREE.CylinderGeometry(.016, .016, 1, 5), MAT.line); grp.add(pullRope); // 길이·방향은 매 프레임 맞춤
+    obstacles.push({ cx: x, cz: z, c: 1, s: 0, hu: 1.05, hv: 1.05 });
+    BELL = { x, z, ux, uz, grp, bellG, strG, LR, LOGZ, pullRope, theta: 0, omega: 0, sway: 0, swayV: 0, struck: false, stand: [ux * (R0 - 3.3), uz * (R0 - 3.3)] };
   }
   // 소원 연등대
   { const ux = Math.sin(aRack), uz = Math.cos(aRack), x = ux * R0, z = uz * R0, grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = Math.atan2(-ux, -uz); g.add(grp);
@@ -1082,10 +1107,11 @@ function buildBellAndRack(g, add) {
     for (const sx of [-1, 1]) B(.12, 3.5, .12, MAT.trunk, sx * 2.3, 1.75, -1.35);
     B(4.7, .1, .12, MAT.trunk, 0, 3.5, -1.35);
     const sign = ad(new THREE.PlaneGeometry(1.5, .42), new THREE.MeshStandardMaterial({ map: nameTex('기와 불사', '#3a2418', '#f2cf72', 46), roughness: .7 }), 0, 3.12, -1.28); sign.castShadow = false;
+    const cntSign = ad(new THREE.PlaneGeometry(2.2, .3), new THREE.MeshStandardMaterial({ map: nameTex('지금까지 0장', '#f6efe2', '#3a2a1c', 34, '', 760), roughness: .7 }), 0, 2.72, -1.28); cntSign.castShadow = false; // 누적 기와 수
     const slots = [];
     for (let r = 0; r < 3; r++) for (let c = 0; c < 8; c++) { const m = ad(TILE_GEO, TILE_MAT, -1.75 + c * .5, 1.1 + r * .55 + .23, -r * .5); slots.push(m); }
     obstacles.push({ cx: x, cz: z, c: Math.cos(grp.rotation.y), s: -Math.sin(grp.rotation.y), hu: 2.45, hv: 1.55 });
-    TILE = { x, z, ux, uz, grp, slots, k: 0, stand: [ux * (R0 - 2.7), uz * (R0 - 2.7)] };
+    TILE = { x, z, ux, uz, grp, slots, k: 0, cntSign, count: 0, stand: [ux * (R0 - 2.7), uz * (R0 - 2.7)] };
   }
 }
 // 기와 한 장 (안쪽이 오목한 암키와 모양) — 글씨를 쓴 기와는 흰 글씨 그림을 입힘
@@ -1098,6 +1124,10 @@ function tileTexture(text) {
   const lines = []; for (let i = 0; i < text.length && lines.length < 3; i += 8) lines.push(text.slice(i, i + 8));
   lines.forEach((ln, i) => c.fillText(ln, 128, 120 + (i - (lines.length - 1) / 2) * 52));
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function setTileCount(n) { // 기와는 지워지지 않고 계속 쌓임: 진열대엔 최근 24장, 간판엔 누적 장수
+  if (!TILE) return; TILE.count = n; const m = TILE.cntSign.material; m.map && m.map.dispose();
+  m.map = nameTex(`지금까지 ${n.toLocaleString('ko-KR')}장 올라왔어요`, '#f6efe2', '#3a2a1c', 34, '', 760); m.needsUpdate = true;
 }
 function hangTile(w, fresh = true) {
   if (!TILE) return; const m = TILE.slots[TILE.k % TILE.slots.length]; TILE.k++;
@@ -1124,10 +1154,49 @@ function hangTempleLantern(T, w, fresh = true) {
   const tag = new THREE.Mesh(new THREE.PlaneGeometry(.46, .23), new THREE.MeshStandardMaterial({ map: tex, roughness: .8, side: THREE.DoubleSide })); tag.position.set(0, -.42, 0); gL.add(tag);
   W.items.push(gL); if (fresh) { gL.userData.base = 1; gL.scale.setScalar(.01); gL.userData.grow = 0; GROW.push(gL); }
 }
-function strikeBell() {
-  if (!BELL || bellCool > 0) return; bellCool = 2.6; bellAnim = 0; if (sit) standUp();
-  avatar.rotation.y = Math.atan2(BELL.x - avatar.position.x, BELL.z - avatar.position.z);
-  setTimeout(() => { sound.bigBell(); const n = store.count('bell'); toast(`🔔 범종을 울렸어요 · 오늘 ${n}번`); done('bell'); }, 420);
+// 범종 치기: 당목 줄을 잡고(E) → 마우스 왼쪽·S·↓(또는 아래 버튼)를 꾹 누르면 뒤로 당겨지고 → 놓으면 당목이 흔들려 가서 종을 침
+let bellHold = null; // { pull: 0~1, pulling }
+const _bv = new THREE.Vector3(), _bv2 = new THREE.Vector3(), _bq = new THREE.Quaternion(), _UP = new THREE.Vector3(0, 1, 0);
+function grabBell() {
+  if (!BELL) return; if (sit) standUp(); if (tapdori) stopTapdori(); moveTarget = null; markMove(null); sam = null; resetBody();
+  bellHold = { pull: 0, pulling: false };
+  toast(document.body.classList.contains('touch') ? '🔔 당목 줄을 잡았어요 · 아래 [꾹 눌러 당기기]를 누르고 있다가 떼면 종을 쳐요' : '🔔 당목 줄을 잡았어요 · 마우스 왼쪽(또는 S)을 꾹 누르면 뒤로 당기고, 놓으면 종을 쳐요 · E 놓기', 4800);
+  updateNear();
+}
+function releaseBellRope() { if (!bellHold) return; bellHold = null; resetBody(); updateNear(); }
+function bellPullStart() { if (bellHold && !bellHold.pulling) { bellHold.pulling = true; BELL.omega = 0; } }
+function bellPullEnd() { if (bellHold && bellHold.pulling) { bellHold.pulling = false; bellHold.pull = 0; } } // 당긴 자리에서 놓으면 진자처럼 앞으로 흔들려 감
+function strikeBell() { grabBell(); }
+{ const bp = document.getElementById('bellPull'); if (bp) { // 꾹 눌러 당기기 버튼 (휴대폰·마우스 모두)
+  bp.addEventListener('pointerdown', e => { e.preventDefault(); bp.setPointerCapture(e.pointerId); bellPullStart(); });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) bp.addEventListener(ev, () => bellPullEnd());
+} }
+function ringBell(k) { // k: 0~1 친 세기
+  sound.bigBell(.35 + .65 * k); BELL.swayV += .05 + .1 * k;
+  const n = store.count('bell'); toast(k > .6 ? `🔔 데엥— 크게 울렸어요 · 오늘 ${n}번` : `🔔 범종을 울렸어요 · 오늘 ${n}번`, 2200); done('bell');
+}
+function updateBell(dt) {
+  const B = BELL; if (!B) return;
+  if (bellHold) {
+    if (bellHold.pulling) { bellHold.pull = Math.min(1, bellHold.pull + dt * .85); B.theta += (-.5 * bellHold.pull - B.theta) * Math.min(1, dt * 7); B.omega = 0; }
+    const pb = bellHold.pulling ? bellHold.pull : 0;
+    const ap = B.grp.localToWorld(_bv.set(0, 0, B.LOGZ + 1.3 + .55 * pb)); avatar.position.x = ap.x; avatar.position.z = ap.z;
+    const bp = B.grp.localToWorld(_bv2.set(0, 0, 0)); avatar.rotation.y = Math.atan2(bp.x - avatar.position.x, bp.z - avatar.position.z);
+    body.rotation.x = -.3 * pb; // 당길수록 몸을 뒤로 젖힘
+  }
+  if (!(bellHold && bellHold.pulling)) { // 진자: 줄 길이만큼 흔들리다 종(당좌)에 닿으면 울림
+    B.omega += (-(9.8 / B.LR) * Math.sin(B.theta) - .55 * B.omega) * dt; B.theta += B.omega * dt;
+    const HIT = .053;
+    if (B.theta > HIT && B.omega > 0) { const v = B.omega; B.theta = HIT; B.omega = -v * .35; if (v > .18) ringBell(Math.min(1, v / 1.0)); }
+  }
+  B.strG.rotation.x = B.theta;
+  { const bp = document.getElementById('bellPull'); if (bp) { const on = !!bellHold; if (bp._on !== on) { bp._on = on; bp.style.display = on ? 'block' : 'none'; } if (on) bp.style.setProperty('--p', Math.round((bellHold.pulling ? bellHold.pull : 0) * 100) + '%'); } }
+  B.swayV += (-14 * B.sway - .8 * B.swayV) * dt; B.sway += B.swayV * dt; B.bellG.rotation.x = -B.sway;
+  // 당기는 줄: 당목 뒤끝 → 잡고 있으면 손, 아니면 아래로 늘어짐
+  const a = B.strG.localToWorld(_bv.set(0, -B.LR, .85));
+  const b = bellHold ? _bv2.set(avatar.position.x + Math.sin(avatar.rotation.y) * .28, avatar.position.y + .78, avatar.position.z + Math.cos(avatar.rotation.y) * .28) : _bv2.copy(a).add(new THREE.Vector3(0, -.75, 0));
+  const R = B.pullRope, par = R.parent; par.worldToLocal(a); par.worldToLocal(b);
+  const d = b.clone().sub(a), len = Math.max(.05, d.length()); R.position.copy(a).addScaledVector(d, .5); R.scale.set(1, len, 1); R.quaternion.setFromUnitVectors(_UP, d.normalize());
 }
 const WISH_COLORS = ['#f6a5b8', '#ffd86a', '#f48c7a', '#a8e0a0', '#ffffff', '#9fc8ff'];
 function hangWish(w, fresh = true) {
@@ -1176,7 +1245,7 @@ document.getElementById('wishHang').onclick = async () => {
   const w = { c: wishColor, t: body, at: Date.now() };
   if (localOnly) { const L = kind === 'tile' ? store.tiles(REGION.id) : kind === 'lantern' ? store.tlan(T.name) : store.wishes(REGION.id); L.push(w); if (L.length > 30) L.shift(); store.save(); }
   const tail = localOnly ? ' (연결이 불안정해 이 기기에만 저장했어요)' : '';
-  if (kind === 'tile') { goTile(); hangTile(w); done('giwa'); toast('✍️ 기와 불사 자리에 기와를 올렸어요' + tail, 3200); return; }
+  if (kind === 'tile') { goTile(); hangTile(w); setTileCount((TILE ? TILE.count : 0) + 1); done('giwa'); toast(`✍️ 기와 불사 자리에 기와를 올렸어요 · 지금까지 ${TILE ? TILE.count : 1}장` + tail, 3200); return; }
   if (kind === 'lantern') { hangTempleLantern(T, w); done('wish'); toast(`🏮 ${T.name} 마당 연등 줄에 연등을 달았어요` + tail, 3200); return; }
   hangWish(w); done('wish'); toast('🏮 순례 마당 소원 연등대에 연등을 걸었어요' + tail, 3200);
   if (RACK) { avatar.position.set(RACK.stand[0], 0, RACK.stand[1]); avatar.rotation.y = Math.atan2(RACK.x - RACK.stand[0], RACK.z - RACK.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 5; pitch = .2; }
@@ -1202,7 +1271,8 @@ function updateCtx(inside, dBow, lx, lz) {
     if (inside && !sit) acts.push(['🪔 향 올리기', offerIncense]);
     if (inside) acts.push([sit ? '🙂 일어나기' : '🧘 방석에 앉기', toggleSit]);
     if (!inside && cur && cur.pagoda && Math.hypot(avatar.position.x - cur.pagoda.x, avatar.position.z - cur.pagoda.z) < (cur.pagodaR || 2.7) + 1.9) acts.push(['🪷 탑돌이 시작', () => startTapdori(cur)]);
-    if (BELL && Math.hypot(avatar.position.x - BELL.x, avatar.position.z - BELL.z) < 3.6) acts.push(['🔔 범종 치기', strikeBell]);
+    if (bellHold) acts.push(['✋ 당목 줄 놓기', releaseBellRope]);
+    else if (BELL && Math.hypot(avatar.position.x - BELL.x, avatar.position.z - BELL.z) < 4.2) acts.push(['🔔 당목 줄 잡기', grabBell]);
     if (RACK && Math.hypot(avatar.position.x - RACK.x, avatar.position.z - RACK.z) < 3.8) acts.push(['🏮 소원 연등 걸기', () => openWish('lantern')]);
     if (TILE && Math.hypot(avatar.position.x - TILE.x, avatar.position.z - TILE.z) < 4.2) acts.push(['✍️ 기와 올리기', () => openWish('tile')]);
     if (!inside && cur && cur.fish) { // 휴휴암: 판매대에서 물고기 밥·방생 물고기를 받아 연화대 끝에서 던지거나 놓아 줌
@@ -1291,12 +1361,7 @@ document.getElementById('btnSit').onclick = toggleSit;
 function updateWorld(dt) {
   updateFishAim(dt);
   if (bellCool > 0) bellCool -= dt;
-  if (BELL && bellAnim >= 0) {
-    bellAnim += dt; const t = bellAnim;
-    BELL.strG.rotation.x = t < .3 ? -.55 * (t / .3) : t < .42 ? -.55 + .75 * ((t - .3) / .12) : .2 * Math.exp(-(t - .42) * 3) * Math.cos((t - .42) * 9);
-    BELL.bellG.rotation.x = t > .42 ? -.06 * Math.exp(-(t - .42) * .8) * Math.sin((t - .42) * 4) : 0;
-    if (t > 6) { bellAnim = -1; BELL.strG.rotation.x = 0; BELL.bellG.rotation.x = 0; }
-  }
+  updateBell(dt);
   if (moveMark.visible) { moveMark.userData.t += dt; moveMark.material.opacity = .9 * (.6 + .4 * Math.sin(moveMark.userData.t * 6)); }
   for (const T of temples) if (T.anim && T === cur) T.anim(dt); // 지금 있는 사찰만 (황어 떼 등)
   for (let i = GROW.length - 1; i >= 0; i--) { const it = GROW[i]; it.userData.grow = Math.min(1, it.userData.grow + dt * 2); it.scale.setScalar((.01 + .99 * it.userData.grow) * (it.userData.base || 1)); if (it.userData.grow >= 1) { delete it.userData.grow; GROW.splice(i, 1); } }
@@ -1467,16 +1532,16 @@ function applyOffers(rows) {
   for (const r of list) { seenOffer.add(r.id); hangOffer(r, false); }
 }
 function onOffer(r) {
-  if (!r || seenOffer.has(r.id)) return; seenOffer.add(r.id); hangOffer(r, true);
+  if (!r || seenOffer.has(r.id)) return; seenOffer.add(r.id); hangOffer(r, true); if (r.kind === 'tile') setTileCount((TILE ? TILE.count : 0) + 1);
   const where = r.kind === 'tile' ? '기와 불사 자리에 기와를' : r.kind === 'rack' ? '소원 연등대에 연등을' : `${r.temple} 마당에 연등을`;
   toast(`${r.kind === 'tile' ? '✍️' : '🏮'} ${r.nick || '순례자'}님이 ${where} 올렸어요`, 2600);
 }
-function hangLocal() { for (const w of store.wishes(REGION.id)) hangWish(w, false); for (const w of store.tiles(REGION.id)) hangTile(w, false); for (const T of temples) for (const w of store.tlan(T.name)) hangTempleLantern(T, w, false); }
+function hangLocal() { for (const w of store.wishes(REGION.id)) hangWish(w, false); for (const w of store.tiles(REGION.id)) hangTile(w, false); setTileCount(Math.max(TILE ? TILE.count : 0, store.tiles(REGION.id).length)); for (const T of temples) for (const w of store.tlan(T.name)) hangTempleLantern(T, w, false); }
 async function startTogether() {
   if (OFFLINE) { hangLocal(); return; }
   try { NET = await connectTogether({ region: REGION.id, me: ME, onPeers, onState, onOffer, onStatus: s => { DBG.net = s; renderPeople(); } }); }
   catch (e) { dbg('netError', e.message); hangLocal(); return; }
-  try { const rows = await Promise.race([NET.load(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 7000))]); applyOffers(rows); onlineOffers = true; DBG.offers = rows.length; }
+  try { const rows = await Promise.race([NET.load(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 7000))]); applyOffers(rows); onlineOffers = true; DBG.offers = rows.length; setTileCount(rows.filter(r => r.kind === 'tile').length); NET.count('tile').then(setTileCount).catch(() => { }); }
   catch (e) { dbg('offerLoadError', e.message); hangLocal(); }
 }
 

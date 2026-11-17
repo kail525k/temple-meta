@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=8';
 import { createSchool, tankFish } from './fish.js?v=5';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const R = {
@@ -35,36 +36,142 @@ export function standingGwaneum(add, x, y, z, H, ry = 0, mat = R.marble) {
 
 
 /* ───────── 탑 ───────── */
-// 돌탑 n층 (s: 크기 배율, bronze: 청동 상륜)
-function stoneTiers(h, x, z, n, s = 1, bronze = false) {
-  const { box, add, MAT } = h;
-  box(2.4 * s, .45 * s, 2.4 * s, MAT.stone, x, .225 * s, z); box(1.9 * s, .4 * s, 1.9 * s, MAT.stone, x, .65 * s, z);
-  let y = .85 * s;
-  for (let i = 0; i < n; i++) {
-    const f = 1 - i * .5 / n, w = 1.15 * f * s, hh = (i ? .8 * (1 - i * .55 / n) * .82 : .8) * s;
-    box(w, hh, w, MAT.stone, x, y + hh / 2, z); y += hh;
-    box(w + .85 * f * s, .17 * s, w + .85 * f * s, MAT.stoneDark, x, y + .085 * s, z); y += .17 * s;
-    box(w * .7, .12 * s, w * .7, MAT.stone, x, y + .06 * s, z); y += .12 * s;
-  }
-  const fm = bronze ? R.bronze : MAT.stoneDark;
-  add(new THREE.CylinderGeometry(.05 * s, .07 * s, (bronze ? 1.5 : .9) * s, 8), fm, x, y + (bronze ? .75 : .45) * s, z);
-  for (let i = 0; i < (bronze ? 5 : 3); i++) add(new THREE.SphereGeometry((.1 - i * .012) * s, 10, 8), fm, x, y + (.25 + i * .25) * s, z);
-  if (bronze) add(new THREE.ConeGeometry(.32 * s, .3 * s, 12), R.bronze, x, y + .1 * s, z);
-  return 1.25 * s;
+// 화강암: 표면 결(흑운모·장석 알갱이), 빗물 자국, 지의류(이끼) 얼룩을 세계 좌표로 그려 이음매 없이 덮음
+const GRANITE_GLSL = `
+float gh(vec3 p){ p = fract(p * .3183099 + .1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float gn(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(gh(i), gh(i + vec3(1,0,0)), f.x), mix(gh(i + vec3(0,1,0)), gh(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(gh(i + vec3(0,0,1)), gh(i + vec3(1,0,1)), f.x), mix(gh(i + vec3(0,1,1)), gh(i + vec3(1,1,1)), f.x), f.y), f.z); }
+`;
+function graniteMat(color, { lichen = .5, streak = .5, rough = .9, side = THREE.FrontSide } = {}) {
+  const m = new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0, side });
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uLichen = { value: lichen }; sh.uniforms.uStreak = { value: streak };
+    sh.vertexShader = 'varying vec3 vGW; varying vec3 vGN;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vGW = (modelMatrix * vec4(transformed, 1.0)).xyz; vGN = normalize(mat3(modelMatrix) * objectNormal);');
+    sh.fragmentShader = 'varying vec3 vGW; varying vec3 vGN; uniform float uLichen; uniform float uStreak;\n' + GRANITE_GLSL + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+  { vec3 p = vGW; float g1 = gn(p * 46.0), g2 = gn(p * 12.0 + 7.1), big = gn(p * 1.6 + 3.3), big2 = gn(p * 4.3 - 2.0);
+    vec3 c = diffuseColor.rgb * (.9 + .14 * g2 + .1 * (g1 - .5));
+    c = mix(c, c * .5, smoothstep(.76, .9, g1));
+    c = mix(c, min(c * 1.16, vec3(1.0)), smoothstep(.8, .95, gn(p * 29.0 + 11.0)));
+    float vert = 1.0 - abs(vGN.y);
+    float st = gn(vec3(p.x * 9.0 + p.z * 7.0, p.y * .7, p.z * 9.0 - p.x * 3.0));
+    c *= 1.0 - uStreak * .24 * vert * smoothstep(.45, .85, st);
+    float li = smoothstep(.56, .8, big * .7 + big2 * .3);
+    c = mix(c, vec3(.47, .5, .4) * (.8 + .3 * g2), uLichen * .5 * li * (.35 + .65 * max(vGN.y, 0.0) + .25 * vert));
+    if (vGN.y < -.5) c *= .82;
+    diffuseColor.rgb = c; }`);
+  };
+  m.customProgramCacheKey = () => 'granite' + lichen + streak;
+  return m;
 }
-// 월정사 팔각구층석탑: 팔각 몸돌 9층 + 청동 상륜
-function octa9(h, x, z) {
-  const { add } = h, C = (rt, rb, hh, mat, y) => add(new THREE.CylinderGeometry(rt, rb, hh, 8), mat, x, y + hh / 2, z);
-  C(1.7, 1.8, .35, h.MAT.stone, 0); C(1.35, 1.4, .3, h.MAT.stone, .35); C(.95, 1.25, .25, R.granite, .65);
-  let y = .9;
-  for (let i = 0; i < 9; i++) {
-    const r = .72 * (1 - i * .045), hh = i ? .36 - i * .01 : .62;
-    C(r, r, hh, R.granite, y); y += hh;
-    C(r + .22, r + .42, .13, h.MAT.stoneDark, y); y += .13;
+let GR_ = null;
+export const GR = () => GR_ || (GR_ = { a: graniteMat('#cfc8ba', { lichen: .5, streak: .55 }), b: graniteMat('#bcb4a5', { lichen: .75, streak: .8 }), rail: graniteMat('#bcb4a5', { lichen: .6, streak: .6, side: THREE.DoubleSide }) });
+
+// 여러 조각을 재질별로 하나로 합쳐(그리기 횟수 줄임) 놓음
+function parts() {
+  const L = new Map();
+  const put = (geo, mat, px, py, pz) => { geo.translate(px, py, pz); const g = geo.index ? geo.toNonIndexed() : geo; for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k); g.clearGroups(); (L.get(mat) || L.set(mat, []).get(mat)).push(g); return g; };
+  const flat = g => { const n = g.toNonIndexed(); n.computeVertexNormals(); return n; };
+  return {
+    put,
+    box: (w, hh, d, mat, px, py, pz) => put(new THREE.BoxGeometry(w, hh, d), mat, px, py, pz),
+    frus: (wt, wb, hh, mat, px, py, pz) => { const g = new THREE.CylinderGeometry(wt * Math.SQRT1_2, wb * Math.SQRT1_2, hh, 4, 1); g.rotateY(Math.PI / 4); return put(flat(g), mat, px, py, pz); },
+    cyl: (rt, rb, hh, seg, mat, px, py, pz, faceted = false) => { const g = new THREE.CylinderGeometry(rt, rb, hh, seg); if (seg === 8) g.rotateY(Math.PI / 8); return put(faceted ? flat(g) : g, mat, px, py, pz); },
+    flush(h, x, z) { for (const [mat, gs] of L) h.add(mergeGeometries(gs), mat, x, 0, z); },
+  };
+}
+// 옥개석(지붕돌): 가운데 평평한 윗면 → 오목하게 흘러내리는 낙수면 → 얇은 처마, 네 귀가 살짝 들림(반전)
+function okgaeGeo(W, Wt, t, H, lift, N = 16) {
+  const hw = W / 2, a = Wt / W, pos = [], uv = [], idx = [];
+  const corner = (x, z) => { const u = Math.max(Math.abs(x), Math.abs(z)) / hw, rim = Math.max(0, (u - .5) / .5); return lift * Math.pow(Math.abs(x * z) / (hw * hw), 2.2) * rim * rim; };
+  const yTop = (x, z) => { const u = Math.max(Math.abs(x), Math.abs(z)) / hw, q = Math.min(1, Math.max(0, (u - a) / (1 - a))); return t + H * Math.pow(1 - q, 1.6) + corner(x, z); };
+  const V = (x, y, z) => { pos.push(x, y, z); uv.push(x / W + .5, z / W + .5); return pos.length / 3 - 1; };
+  const grid = (fy, up) => {
+    const b0 = pos.length / 3;
+    for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) { const x = -hw + W * i / N, z = -hw + W * j / N; V(x, fy(x, z), z); }
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const A = b0 + j * (N + 1) + i, C = A + 1, B = A + N + 1, D = B + 1, cx = -hw + W * (i + .5) / N, cz = -hw + W * (j + .5) / N;
+      for (const [p, q, r] of (cx * cz > 0 ? [[A, B, D], [A, D, C]] : [[A, B, C], [C, B, D]])) up ? idx.push(p, q, r) : idx.push(p, r, q);
+    }
+  };
+  grid(yTop, true); grid(corner, false);
+  const side = (x0, z0, x1, z1) => { for (let k = 0; k < N; k++) {
+    const xa = x0 + (x1 - x0) * k / N, za = z0 + (z1 - z0) * k / N, xb = x0 + (x1 - x0) * (k + 1) / N, zb = z0 + (z1 - z0) * (k + 1) / N;
+    const Ba = V(xa, corner(xa, za), za), Bb = V(xb, corner(xb, zb), zb), Ta = V(xa, yTop(xa, za), za), Tb = V(xb, yTop(xb, zb), zb); idx.push(Ba, Bb, Ta, Ta, Bb, Tb);
+  } };
+  side(-hw, hw, hw, hw); side(hw, hw, hw, -hw); side(hw, -hw, -hw, -hw); side(-hw, -hw, -hw, hw);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+// 신라 전형 석탑 n층 (s: 크기 배율, bronze: 청동 상륜)
+// 지대석 → 2단 기단(면석에 우주·탱주, 갑석) → 몸돌(우주) + 층급받침 + 옥개석 → 상륜부(노반·복발·앙화·보륜·보개·보주, 찰주)
+function stoneTiers(h, x, z, n, s = 1, bronze = false) {
+  const { a: GA, b: GB } = GR(), P = parts();
+  P.box(2.62 * s, .12 * s, 2.62 * s, GB, 0, .06 * s, 0); // 지대석
+  let y = .12 * s;
+  const pillars = (W, H, nt, pw) => { // 우주(모서리 기둥)·탱주(가운데 기둥): 면석에서 살짝 돋을새김
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.box(pw, H, pw, GA, sx * (W / 2 - pw / 2 + .006 * s), y + H / 2, sz * (W / 2 - pw / 2 + .006 * s));
+    for (let k = 1; k <= nt; k++) { const t = -W / 2 + W * k / (nt + 1), o = W / 2 - .008 * s; for (const sd of [-1, 1]) { P.box(pw * .85, H, .03 * s, GA, t, y + H / 2, sd * o); P.box(.03 * s, H, pw * .85, GA, sd * o, y + H / 2, t); } }
+  };
+  const base = (W, H, nt, lip, next) => {
+    P.box(W - .04 * s, H, W - .04 * s, GA, 0, y + H / 2, 0); pillars(W, H, nt, .12 * s); y += H;
+    if (lip) { P.box(W + .02 * s, .035 * s, W + .02 * s, GB, 0, y + .0175 * s, 0); y += .035 * s; } // 부연
+    const cw = W + .17 * s; P.box(cw, .085 * s, cw, GB, 0, y + .0425 * s, 0); y += .085 * s; // 갑석
+    P.frus(next + .26 * s, cw, .06 * s, GB, 0, y + .03 * s, 0); y += .06 * s; // 비스듬히 깎은 윗면
+    P.box(next + .13 * s, .04 * s, next + .13 * s, GA, 0, y + .02 * s, 0); y += .04 * s; // 2단 굄
+    P.box(next + .06 * s, .035 * s, next + .06 * s, GA, 0, y + .0175 * s, 0); y += .035 * s;
+  };
+  const bw = i => 1.04 * s * (1 - i * .48 / n); // i층 몸돌 너비
+  base(2.36 * s, .4 * s, 2, false, 1.84 * s); // 하층기단
+  base(1.84 * s, .64 * s, n >= 5 ? 1 : 2, true, bw(0)); // 상층기단
+  for (let i = 0; i < n; i++) {
+    const f = 1 - i * .48 / n, w = bw(i), hh = s * (i ? .24 + .2 * f : .74);
+    P.box(w - .02 * s, hh, w - .02 * s, GA, 0, y + hh / 2, 0); pillars(w, hh, 0, .1 * s * f); y += hh; // 몸돌 + 우주
+    const ns = n >= 5 ? 4 : 5, st = .034 * s * f; // 층급받침
+    for (let k = 0; k < ns; k++) { const ww = w + .03 * s + k * .08 * s * f; P.box(ww, st, ww, GB, 0, y + st / 2, 0); y += st; }
+    const wn = i < n - 1 ? bw(i + 1) : w * .5, Wr = w + .84 * s * f, tt = .06 * s * f, tH = .19 * s * f;
+    P.put(okgaeGeo(Wr, wn + .2 * s * f, tt, tH, .075 * s * f), GB, 0, y, 0); y += tt + tH; // 옥개석
+    if (i < n - 1) { P.box(wn + .1 * s * f, .03 * s, wn + .1 * s * f, GA, 0, y + .015 * s, 0); y += .03 * s; P.box(wn + .04 * s * f, .026 * s, wn + .04 * s * f, GA, 0, y + .013 * s, 0); y += .026 * s; }
   }
-  add(new THREE.CylinderGeometry(.05, .08, 1.8, 8), R.bronze, x, y + .9, z);
-  for (let i = 0; i < 6; i++) add(new THREE.CylinderGeometry(.2 - i * .02, .2 - i * .02, .05, 12), R.bronze, x, y + .3 + i * .22, z);
-  add(new THREE.SphereGeometry(.1, 10, 8), R.bronze, x, y + 1.85, z);
+  // 상륜부
+  const lw = bw(n - 1), nb = lw * .5, fm = bronze ? R.bronze : GB, sp = (r, sy) => { const g = new THREE.SphereGeometry(r, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2); g.scale(1, sy, 1); return g; };
+  P.box(nb, .13 * s, nb, GA, 0, y + .065 * s, 0); y += .13 * s; // 노반
+  P.frus(nb * .86, nb + .03 * s, .03 * s, GB, 0, y + .015 * s, 0); y += .03 * s;
+  P.put(sp(nb * .42, .72), GA, 0, y, 0); y += nb * .42 * .72; // 복발
+  P.cyl(nb * .2, nb * .2, .03 * s, 12, GB, 0, y + .015 * s, 0); y += .03 * s;
+  P.cyl(nb * .44, nb * .22, .09 * s, 8, fm, 0, y + .045 * s, 0, true); y += .09 * s; // 앙화
+  const rings = bronze ? 5 : 3, top = y + (bronze ? 1.2 : .78) * s;
+  P.cyl(.026 * s, .03 * s, top - y, 8, fm, 0, (y + top) / 2, 0); // 찰주
+  for (let k = 0; k < rings; k++) { const r = (.15 - k * .012) * s; P.cyl(r, r, .04 * s, 16, fm, 0, y + (.08 + k * .12) * s, 0); } // 보륜
+  y += (.08 + rings * .12) * s;
+  P.cyl(.05 * s, .19 * s, .07 * s, 8, fm, 0, y, 0, true); // 보개
+  if (bronze) P.put(new THREE.ConeGeometry(.08 * s, .2 * s, 8), fm, 0, y + .16 * s, 0); // 수연(불꽃)
+  P.put(new THREE.SphereGeometry(.05 * s, 10, 8), fm, 0, top - .14 * s, 0); P.put(new THREE.SphereGeometry(.065 * s, 12, 10), fm, 0, top - .02 * s, 0); // 용차·보주
+  P.flush(h, x, z);
+  return 1.32 * s;
+}
+// 월정사 팔각구층석탑: 팔각 2단 기단(연꽃 받침) + 팔각 몸돌 9층, 처마 귀마다 풍경, 청동 상륜
+function octa9(h, x, z) {
+  const { a: GA, b: GB } = GR(), P = parts(), C = (rt, rb, hh, mat, y, faceted = true) => P.cyl(rt, rb, hh, 8, mat, 0, y + hh / 2, 0, faceted);
+  C(1.75, 1.8, .3, GB, 0); C(1.5, 1.6, .26, GA, .3);
+  for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, pt = new THREE.SphereGeometry(.2, 8, 6); pt.scale(1, .55, .7); pt.rotateY(a); P.put(pt, GA, Math.sin(a) * 1.3, .66, Math.cos(a) * 1.3); } // 복련(엎은 연꽃)
+  C(1.0, 1.25, .2, GB, .56); C(.92, .92, .32, GA, .76); C(1.12, .95, .12, GB, 1.08); // 중대석·갑석
+  let y = 1.2;
+  for (let i = 0; i < 9; i++) {
+    const r = .7 * (1 - i * .05), hh = i ? .34 - i * .01 : .6;
+    C(r, r, hh, GA, y); y += hh;
+    C(r + .1, r, .05, GB, y); y += .05; // 받침
+    const R1 = r + .42, R2 = r + .1;
+    C(R1, R1, .05, GB, y); C(R2, R1, .1, GB, y + .05); // 처마 · 낙수면
+    for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2 + Math.PI / 8, cx = Math.sin(a) * R1 * .98, cz = Math.cos(a) * R1 * .98; // 풍경
+      P.cyl(.004, .004, .1, 4, R.bronze, cx, y - .05, cz); P.cyl(.014, .03, .07, 6, R.bronze, cx, y - .13, cz); }
+    y += .15;
+  }
+  P.flush(h, x, z);
+  const { add } = h, B = R.bronze;
+  add(new THREE.CylinderGeometry(.05, .08, 1.8, 8), B, x, y + .9, z);
+  for (let i = 0; i < 6; i++) add(new THREE.CylinderGeometry(.2 - i * .02, .2 - i * .02, .05, 12), B, x, y + .3 + i * .22, z);
+  add(new THREE.SphereGeometry(.1, 10, 8), B, x, y + 1.85, z);
   return 1.8;
 }
 // 법주사 팔상전: 나무로 지은 5층 목탑
@@ -91,38 +198,40 @@ function wood5(h, x, z) {
 }
 // 불국사 다보탑 (석가탑은 stoneTiers 3층)
 function dabotap(h, x, z) {
+  const { a: GA, b: GB } = GR();
   const { box, add } = h, S = 1.1;
-  box(2.7 * S, .5, 2.7 * S, h.MAT.stone, x, .25, z);
-  for (const [dx, dz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) box(dx ? .5 : .9, .25, dz ? .5 : .9, h.MAT.stone, x + dx * 1.6 * S, .125, z + dz * 1.6 * S);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.24, 1.1, .24, R.granite, x + sx * .78 * S, 1.05, z + sz * .78 * S);
-  box(.5, 1.1, .5, R.granite, x, 1.05, z);
-  box(2.1 * S, .18, 2.1 * S, h.MAT.stoneDark, x, 1.69, z);
-  const rail = (r, hh, y) => { const m = add(new THREE.CylinderGeometry(r, r, hh, 8, 1, true), R.granite2, x, y, z); m.material.side = THREE.DoubleSide; for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; box(.08, hh + .1, .08, R.granite, x + Math.sin(a) * r, y, z + Math.cos(a) * r); } };
-  rail(.95, .36, 1.98); add(new THREE.CylinderGeometry(.55, .55, .6, 8), R.granite, x, 2.08, z);
-  rail(.68, .26, 2.52); add(new THREE.CylinderGeometry(.62, .34, .26, 8), R.granite, x, 2.78, z);
-  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; box(.07, .5, .07, R.granite, x + Math.sin(a) * .42, 3.1, z + Math.cos(a) * .42); }
-  add(new THREE.CylinderGeometry(.22, .9, .2, 8), h.MAT.stoneDark, x, 3.42, z);
-  add(new THREE.CylinderGeometry(.04, .07, .9, 8), h.MAT.stoneDark, x, 3.95, z);
-  for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(.1 - i * .015, 10, 8), h.MAT.stoneDark, x, 3.75 + i * .22, z);
+  box(2.7 * S, .5, 2.7 * S, GA, x, .25, z);
+  for (const [dx, dz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) box(dx ? .5 : .9, .25, dz ? .5 : .9, GA, x + dx * 1.6 * S, .125, z + dz * 1.6 * S);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.24, 1.1, .24, GA, x + sx * .78 * S, 1.05, z + sz * .78 * S);
+  box(.5, 1.1, .5, GA, x, 1.05, z);
+  box(2.1 * S, .18, 2.1 * S, GB, x, 1.69, z);
+  const rail = (r, hh, y) => { const m = add(new THREE.CylinderGeometry(r, r, hh, 8, 1, true), GR().rail, x, y, z); for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; box(.08, hh + .1, .08, GA, x + Math.sin(a) * r, y, z + Math.cos(a) * r); } };
+  rail(.95, .36, 1.98); add(new THREE.CylinderGeometry(.55, .55, .6, 8), GA, x, 2.08, z);
+  rail(.68, .26, 2.52); add(new THREE.CylinderGeometry(.62, .34, .26, 8), GA, x, 2.78, z);
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; box(.07, .5, .07, GA, x + Math.sin(a) * .42, 3.1, z + Math.cos(a) * .42); }
+  add(new THREE.CylinderGeometry(.22, .9, .2, 8), GB, x, 3.42, z);
+  add(new THREE.CylinderGeometry(.04, .07, .9, 8), GB, x, 3.95, z);
+  for (let i = 0; i < 3; i++) add(new THREE.SphereGeometry(.1 - i * .015, 10, 8), GB, x, 3.75 + i * .22, z);
   return 1.5;
 }
 // 해동용궁사 사사자 석탑: 네 마리 돌사자가 받친 삼층석탑
 function lion3(h, x, z) {
+  const { a: GA, b: GB } = GR();
   const { box, add } = h, S = .9;
-  box(2.5 * S, .4, 2.5 * S, h.MAT.stone, x, .2, z);
+  box(2.5 * S, .4, 2.5 * S, GA, x, .2, z);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const lx = x + sx * .72 * S, lz = z + sz * .72 * S, ry = Math.atan2(sx, sz);
     const g = new THREE.Group(); g.position.set(lx, .4, lz); g.rotation.y = ry; h.site.add(g);
-    const mk = (geo, px, py, pz, sx2 = 1, sy = 1, sz2 = 1) => { const m = new THREE.Mesh(geo, R.granite); m.position.set(px, py, pz); m.scale.set(sx2, sy, sz2); m.castShadow = true; g.add(m); return m; };
+    const mk = (geo, px, py, pz, sx2 = 1, sy = 1, sz2 = 1) => { const m = new THREE.Mesh(geo, GA); m.position.set(px, py, pz); m.scale.set(sx2, sy, sz2); m.castShadow = true; g.add(m); return m; };
     mk(new THREE.SphereGeometry(.24, 10, 8), 0, .3, -.05, .9, 1.1, 1.2);        // 앉은 몸
     mk(new THREE.SphereGeometry(.2, 10, 8), 0, .6, .1, 1.1, 1, 1);               // 갈기 머리
     mk(new THREE.SphereGeometry(.1, 8, 6), 0, .56, .27, 1, .8, .8);              // 주둥이
     for (const s2 of [-1, 1]) mk(new THREE.CylinderGeometry(.05, .06, .36, 6), s2 * .1, .18, .16);
   }
-  box(.36, .82, .36, R.granite2, x, .81, z);
-  box(2.1 * S, .2, 2.1 * S, h.MAT.stoneDark, x, 1.32, z);
+  box(.36, .82, .36, GB, x, .81, z);
+  box(2.1 * S, .2, 2.1 * S, GB, x, 1.32, z);
   const up = { ...h, add: (geo, m, px, py, pz, s) => add(geo, m, px, py + 1.42, pz, s), box: (w, hh, d, m, px, py, pz) => add(new THREE.BoxGeometry(w, hh, d), m, px, py + 1.42, pz) };
-  stoneTiers(up, x, z, 3, .78);
+  stoneTiers(up, x, z, 3, .7);
   return 1.25 * S;
 }
 // 탑 종류에 맞춰 세우기 → 탑돌이 중심 반환

@@ -92,10 +92,10 @@ export function createSound(store) {
     chime() { if (!unlock()) return; [[1046, .14], [1568, .09], [2093, .05]].forEach(([f, p], i) => setTimeout(() => tone(f, p, .005, 1.4), i * 90)); },
     bell(vol = .3) { if (!unlock()) return; [[196, 1], [392, .45], [588, .18], [784, .08]].forEach(([f, a]) => tone(f, vol * a, .015, 3.2)); },
     // 범종: 낮은 울림 + 살짝 어긋난 두 음이 만드는 맥놀이(웅~웅~)
-    bigBell() {
+    bigBell(vol = 1) {
       if (!unlock()) return; const t = ctx.currentTime;
-      [[64, .55, 9], [64.6, .45, 9], [128.5, .3, 7], [176, .22, 5.5], [272, .12, 3.5], [410, .06, 2.2]].forEach(([f, p, d]) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; env(g, t, p, .02, d); o.connect(g).connect(sfx); o.start(t); o.stop(t + d + .1); });
-      const s = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noiseBuf(.4); lp.type = 'lowpass'; lp.frequency.value = 220; env(g, t, .7, .004, .3); s.connect(lp).connect(g).connect(sfx); s.start(t);
+      [[64, .55, 9], [64.6, .45, 9], [128.5, .3, 7], [176, .22, 5.5], [272, .12, 3.5], [410, .06, 2.2]].map(([f, p, d]) => [f, p * vol, d]).forEach(([f, p, d]) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; env(g, t, p, .02, d); o.connect(g).connect(sfx); o.start(t); o.stop(t + d + .1); });
+      const s = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noiseBuf(.4); lp.type = 'lowpass'; lp.frequency.value = 220; env(g, t, .7 * vol, .004, .3); s.connect(lp).connect(g).connect(sfx); s.start(t);
     },
   };
 }

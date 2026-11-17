@@ -49,6 +49,10 @@ export async function connectTogether({ region, me, onPeers, onState, onOffer, o
       const { data, error } = await sb.from('temple_offerings').select('id,region,kind,temple,color,body,nick,created_at').eq('region', region).order('created_at', { ascending: false }).limit(300);
       if (error) throw error; return data || [];
     },
+    async count(kind) { // 지금까지 이 지역에 올라온 수 (기와는 지워지지 않고 계속 쌓임)
+      const { count, error } = await sb.from('temple_offerings').select('id', { count: 'exact', head: true }).eq('region', region).eq('kind', kind);
+      if (error) throw error; return count || 0;
+    },
     async offer({ kind, temple = null, color = null, body }) {
       const { data, error } = await sb.rpc('temple_offer', { p_region: region, p_kind: kind, p_temple: temple, p_color: color, p_body: body, p_nick: me.nick, p_client: me.id });
       if (error) throw error; return data;
