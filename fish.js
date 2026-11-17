@@ -65,17 +65,22 @@ function softDisc(color, alpha) {
   return new THREE.MeshBasicMaterial({ color, alphaMap: t, transparent: true, depthWrite: false });
 }
 
-export function createSchool(site, { cx, cz, rx = 5.5, rz = 3.6, n = 650, extra = 30, feed = null } = {}) {
+export function createSchool(site, { cx, cz, rx = 5.5, rz = 3.6, n = 650, extra = 30, sea = null, avoid = null } = {}) {
   const N = n + extra, Y0 = .07, Y1 = .19;
   const hMat = swimMat(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .35, metalness: .45, side: THREE.DoubleSide }));
   const mesh = new THREE.InstancedMesh(fishGeo('hwangeo'), hMat, N); mesh.frustumCulled = false; mesh.castShadow = false; site.add(mesh);
   // 물밑 그늘과 물비늘 막: 물고기가 물속에 있는 것처럼
   const floor = new THREE.Mesh(new THREE.CircleGeometry(1, 40), softDisc('#1d4c57', .75)); floor.rotation.x = -Math.PI / 2; floor.scale.set(rx * 1.25, rz * 1.25, 1); floor.position.set(cx, .052, cz); site.add(floor);
   const film = new THREE.Mesh(new THREE.CircleGeometry(1, 40), softDisc('#5fb4c0', .22)); film.rotation.x = -Math.PI / 2; film.scale.set(rx * 1.2, rz * 1.2, 1); film.position.set(cx, Y1 + .025, cz); film.renderOrder = 2; site.add(film);
-  const inside = (x, z, pad = 0) => ((x - cx) / (rx - pad)) ** 2 + ((z - cz) / (rz - pad)) ** 2 < 1;
+  const inside = (x, z, pad = 0) => ((x - cx) / (rx - pad)) ** 2 + ((z - cz) / (rz - pad)) ** 2 < 1;   // 평소 모여 노는 곳
+  // 헤엄칠 수 있는 물: 연화대 앞 넓은 바다(sea) 중 바위(avoid)를 뺀 곳 — 밥을 던지면 이 안 어디든 따라감
+  const S0 = sea || { x: cx, z: cz, rx, rz };
+  const water = (x, z, pad = 0) => ((x - S0.x) / (S0.rx - pad)) ** 2 + ((z - S0.z) / (S0.rz - pad)) ** 2 < 1 && !(avoid && ((x - avoid.x) / (avoid.rx + pad)) ** 2 + ((z - avoid.z) / (avoid.rz + pad)) ** 2 < 1);
+  let feedSpot = null; // 마지막으로 밥을 던진 곳: 한동안 그 근처에 머묾
   // 무리(떼): 각 무리의 목표 지점이 천천히 옮겨 다니고, 물고기는 자기 무리 목표 + 개인 간격을 따라감 (사람 서 있는 바위 쪽에 더 빽빽)
   const G = Array.from({ length: 9 }, (_, k) => ({ x: cx, z: cz, t: 0, k }));
-  const pick = gp => { for (let k = 0; k < 20; k++) { const a = Math.random() * 6.3, r = Math.sqrt(Math.random()) * .85, x = cx + Math.cos(a) * rx * r, z = cz + Math.abs(Math.sin(a)) * rz * r * (Math.random() < .65 ? 1 : -1); if (inside(x, z, 1)) { gp.x = x; gp.z = z; gp.t = 4 + Math.random() * 6; return; } } };
+  const pick = gp => { if (feedSpot && feedSpot.t > 0) for (let k = 0; k < 12; k++) { const a = Math.random() * 6.3, r = Math.sqrt(Math.random()) * 2.2, x = feedSpot.x + Math.cos(a) * r, z = feedSpot.z + Math.sin(a) * r * .7; if (water(x, z, .6)) { gp.x = x; gp.z = z; gp.t = 2 + Math.random() * 3; return; } }
+    for (let k = 0; k < 20; k++) { const a = Math.random() * 6.3, r = Math.sqrt(Math.random()) * .85, x = cx + Math.cos(a) * rx * r, z = cz + Math.abs(Math.sin(a)) * rz * r * (Math.random() < .65 ? 1 : -1); if (inside(x, z, 1)) { gp.x = x; gp.z = z; gp.t = 4 + Math.random() * 6; return; } } };
   G.forEach(pick);
   const F = [];
   for (let i = 0; i < N; i++) {
@@ -95,16 +100,18 @@ export function createSchool(site, { cx, cz, rx = 5.5, rz = 3.6, n = 650, extra 
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(), hide = new THREE.Matrix4().makeScale(0, 0, 0);
   let t = 0;
   const api = {
-    mesh, center: { x: cx, z: cz }, inside,
+    mesh, center: { x: cx, z: cz }, inside, water,
     model: k => k === 'ureok' ? uMesh : mesh,
     // 밥 한 줌 던지기: from(사이트 좌표의 손 위치) → to 근처에 흩뿌림
     throwFood(from, to, count = 26) {
       let k = 0;
       for (let i = 0; i < PM && k < count; i++) {
         const p = pellets[i]; if (p && p.st !== 'gone') continue;
-        const ang = Math.random() * 6.3, rr = Math.sqrt(Math.random()) * 1.1, tx = to.x + Math.cos(ang) * rr, tz = to.z + Math.sin(ang) * rr, T = .55 + Math.random() * .25;
+        let tx = to.x, tz = to.z; for (let tr = 0; tr < 6; tr++) { const ang = Math.random() * 6.3, rr = Math.sqrt(Math.random()) * 1.1; if (water(to.x + Math.cos(ang) * rr, to.z + Math.sin(ang) * rr)) { tx = to.x + Math.cos(ang) * rr; tz = to.z + Math.sin(ang) * rr; break; } }
+        const T = .5 + Math.hypot(tx - from.x, tz - from.z) * .05 + Math.random() * .15;
         pellets[i] = { st: 'fly', x: from.x, y: from.y, z: from.z, vx: (tx - from.x) / T, vz: (tz - from.z) / T, vy: (Y1 + .03 - from.y + 4.9 * T * T) / T, t: 0 }; k++;
       }
+      feedSpot = { x: to.x, z: to.z, t: 12 }; for (const gp of G) gp.t = Math.random() * .6; // 무리들이 곧바로 그쪽으로
       return k;
     },
     // 방생: kind 'hwangeo'(작은 물고기 5마리) | 'ureok'(큰 물고기 2마리)
@@ -149,6 +156,7 @@ export function createSchool(site, { cx, cz, rx = 5.5, rz = 3.6, n = 650, extra 
         pMesh.setMatrixAt(i, m4.makeTranslation(p.x, p.y, p.z));
       }
       pMesh.instanceMatrix.needsUpdate = true;
+      if (feedSpot) feedSpot.t -= dt;
       for (const gp of G) { gp.t -= dt; if (gp.t <= 0) pick(gp); }
       api.frenzy = Math.max(0, (api.frenzy || 0) - dt * .3); if (floating.length) api.frenzy = Math.min(2, api.frenzy + dt * 1.5);
       // 황어
@@ -158,19 +166,19 @@ export function createSchool(site, { cx, cz, rx = 5.5, rz = 3.6, n = 650, extra 
         if (f.air > 0 || f.delay > 0) { // 방생: 양동이에서 바다로 포물선
           if (f.delay > 0) { f.delay -= dt; mesh.setMatrixAt(i, hide); continue; }
           f.air -= dt; f.vy -= 9.8 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt;
-          if (f.y <= Y1 && f.vy < 0) { f.y = Y1 - .02; f.air = 0; splash(f.x, f.z, 1.4); if (!inside(f.x, f.z)) { f.x = cx + (f.x - cx) * .8; f.z = cz + (f.z - cz) * .8; } }
+          if (f.y <= Y1 && f.vy < 0) { f.y = Y1 - .02; f.air = 0; splash(f.x, f.z, 1.4); for (let k = 0; k < 8 && !water(f.x, f.z, .2); k++) { f.x = cx + (f.x - cx) * .85; f.z = cz + (f.z - cz) * .85; } }
           e.set(-Math.atan2(f.vy, Math.hypot(f.vx, f.vz)) * .8, f.h, 0, 'YXZ'); q.setFromEuler(e); mesh.setMatrixAt(i, m4.compose(v.set(f.x, f.y, f.z), q, sc.setScalar(f.s))); continue;
         }
         // 목표: 가까운 밥알 (0.4초마다 다시 고름)
         f.look -= dt;
         if (f.look <= 0) {
-          f.look = .35 + Math.random() * .25; f.tgt = -1; let bd = 49;
+          f.look = .3 + Math.random() * .25; f.tgt = -1; let bd = 196;
           for (let k = 0; k < floating.length; k += Math.max(1, floating.length >> 5)) { const p = pellets[floating[k]], d = (p.x - f.x) ** 2 + (p.z - f.z) ** 2; if (d < bd) { bd = d; f.tgt = floating[k]; } }
         }
         let want, speed;
         const p = f.tgt >= 0 ? pellets[f.tgt] : null;
         if (p && p.st === 'float') {
-          want = Math.atan2(p.x - f.x, p.z - f.z); speed = 1.5 + (i % 7) * .08;
+          want = Math.atan2(p.x - f.x, p.z - f.z); speed = 1.7 + (i % 7) * .1;
           const d = Math.hypot(p.x - f.x, p.z - f.z);
           if (d < .16) { p.st = 'gone'; f.tgt = -1; if (Math.random() < .35) splash(f.x, f.z, .35); if (Math.random() < .12) f.vy = 1.6; }
           f.y += (Y1 - .015 - f.y) * Math.min(1, dt * 4);                                     // 물 위로 입을 내밀며 몰려듦
@@ -184,7 +192,7 @@ export function createSchool(site, { cx, cz, rx = 5.5, rz = 3.6, n = 650, extra 
         }
         let dh = want - f.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); f.h += dh * Math.min(1, dt * (p ? 5 : 1.6));
         f.sp += (speed - f.sp) * Math.min(1, dt * 2.5);
-        const nx = f.x + Math.sin(f.h) * f.sp * dt, nz = f.z + Math.cos(f.h) * f.sp * dt; if (inside(nx, nz, .15)) { f.x = nx; f.z = nz; } else f.h += 2 * dt;
+        const nx = f.x + Math.sin(f.h) * f.sp * dt, nz = f.z + Math.cos(f.h) * f.sp * dt; if (water(nx, nz, .15)) { f.x = nx; f.z = nz; } else if (water(nx, f.z, .15)) f.x = nx; else if (water(f.x, nz, .15)) f.z = nz; else f.h += 2.5 * dt;
         if (f.vy > 0 || f.y > Y1 + .01) { f.vy -= 9.8 * dt; f.y += f.vy * dt; if (f.y < Y1 - .01) { f.y = Y1 - .01; f.vy = 0; splash(f.x, f.z, .6); } }
         e.set(f.vy > 0 ? -.6 : 0, f.h, Math.sin(t * 2 + i) * .05, 'YXZ'); q.setFromEuler(e);
         mesh.setMatrixAt(i, m4.compose(v.set(f.x, Math.min(f.y, Y1 + .4), f.z), q, sc.setScalar(f.s)));

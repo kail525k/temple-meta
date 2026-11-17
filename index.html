@@ -34,7 +34,7 @@
   body.touch #help{display:none}
   #btnJump{position:fixed;right:18px;bottom:calc(max(26px,env(safe-area-inset-bottom) + 18px) + 210px);width:62px;height:62px;border-radius:50%;border:1px solid rgba(80,60,30,.2);background:rgba(255,250,240,.82);font-size:22px;line-height:1;color:#5a3a22;display:none;flex-direction:column;align-items:center;justify-content:center;touch-action:none;z-index:4;box-shadow:0 4px 14px rgba(60,40,20,.18)}#btnJump span{font-size:10.5px;margin-top:2px}body.touch #btnJump{display:flex}
   #aim{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,250,235,.9);box-shadow:0 0 0 1.5px rgba(60,40,20,.45);pointer-events:none;display:none;z-index:3}
-  body.locked #aim{display:block}body.locked #c{cursor:none}
+  body.locked #c{cursor:none}
   #attrib{position:fixed;left:0;right:0;bottom:0;text-align:center;font-size:10px;color:rgba(50,40,25,.7);padding:3px 8px calc(3px + env(safe-area-inset-bottom));pointer-events:none;text-shadow:0 1px 0 rgba(255,255,255,.6)}
   #dbgBtn{border:0;border-radius:99px;background:#e9e4da;font-size:11px;padding:2px 8px;cursor:pointer;font-family:inherit;color:#6d5f4b}
   #dbg{position:fixed;right:12px;top:calc(max(12px,env(safe-area-inset-top)) + 182px);z-index:5;width:min(92vw,330px);max-height:46vh;overflow:auto;margin:0;padding:10px 12px;font:11px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;display:none;color:#2b2b2b}
@@ -51,6 +51,7 @@
   #regionModal header div{flex:1}#regionModal header b{font-size:16px}#regionModal header small{display:block;font-size:12px;color:#8a7a62;margin-top:2px}
   #regionModal header button{border:0;border-radius:99px;padding:8px 14px;font-weight:600;background:#efe6d4;cursor:pointer;font-family:inherit}
   #regionList{overflow:auto;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+  #regionList .rg.report{background:#fff7e8;border-style:dashed;border-color:#c99a5b}
   .rg{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fffaf0;cursor:pointer;text-align:left;font-family:inherit;color:var(--ink)}
   .rg:hover{border-color:var(--accent)}.rg.on{border:2px solid var(--accent);background:#fff3df}
   .rg b{font-size:15px;display:block}.rg span{font-size:12px;color:#7a6a52;display:block;margin-top:3px;line-height:1.45}
@@ -183,6 +184,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=40"></script>
+<script type="module" src="./app.js?v=41"></script>
 </body>
 </html>

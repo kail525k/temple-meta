@@ -5,7 +5,7 @@
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=8';
-import { createSchool, tankFish } from './fish.js?v=4';
+import { createSchool, tankFish } from './fish.js?v=5';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const R = {
@@ -302,7 +302,7 @@ export function buildExtras(h, T) {
     }
     if (kind === 'fish') { // 연화대 옆 황어 떼(수천 마리) · 물고기 밥 판매대 · 방생 수조 — 실제 휴휴암처럼
       const cx = h.fishX ?? 0, cz = h.fishZ ?? h.YZ0 - 6, at = h.fishAt || { lx: cx, lz: h.YZ0 - 1.4 };
-      const school = createSchool(h.site, { cx, cz, rx: 5.8, rz: 3.0, n: 680, extra: 40 });
+      const school = createSchool(h.site, { cx, cz, rx: 5.8, rz: 3.0, n: 680, extra: 40, sea: { x: cx, z: h.YZ0 - 7.9, rx: 9.6, rz: 4.1 }, avoid: { x: -6.2, z: h.YZ0 - 1.2, rx: 4.6, rz: 3.2 } }); // 평소엔 연화대 앞에 모이고, 밥을 던지면 앞바다 어디든 따라감
       // 판매대: 물고기 밥(봉지) + 방생 물고기 수조 두 개
       const st = h.fishStall || { lx: cx - 3.4, lz: h.YZ0 + 2.6 }, g = new THREE.Group(); g.position.set(st.lx, 0, st.lz); g.rotation.y = st.ry || 0; h.site.add(g);
       const P = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };

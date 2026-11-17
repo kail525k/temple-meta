@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=3';
 import { buildHall } from './hall.js?v=8';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=17';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=18';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
 import { REGIONS } from './temples.js?v=7';
@@ -248,7 +248,7 @@ function buildSite(info, T) {
   const YG = yg ? yonggungFrame({ L, D, YX, YZ1 }) : null;
   const PZ = yg ? YG.PZ : D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, nameTex, site, fig: [] };
   if (hyu) { H.fishX = -6.2; H.fishZ = YZ0 - 7.3; H.fishAt = { lx: -6.2, lz: YZ0 - 2.4 }; H.fishStall = { lx: -9.2, lz: YZ0 + 2.7 }; }
-  if (st.sea) T.seaRect = buildSea(H, hyu ? { gap: [-10.2, -2.2, 3.4], side: st.seaSide || 0, clear: { x: -6.2, z: -7.3, rx: 6.4, rz: 3.6 } } : yg ? { gap: YG.gap } : {});
+  if (st.sea) T.seaRect = buildSea(H, hyu ? { gap: [-10.2, -2.2, 3.4], side: st.seaSide || 0, clear: { x: -6.2, z: -7.9, rx: 9.6, rz: 4.1 } } : yg ? { gap: YG.gap } : {});
   if (yg && T.seaRect) T.seaRect.inlet = { x0: -YX - 7, x1: -YX + .3, z0: YZ0 - 1, z1: YG.ZB + .5 };
   if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(yg ? 2.0 : 2.7, pg.r + .75); } else T.pagoda = null;
   // 사찰 상징물 (법당 옆 마당·뒤뜰)
@@ -575,7 +575,12 @@ const endDrag = e => {
   if (e.pointerId === drag.id) {
     drag.id = null;
     const tap = e.type === 'pointerup' && downInfo && Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y) < 7 && performance.now() - downInfo.t < 400;
-    if (tap) { if (FINE && e.pointerType === 'mouse') lockMouse(e); else clickMove(e); } // PC: 화면을 누르면 3인칭 마우스 시점, 터치: 누른 곳으로 걷기
+    let fed = false;
+    if (tap && fishAimPt) { // 휴휴암 연화대 끝에서 밥(또는 방생 양동이)을 들고 있으면: 누른 쪽 물로 던짐
+      const r = canvas.getBoundingClientRect(), pt = isLocked() ? fishAimPt : fishAimAt((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      if (pt) { if (fishFood > 0) throwFish(pt); else releaseFish(pt); fed = true; }
+    }
+    if (tap && !fed) { if (FINE && e.pointerType === 'mouse') lockMouse(e); else clickMove(e); } // PC: 화면을 누르면 3인칭 마우스 시점, 터치: 누른 곳으로 걷기
     downInfo = null;
   }
 };
@@ -1127,10 +1132,10 @@ function updateCtx(inside, dBow, lx, lz) {
     if (!inside && cur && cur.fish) { // 휴휴암: 판매대에서 물고기 밥·방생 물고기를 받아 연화대 끝에서 던지거나 놓아 줌
       const F = cur.fish, dSt = Math.hypot(lx - F.stall.lx, lz - F.stall.lz), dAt = Math.hypot(lx - F.at.lx, lz - F.at.lz);
       if (dSt < 3.2) {
-        acts.push([fishFood > 0 ? `🛍️ 물고기 밥 더 받기 (지금 ${fishFood}줌)` : '🛍️ 물고기 밥 한 봉지 받기', () => { fishFood += 8; sound.bead(); toast('🛍️ 물고기 밥 한 봉지(8줌)를 받았어요 · 실제 휴휴암에서는 입구에서 현금 2,000원 · 연화대 끝에서 던져 보세요', 4200); updateNear(); }]);
+        acts.push([fishFood > 0 ? `🛍️ 물고기 밥 더 받기 (지금 ${fishFood}줌)` : '🛍️ 물고기 밥 한 봉지 받기', () => { fishFood += 8; sound.bead(); toast('🛍️ 물고기 밥 한 봉지(8줌)를 받았어요 · 실제 휴휴암에서는 입구에서 현금 2,000원 · 연화대 끝에서 던지고 싶은 물을 클릭하세요', 4200); updateNear(); }]);
         if (!bucket) { acts.push(['🐟 방생 물고기 받기 · 작은 황어 5마리', () => takeBucket('hwangeo')]); acts.push(['🐟 방생 물고기 받기 · 큰 우럭 2마리', () => takeBucket('ureok')]); }
       }
-      if (dAt < 3.4) {
+      if (dAt < 4.6) {
         if (fishFood > 0) acts.push([`🐟 물고기 밥 던지기 (${fishFood}줌)`, throwFish]);
         if (bucket) acts.push(['🙏 방생하기', releaseFish]);
         if (!fishFood && !bucket) acts.push(['🛍️ 판매대에서 물고기 밥·방생 물고기 받아 오기', () => { const [x, z] = L2W(F.stall.lx, F.stall.lz + 1.6); moveTarget = { x, z, t: 0 }; markMove(new THREE.Vector3(x, avatar.position.y, z)); }]);
@@ -1146,14 +1151,45 @@ function useContext() { if (ctxActs[0]) ctxActs[0][1](); else if (sit) standUp()
 // 휴휴암 물고기 밥·방생
 let fishFood = 0, bucket = null, bucketMesh = null;
 function handLocal() { const fw = 0.55, x = avatar.position.x + Math.sin(avatar.rotation.y) * fw, z = avatar.position.z + Math.cos(avatar.rotation.y) * fw; const [lx, lz] = W2L(x, z); return { x: lx, y: avatar.position.y + 1.0, z: lz }; }
-function aimLocal(dist = 3.6) { // 바라보는 쪽 물 위 (못 맞히면 황어 떼 가운데쯤)
-  const F = cur.fish, x = avatar.position.x + Math.sin(avatar.rotation.y) * dist, z = avatar.position.z + Math.cos(avatar.rotation.y) * dist, [lx, lz] = W2L(x, z);
-  return F.school.inside(lx, lz, .6) ? { x: lx, z: lz } : { x: F.feedTo.lx, z: F.feedTo.lz };
+// 밥이 떨어질 곳: 화면 가운데(마우스 시점) 또는 누른 곳이 가리키는 물 위 — 노란 동그라미로 보여 주고, 클릭하면 그쪽으로 던짐
+const _aimN = new THREE.Vector2(), _aimP = new THREE.Vector3(), _waterPl = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.21);
+let fishAimPt = null;
+const fishAimMark = (() => {
+  const g = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color: '#ffd166', transparent: true, opacity: .9, depthWrite: false });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(.46, .58, 40), mat); ring.rotation.x = -Math.PI / 2; g.add(ring);
+  for (let i = 0; i < 6; i++) { const d = new THREE.Mesh(new THREE.CircleGeometry(.045, 8), mat); d.rotation.x = -Math.PI / 2; const a = i / 6 * Math.PI * 2; d.position.set(Math.cos(a) * .2, .002, Math.sin(a) * .2); g.add(d); } // 밥알처럼 흩어진 점
+  g.visible = false; g.renderOrder = 3; g.userData = { mat, t: 0 }; scene.add(g); return g;
+})();
+function fishAimAt(nx = 0, ny = 0) { // 화면 좌표(-1~1)가 가리키는 물 위 (사이트 좌표) · 물이 아니면 같은 방향의 가까운 물
+  const S = cur.fish.school, [ax, az] = W2L(avatar.position.x, avatar.position.z);
+  _aimN.set(nx, ny); ray.setFromCamera(_aimN, camera);
+  let tx, tz; const dr = ray.ray.direction;
+  if (dr.y < -.03 && ray.ray.intersectPlane(_waterPl, _aimP)) [tx, tz] = W2L(_aimP.x, _aimP.z);
+  else [tx, tz] = W2L(avatar.position.x + dr.x * 20, avatar.position.z + dr.z * 20); // 멀리(하늘)를 보면 그 방향 끝까지
+  let dx = tx - ax, dz = tz - az, d = Math.hypot(dx, dz); if (d < .05) return null; dx /= d; dz /= d; d = clamp(d, 2.4, 11);
+  for (let k = 0; k < 44; k++) for (const sg of k ? [-1, 1] : [1]) { const dd = d + sg * k * .25; if (dd < 1.6 || dd > 12) continue; const x = ax + dx * dd, z = az + dz * dd; if (S.water(x, z, .45)) return { x, z }; }
+  return null;
 }
-function faceSea() { const F = cur.fish, [x, z] = L2W(F.feedTo.lx, F.feedTo.lz); avatar.rotation.y = Math.atan2(x - avatar.position.x, z - avatar.position.z); }
-function throwFish() {
-  if (!cur || !cur.fish || fishFood <= 0) return; faceSea();
-  fishFood--; cur.fish.school.throwFood(handLocal(), aimLocal(), 24 + Math.floor(Math.random() * 8)); sound.bead();
+function nearEdge() { const F = cur && cur.fish; if (!F) return false; const [ax, az] = W2L(avatar.position.x, avatar.position.z); return Math.hypot(ax - F.at.lx, az - F.at.lz) < 4.6; }
+function updateFishAim(dt) {
+  const M = fishAimMark;
+  fishAimPt = (fishFood > 0 || bucket) && !sit && !sam && nearEdge() ? fishAimAt(0, 0) : null;
+  if (!fishAimPt) { M.visible = false; return; }
+  if (!store.d.fishAimTip) { store.d.fishAimTip = 1; store.save(); toast(document.body.classList.contains('touch') ? '🎯 노란 동그라미가 밥이 떨어질 곳이에요 · 던지고 싶은 물 위를 톡 누르세요' : '🎯 노란 동그라미가 밥이 떨어질 곳이에요 · 마우스로 방향을 돌리고 클릭하면 그쪽으로 던져요', 4500); }
+  const [x, z] = L2W(fishAimPt.x, fishAimPt.z); M.position.set(x, .22, z); M.visible = true;
+  M.userData.t += dt; const k = 1 + Math.sin(M.userData.t * 5) * .08; M.scale.set(k, 1, k); M.rotation.y += dt * .6;
+  M.userData.mat.color.set(fishFood > 0 ? '#ffd166' : '#8fe3ff'); // 밥: 노랑 · 방생: 하늘색
+}
+function towardAvatar(to, maxD) { // 방생은 양동이에서 쏟는 거라 너무 멀리는 못 감
+  const [ax, az] = W2L(avatar.position.x, avatar.position.z), d = Math.hypot(to.x - ax, to.z - az); if (d <= maxD) return to;
+  for (let dd = maxD; dd > 1.5; dd -= .3) { const x = ax + (to.x - ax) / d * dd, z = az + (to.z - az) / d * dd; if (cur.fish.school.water(x, z, .4)) return { x, z }; }
+  return to;
+}
+function faceTo(to) { const [x, z] = L2W(to.x, to.z); avatar.rotation.y = Math.atan2(x - avatar.position.x, z - avatar.position.z); }
+function throwFish(pt) {
+  if (!cur || !cur.fish || fishFood <= 0) return;
+  const F = cur.fish, to = pt || fishAimPt || fishAimAt(0, 0) || { x: F.feedTo.lx, z: F.feedTo.lz }; faceTo(to);
+  fishFood--; F.school.throwFood(handLocal(), to, 24 + Math.floor(Math.random() * 8)); sound.bead();
   pose = 'bow'; poseT = 1.5; poseHold = false; // 팔을 앞으로 뻗듯 몸을 살짝 숙이며 던짐
   if (!store.d.fishTip) { store.d.fishTip = 1; store.save(); toast('🐟 황어 떼가 밥을 향해 몰려와요! 수천 마리가 사는 연화대 앞바다예요', 3600); }
   else if (!fishFood) toast('봉지가 비었어요 · 판매대에서 한 봉지 더 받을 수 있어요', 2600);
@@ -1166,9 +1202,10 @@ function takeBucket(kind) {
   toast(kind === 'ureok' ? '🪣 새끼 우럭 2마리를 양동이에 담았어요 (현장 2만 원) · 연화대 끝 바닷가에서 놓아 주세요' : '🪣 황어 5마리를 양동이에 담았어요 (현장 2만 원) · 연화대 끝 바닷가에서 놓아 주세요', 4200);
   updateNear();
 }
-function releaseFish() {
-  if (!cur || !cur.fish || !bucket) return; faceSea();
-  cur.fish.school.release(bucket, handLocal(), aimLocal(3.0)); sound.bell ? sound.bell(.25) : sound.bead(); pose = 'hap'; poseT = 0; poseHold = false;
+function releaseFish(pt) {
+  if (!cur || !cur.fish || !bucket) return;
+  const F = cur.fish, to = towardAvatar(pt || fishAimPt || fishAimAt(0, 0) || { x: F.feedTo.lx, z: F.feedTo.lz }, 5); faceTo(to);
+  F.school.release(bucket, handLocal(), to); sound.bell ? sound.bell(.25) : sound.bead(); pose = 'hap'; poseT = 0; poseHold = false;
   toast(bucket === 'ureok' ? '🙏 우럭이 깊은 바다로 헤엄쳐 가요 · 생명을 살리는 방생, 공덕을 지었어요' : '🙏 황어들이 무리 속으로 헤엄쳐 가요 · 생명을 살리는 방생, 공덕을 지었어요', 4200);
   bucket = null; if (bucketMesh) avatar.remove(bucketMesh); updateNear();
 }
@@ -1176,6 +1213,7 @@ document.getElementById('btnSit').onclick = toggleSit;
 
 // 매 프레임: 연기 · 종 · 표시
 function updateWorld(dt) {
+  updateFishAim(dt);
   if (bellCool > 0) bellCool -= dt;
   if (BELL && bellAnim >= 0) {
     bellAnim += dt; const t = bellAnim;
@@ -1238,13 +1276,19 @@ function openRegions() {
   for (const r of REGIONS) {
     const el = document.createElement('div'); el.className = 'rg' + (r === REGION ? ' on' : '');
     el.innerHTML = `<b>${r.name}${r === REGION ? ' · 지금 여기' : ''}</b><span>${r.temples.map(t => t.name).join(' · ')}</span>`;
-    if (r === REGION) {
-      const go = document.createElement('div'); go.className = 'go';
-      for (const T of temples) { const bt = document.createElement('button'); bt.textContent = `${T.name} 가기`; bt.onclick = e => { e.stopPropagation(); regionModal.classList.remove('show'); goTemple(T); }; go.appendChild(bt); }
-      el.appendChild(go);
-    } else el.onclick = () => { const q = new URLSearchParams(location.search); q.set('r', r.id); location.search = q.toString(); };
+    // 모든 지역에 '○○사 가기' 버튼: 지금 지역은 바로 걸어가고, 다른 지역은 그 지역을 불러와 그 절 앞에 섬
+    const go = document.createElement('div'); go.className = 'go';
+    const far = (tn) => { const q = new URLSearchParams(location.search); q.set('r', r.id); if (tn) q.set('t', tn); else q.delete('t'); location.search = q.toString(); };
+    if (r === REGION) for (const T of temples) { const bt = document.createElement('button'); bt.textContent = `${T.name} 가기`; bt.onclick = e => { e.stopPropagation(); regionModal.classList.remove('show'); goTemple(T); }; go.appendChild(bt); }
+    else { for (const t of r.temples) { const bt = document.createElement('button'); bt.textContent = `${t.name} 가기`; bt.onclick = e => { e.stopPropagation(); far(t.name); }; go.appendChild(bt); } el.onclick = () => far(null); }
+    el.appendChild(go);
     regionList.appendChild(el);
   }
+  // 작은 절 제보: 스님·종무소·신도가 알려 주면 검토해서 넣음
+  const rp = document.createElement('div'); rp.className = 'rg report';
+  rp.innerHTML = `<b>🙏 우리 절도 넣어 주세요</b><span>지도에 없는 작은 절을 알려 주시면 검토해서 실제 모습대로 순례길에 넣어요 · 스님·종무소·신도 누구나</span><div class="go"><button>사찰 제보하기</button></div>`;
+  rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=1').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
+  regionList.appendChild(rp);
   regionModal.classList.add('show');
 }
 document.getElementById('btnRegion').onclick = openRegions;
@@ -1396,6 +1440,7 @@ async function startTogether() {
   document.getElementById('loading').classList.add('hide');
   canvas.focus();
   loop();
+  { const tq = QS.get('t'), T = tq && temples.find(t => t.name === tq); if (T) { goTemple(T); intro = -1; } } // 다른 지역 창에서 '○○사 가기'로 왔으면 그 절 앞으로
   if (!QS.get('r') && !QS.has('dbg')) setTimeout(openRegions, 4200); // 처음 오면 지역 고르기를 보여 줌
 })();
 
@@ -1414,7 +1459,7 @@ if (/[?&]dbg/.test(location.search)) window.__t = {
   walk(on, run) { keys.KeyW = !!on; keys.ShiftLeft = !!run; },
   get glb() { return glb; },
   get cur() { return cur; },
-  fishGo(where = 'at') { const F = cur && cur.fish; if (!F) return null; const P = where === 'stall' ? { lx: F.stall.lx, lz: F.stall.lz + 1.6 } : F.at; const [x, z] = L2W(P.lx, P.lz); avatar.position.set(x, avatar.position.y, z); faceSea(); intro = -1; yaw = avatar.rotation.y + Math.PI; dist = 5; pitch = .35; return P; },
+  fishGo(where = 'at') { const F = cur && cur.fish; if (!F) return null; const P = where === 'stall' ? { lx: F.stall.lx, lz: F.stall.lz + 1.6 } : F.at; const [x, z] = L2W(P.lx, P.lz); avatar.position.set(x, avatar.position.y, z); faceTo({ x: F.feedTo.lx, z: F.feedTo.lz }); intro = -1; yaw = avatar.rotation.y + Math.PI; dist = 5; pitch = .35; return P; },
   acts: () => ctxActs.map(a => a[0]), act: i => ctxActs[i] && ctxActs[i][1](),
   go(i, lx, lz) { const T = temples[i]; goTemple(T); if (lz !== undefined) { const [x, z] = L2W(lx, lz); avatar.position.set(x, 0, z); } return T.name; },
 };
