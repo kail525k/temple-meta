@@ -163,6 +163,7 @@ const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1200);
 // 실제 하늘: 지역마다 다른 하늘 사진(Poly Haven, CC0)을 하늘 공에 입힘 · 사진 속 해를 게임의 해 쪽으로 돌려 맞추고, 지평선 근처는 안개색으로 이어서 산·바다와 자연스럽게 맞물림
 const SKY_PHOTO = { seoul: 'miyako', gyeonggi: 'jeju', gangwon: 'gangwon', chungcheong: 'quarry', jeonbuk: 'jeju', jeonnam: 'miyako', gyeongbuk: 'quarry', gyeongnam: 'blouberg', jeju: 'jeju' };
 const SKY_SUNU = { jeju: .5999, gangwon: .6233, miyako: .5999, quarry: .608, blouberg: .03 };
+const SKY_HOR = { jeju: '#ced7d2', gangwon: '#aab7c9', miyako: '#d1d9d8', quarry: '#bed0d6', blouberg: '#c3c2bb' }; // 사진 지평선 색 → 안개·먼 산 색도 맞춤
 const SUN_DIR = new THREE.Vector3(50, 100, 35).normalize();
 const skyMat = new THREE.ShaderMaterial({
   uniforms: { uTop: { value: new THREE.Color('#5aa6e0') }, uHor: { value: SKY }, uSunC: { value: new THREE.Color('#fff2d8') }, uSunDir: { value: SUN_DIR }, uPhoto: { value: null }, uPK: { value: 0 }, uYaw: { value: 0 } },
@@ -175,7 +176,7 @@ const skyMat = new THREE.ShaderMaterial({
       col += uSunC * (pow(s, 900.0) * 4.0 + pow(s, 14.0) * 0.32);
       if (uPK > 0.001 && h > 0.0) { float u = atan(d.z, d.x) * 0.15915494 + 0.5 + uYaw; float v = asin(clamp(h, 0.0, 1.0)) * 0.63661977;
         vec3 ph = texture2D(uPhoto, vec2(fract(u), clamp(v, 0.004, 0.996))).rgb;
-        col = mix(col, ph, smoothstep(0.015, 0.2, h) * uPK); }
+        col = mix(col, ph, smoothstep(0.0, 0.07, h) * uPK); }
       gl_FragColor = vec4(col, 1.0);
       #include <colorspace_fragment>
     }`,
@@ -183,6 +184,7 @@ const skyMat = new THREE.ShaderMaterial({
 });
 const skyDome = new THREE.Mesh(new THREE.SphereGeometry(1000, 32, 18), skyMat); skyDome.renderOrder = -10; skyDome.frustumCulled = false; scene.add(skyDome);
 { const name = SKY_PHOTO[REGION.id] || 'jeju';
+  SKY.set(SKY_HOR[name]); scene.fog.color.copy(SKY);
   new THREE.TextureLoader().load(`./assets/sky/${name}.jpg?v=1`, t => {
     t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4; skyMat.uniforms.uPhoto.value = t;
     skyMat.uniforms.uYaw.value = SKY_SUNU[name] - (Math.atan2(SUN_DIR.z, SUN_DIR.x) / (Math.PI * 2) + .5);
