@@ -526,7 +526,7 @@ export function yonggungFrame(h) {
     if (Math.abs(dx) < .6 && lz >= HZc + HR - .2 && lz < HS1) return HY * (HS1 - lz) / (HS1 - (HZc + HR - .2));
     return 0;
   };
-  return { TY, ZC0, ZC1, ZB, ZS1, ZT1, HXc, HZc, HR, HY, HS1, ground, PZ: D / 2 + 6.4, gap: [YX - 4.8, YX - 1.4, 5.6] };
+  return { TY, ZC0, ZC1, ZB, ZS1, ZT1, HXc, HZc, HR, HY, HS1, ground, PZ: D / 2 + 4.3, gap: [YX - 4.8, YX - 1.4, 5.6] };
 }
 // 십이지신상 하나: 받침돌 + 도포 + 띠 동물 머리 (화강암)
 function zodiac(h, x, y, z, ry, i) {
@@ -573,7 +573,7 @@ export function buildYonggung(h, T, F) {
   plane(-YX - XW, ZC1 - YZ0 + 1, R.sea, (XW - YX) / 2, .045, (YZ0 + ZC1) / 2 - .5);
   plane(YX - XW + .5, ZC1 - ZC0, R.sea, (XW + YX) / 2, .046, (ZC0 + ZC1) / 2);
   rocks(-YX - .3, YZ0 + .5, -YX - .3, ZC0 - .4, 16, .35, .7); rocks(XW + .4, YZ0, XW + .4, ZB + 3, 14, .6, 1.2);
-  for (const x0 of [-YX + .4, 2.1]) rocks(x0, ZC0 - .15, x0 === 2.1 ? YX - .2 : -2.1, ZC0 - .15, 9, .3, .55);
+  for (const x0 of [-YX + .4, 3.4]) rocks(x0, ZC0 + .05, x0 === 3.4 ? YX - .2 : -3.4, ZC0 + .05, 8, .25, .45); // 다리 양옆은 비워 둠
   rail(-YX, YZ0, -YX, ZC0 - .35); col(-YX - .1, (YZ0 + ZC0) / 2, .2, (ZC0 - YZ0) / 2);
   for (const [x0, x1] of [[-YX - 6, -1.62], [1.62, YX + .4]]) col((x0 + x1) / 2, (ZC0 + ZC1) / 2, (x1 - x0) / 2, (ZC1 - ZC0) / 2 + .1);
   // ② 용문석교: 물길 위 흰 난간 무지개 다리 (다리 위에서 동전을 던지며 소원을 빎)

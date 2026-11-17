@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=3';
 import { buildHall } from './hall.js?v=8';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=9';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=10';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
 import { REGIONS } from './temples.js?v=7';
@@ -237,12 +237,13 @@ function buildSite(info, T) {
   }
   for (const sx of [-1, 1]) { add(new THREE.CylinderGeometry(.16, .18, 3, 10), MAT.red, sx * 1.6, 1.5, YZ1); col(sx * 1.6, YZ1, .25, .25); }
   box(4.2, .3, 1.2, MAT.wallCap, 0, 3.1, YZ1); box(3.6, .25, .3, MAT.red, 0, 2.8, YZ1);
-  // 석등 (법당 바로 앞)
+  if (!yg) { // 석등 (법당 바로 앞) — 해동용궁사는 그 자리에 사사자 석탑
   const SL = D / 2 + 4.4;
   add(new THREE.CylinderGeometry(.42, .5, .3, 8), MAT.stone, 0, .15, SL); add(new THREE.CylinderGeometry(.12, .14, .95, 8), MAT.stone, 0, .78, SL);
   box(.62, .14, .62, MAT.stone, 0, 1.3, SL); box(.46, .5, .46, MAT.stone, 0, 1.62, SL); box(.3, .26, .48, MAT.fire, 0, 1.62, SL);
   add(new THREE.ConeGeometry(.52, .38, 8), MAT.stoneDark, 0, 2.06, SL); add(new THREE.SphereGeometry(.1, 10, 8), MAT.stoneDark, 0, 2.3, SL);
   col(0, SL, .55, .55);
+  }
   // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
   const YG = yg ? yonggungFrame({ L, D, YX, YZ1 }) : null;
   const PZ = yg ? YG.PZ : D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, nameTex, site, fig: [] };
@@ -259,7 +260,7 @@ function buildSite(info, T) {
   const lanGeo = new THREE.IcosahedronGeometry(.21, 1), tasGeo = new THREE.CylinderGeometry(.02, .04, .22, 6), LM = MAT.lotus.length;
   const lanM = Array.from({ length: LM }, () => []), tasM = Array.from({ length: LM }, () => []), m4 = new THREE.Matrix4();
   const gy = (x, z) => yg ? YG.ground(x, z) : 0;
-  const rows = yg ? [D / 2 + 3.0, D / 2 + 4.6, D / 2 + 8.0, D / 2 + 12.2, D / 2 + 13.4, D / 2 + 16.6] : st.lanterns === 'canopy' ? Array.from({ length: Math.floor((YZ1 - 2 - (D / 2 + 5)) / 1.5) }, (_, i) => D / 2 + 5 + i * 1.5).filter(z => Math.abs(z - PZ) > 2) : [D / 2 + 7.2, D / 2 + 13.5, D / 2 + 17];
+  const rows = yg ? [D / 2 + 7.3, D / 2 + 12.2, D / 2 + 13.4, D / 2 + 16.6] : st.lanterns === 'canopy' ? Array.from({ length: Math.floor((YZ1 - 2 - (D / 2 + 5)) / 1.5) }, (_, i) => D / 2 + 5 + i * 1.5).filter(z => Math.abs(z - PZ) > 2) : [D / 2 + 7.2, D / 2 + 13.5, D / 2 + 17];
   let k = 0;
   for (const z of rows) {
     const x0 = -YX + .6, x1 = YX - .6, wy = Math.max(gy(0, z), gy(x0, z));
