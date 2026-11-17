@@ -34,12 +34,12 @@ async function link() {
   const m = [...ups].reverse().find(u => u.message?.chat?.type === 'private' && /^\/start/.test(u.message?.text || ''));
   if (!m) return null;
   const id = String(m.message!.chat!.id); await setKv('tg_chat_id', id);
-  await tg('sendMessage', { chat_id: id, text: `🙏 사찰 순례 제보 알림이 연결되었어요.\n새 사찰 제보가 들어오면 여기로 바로 알려 드릴게요.\n관리자 화면: ${ADMIN_URL}` });
+  await tg('sendMessage', { chat_id: id, text: `🙏 절로 제보 알림이 연결되었어요.\n새 사찰 제보가 들어오면 여기로 바로 알려 드릴게요.\n관리자 화면: ${ADMIN_URL}` });
   return id;
 }
 
 function fmt(r: Record<string, string | number | null>) {
-  const L = [`🙏 새 사찰 제보 #${r.id}`, `사찰: ${r.temple_name}${r.sido ? ` (${r.sido})` : ''}`];
+  const L = [`🙏 절로 · 새 사찰 제보 #${r.id}`, `사찰: ${r.temple_name}${r.sido ? ` (${r.sido})` : ''}`];
   if (r.address) L.push(`주소: ${cut(r.address as string, 200)}`);
   if (r.map_url) L.push(`지도: ${cut(r.map_url as string, 300)}`);
   L.push(`제보: ${r.role}${r.reporter ? ' · ' + cut(r.reporter as string, 40) : ''}`);
@@ -74,7 +74,7 @@ async function sendCode() {
   if (recent && recent[0] && Date.now() - Date.parse(recent[0].created_at) < 40e3) throw new Error('wait');
   const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
   await SB.from('admin_codes').insert({ code_hash: await sha('c:' + code), expires_at: new Date(Date.now() + 10 * 60e3).toISOString() });
-  await tg('sendMessage', { chat_id: id, text: `🔐 사찰 순례 관리자 로그인 코드: ${code}\n10분 안에 입력해 주세요. 직접 요청하지 않았다면 무시하세요.` });
+  await tg('sendMessage', { chat_id: id, text: `🔐 절로 관리자 로그인 코드: ${code}\n10분 안에 입력해 주세요. 직접 요청하지 않았다면 무시하세요.` });
 }
 async function login(raw: unknown) {
   const code = String(raw || '').replace(/\D/g, ''); if (code.length !== 6) throw new Error('bad_code');

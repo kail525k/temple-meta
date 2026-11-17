@@ -198,7 +198,7 @@ function useTemple(T) {
   const h1 = document.querySelector('#title h1'), p = document.querySelector('#title p');
   if (h1) h1.innerHTML = `${T.name} ${T.hallName} <small>${REGION.name} · ${T.where}</small>`;
   if (p) p.textContent = (T.note ? T.note : `${REGION.name}의 큰 사찰 ${temples.length}곳을 걸어서 돌아볼 수 있어요`) + (ENV.note ? ` · ${ENV.note}` : '');
-  document.title = `${T.name} ${T.hallName} · ${REGION.name} 온라인 참배`;
+  document.title = `${T.name} · 절로`;
 }
 
 // 불단 구성 문자열 'amita biro:1.15 sakya' → [{k, s}]
@@ -1239,7 +1239,7 @@ document.getElementById('btnPhoto').onclick = () => {
   try {
     renderer.render(scene, camera); const url = renderer.domElement.toDataURL('image/png');
     const a = document.createElement('a'); const ts = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).replace(/[: ]/g, '-');
-    a.href = url; a.download = `산사순례-${cur ? cur.name : REGION.name}-${ts}.png`; a.click();
+    a.href = url; a.download = `절로-${cur ? cur.name : REGION.name}-${ts}.png`; a.click();
     document.body.classList.add('flash'); setTimeout(() => document.body.classList.remove('flash'), 180); toast('📸 사진을 저장했어요');
   } catch (e) { toast('사진을 저장하지 못했어요'); }
 };

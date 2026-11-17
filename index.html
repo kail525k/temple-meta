@@ -3,8 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>전국 사찰 온라인 참배 체험판</title>
-<meta name="description" content="실제 법당 자리를 바탕으로, 법당 안에 들어가 삼배를 올리는 온라인 참배 체험판">
+<title>절로 · 전국 사찰 온라인 순례</title>
+<meta name="description" content="조계사부터 휴휴암까지, 실제 절을 걸어서 돌고 법당에서 삼배를 올려요">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="절로">
+<meta property="og:title" content="절로 · 전국 사찰 온라인 순례">
+<meta property="og:description" content="조계사부터 휴휴암까지, 실제 절을 걸어서 돌고 법당에서 삼배를 올려요">
+<meta property="og:url" content="https://temple-meta.vercel.app/">
+<meta property="og:image" content="https://temple-meta.vercel.app/assets/og-jeollo.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="절로 · 전국 사찰 온라인 순례">
+<meta name="twitter:description" content="조계사부터 휴휴암까지, 실제 절을 걸어서 돌고 법당에서 삼배를 올려요">
+<meta name="twitter:image" content="https://temple-meta.vercel.app/assets/og-jeollo.jpg">
+<meta name="apple-mobile-web-app-title" content="절로">
+<meta name="application-name" content="절로">
+<meta name="theme-color" content="#9b3b2b">
 <style>
   :root{--ink:#3b3226;--paper:rgba(255,250,240,.92);--line:rgba(80,60,30,.15);--accent:#9b3b2b;--jade:#2e8b74}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -115,11 +131,11 @@
 <body>
 <canvas id="c" tabindex="0"></canvas>
 
-<div id="loading"><div class="lotus">🪷</div><p id="loadMsg">사찰로 가는 중…<br>브이월드에서 실제 법당 위치를 불러오고 있어요</p></div>
+<div id="loading"><div class="lotus">🪷</div><p id="loadMsg"><b style="font-size:20px;letter-spacing:.06em">절로</b><br>사찰로 가는 중…<br>브이월드에서 실제 법당 위치를 불러오고 있어요</p></div>
 
 <div id="title" class="card">
   <h1>사찰 순례 <small>불러오는 중</small></h1>
-  <p>법당 안에 들어가 부처님께 삼배를 올리는 온라인 참배 체험판</p>
+  <p>절로 · 법당 안에 들어가 부처님께 삼배를 올리는 전국 사찰 온라인 순례</p>
   <div class="row"><span id="badge" class="badge">불러오는 중…</span><button id="dbgBtn" title="디버그 정보">🛠 상태</button></div>
 </div>
 <canvas id="minimap" class="card" width="264" height="264"></canvas>
@@ -184,6 +200,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=43"></script>
+<script type="module" src="./app.js?v=44"></script>
 </body>
 </html>
