@@ -526,21 +526,22 @@ async function enshrineStatues() {
   jobs.push(kitFor('sakya').then(kit => {
     if (!kit) return;
     for (const T of temples) {
-      if (T.bigBuddha && T.site) { const b = T.bigBuddha, st = kit.make(b.h); tintObj(st, 'bronze'); st.position.set(b.lx, b.ly, b.lz); T.site.add(st); n++; }
+      if (T.bigBuddha && T.site) { const b = T.bigBuddha, st = kit.make(b.h); tintObj(st, 'bronze'); st.position.set(b.lx, b.ly, b.lz); T.site.add(st); b.statue = st; n++; }
       if (T.mini && T.site) for (const m of T.mini) { const st = kit.make(.95); tintObj(st, 'stone'); st.position.set(m.lx, m.ly, m.lz); st.rotation.y = m.lx > 0 ? -Math.PI / 2 : Math.PI / 2; T.site.add(st); n++; }
     }
   }));
   // 바깥 보살상·입불·포대화상 (해수관음대불, 지혜관음, 큰 입불 등)
   for (const T of temples) for (const f of T.figs || []) jobs.push(kitFor(f.k).then(kit => {
     if (!kit || !T.site) return;
-    const st = kit.make(f.h); tintObj(st, f.tint); st.position.set(f.lx, f.ly, f.lz); st.rotation.y = f.ry || 0; T.site.add(st);
+    const st = kit.make(f.h); tintObj(st, f.tint); st.position.set(f.lx, f.ly, f.lz); st.rotation.y = f.ry || 0; T.site.add(st); f.statue = st;
     (f.ph || []).forEach(o => { o.visible = false; }); n++;
   }));
   await Promise.all(jobs);
   for (const T of temples) T.occ = null; // 불상이 들어왔으니 카메라 가림 목록을 다시 모음
   buildSolids();                           // 불상·받침도 부딪히는 물체로
-  dbg('statues', n);
+  dbg('statues', n); statuesDone = true;
 }
+let statuesDone = false;
 
 /* ───────── 입력 ───────── */
 const keys = {};
@@ -1459,6 +1460,13 @@ if (/[?&]dbg/.test(location.search)) window.__t = {
   walk(on, run) { keys.KeyW = !!on; keys.ShiftLeft = !!run; },
   get glb() { return glb; },
   get cur() { return cur; },
+  get statuesDone() { return statuesDone; },
+  // 점검: 절마다 법당 불상·바깥 불상이 모델로 다 들어왔는지
+  audit: () => temples.map(T => ({ name: T.name, hall: T.hallName,
+    altar: ((T.hall && T.hall.slots) || []).filter(s => !s.skip).map(s => s.k + (s.statue ? '✓' : '✗')).join(' '),
+    out: [...(T.figs || []).map(f => f.k + (f.statue ? '✓' : '✗')), ...(T.bigBuddha ? ['big' + (T.bigBuddha.statue ? '✓' : '✗')] : [])].join(' ') })),
+  inside(i) { goTemple(temples[i]); document.getElementById('btnHall').click(); const [x, z] = L2W(0, hall.interior.iz1 - .2); avatar.position.set(x, hall.FY, z); fpv = true; pitch = -.08; intro = -1; },
+  outside() { fpv = false; },
   fishGo(where = 'at') { const F = cur && cur.fish; if (!F) return null; const P = where === 'stall' ? { lx: F.stall.lx, lz: F.stall.lz + 1.6 } : F.at; const [x, z] = L2W(P.lx, P.lz); avatar.position.set(x, avatar.position.y, z); faceTo({ x: F.feedTo.lx, z: F.feedTo.lz }); intro = -1; yaw = avatar.rotation.y + Math.PI; dist = 5; pitch = .35; return P; },
   acts: () => ctxActs.map(a => a[0]), act: i => ctxActs[i] && ctxActs[i][1](),
   go(i, lx, lz) { const T = temples[i]; goTemple(T); if (lz !== undefined) { const [x, z] = L2W(lx, lz); avatar.position.set(x, 0, z); } return T.name; },
