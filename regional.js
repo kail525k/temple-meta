@@ -412,13 +412,14 @@ export function treeKit() {
 }
 
 /* ───────── 바다 사찰: 법당 뒤로 펼쳐진 바다와 바위 해안 ───────── */
-export function buildSea(h, { gap = null, side = 0 } = {}) {
+export function buildSea(h, { gap = null, side = 0, clear = null } = {}) {
   const { add, YX, YZ0 } = h, W = 2 * (YX + 22), Dp = 70;
   const sea = add(new THREE.PlaneGeometry(W, Dp), R.sea, 0, .045, YZ0 - .8 - Dp / 2, false); sea.rotation.x = -Math.PI / 2; sea.receiveShadow = false;
   const sh = add(new THREE.PlaneGeometry(W, 3.2), R.shallow, 0, .05, YZ0 - 2.2, false); sh.rotation.x = -Math.PI / 2; sh.receiveShadow = false;
   for (let i = 0; i < 46; i++) {
     const x = (Math.random() - .5) * (W - 6), z = YZ0 - .9 - Math.pow(Math.random(), 2.2) * 9 - (Math.random() < .15 ? Math.random() * 20 : 0), r = .5 + Math.random() * 1.6;
     if (gap && x > gap[0] - 1.2 && x < gap[1] + 1.2 && z > YZ0 - gap[2] - 1.5) continue; // 바위 끝으로 나가는 길은 비움
+    if (clear && ((x - clear.x) / (clear.rx + r)) ** 2 + ((z - (YZ0 + clear.z)) / (clear.rz + r)) ** 2 < 1) continue; // 황어 떼가 노는 물은 비움
     const m = add(new THREE.IcosahedronGeometry(r, 0), Math.random() < .5 ? R.rock : R.rock2, x, r * .2, z); m.scale.y = .55 + Math.random() * .3; m.rotation.y = Math.random() * 3;
   }
   // 흰 돌난간 (뒤 담장 대신)
@@ -499,7 +500,7 @@ export function buildHyuhyu(h, T) {
     out.flat = { x0: x - 4, x1: x + 4, depth: 2.6, lx: x, lz: z };
   }
   // 바다의 바위: 누운 관세음보살 바위, 거북 바위
-  { const x = -9, z = YZ0 - 9;
+  { const x = -9, z = YZ0 - 12.6; // 황어 떼 너머
     for (let i = 0; i < 6; i++) { const r = add(new THREE.IcosahedronGeometry(1.1 - i * .08, 0), R.rock, x + i * 1.6, .25, z - Math.sin(i * .6) * .3); r.scale.set(1.3, .5, .8); }
     const head = add(new THREE.SphereGeometry(.85, 10, 8), R.rock, x - 1.4, .55, z); head.scale.set(1, .8, .9);
     const t = add(new THREE.SphereGeometry(1.6, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), R.rock2, x - 6, 0, z + 3.5); t.scale.y = .55;
