@@ -32,6 +32,7 @@
   body.touch #joy{display:block}
   #help{position:fixed;left:12px;bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));font-size:11.5px;padding:8px 12px;color:#6d5f4b;max-width:250px;line-height:1.5}
   body.touch #help{display:none}
+  #btnJump{position:fixed;right:18px;bottom:calc(max(26px,env(safe-area-inset-bottom) + 18px) + 210px);width:62px;height:62px;border-radius:50%;border:1px solid rgba(80,60,30,.2);background:rgba(255,250,240,.82);font-size:22px;line-height:1;color:#5a3a22;display:none;flex-direction:column;align-items:center;justify-content:center;touch-action:none;z-index:4;box-shadow:0 4px 14px rgba(60,40,20,.18)}#btnJump span{font-size:10.5px;margin-top:2px}body.touch #btnJump{display:flex}
   #aim{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,250,235,.9);box-shadow:0 0 0 1.5px rgba(60,40,20,.45);pointer-events:none;display:none;z-index:3}
   body.locked #aim{display:block}body.locked #c{cursor:none}
   #attrib{position:fixed;left:0;right:0;bottom:0;text-align:center;font-size:10px;color:rgba(50,40,25,.7);padding:3px 8px calc(3px + env(safe-area-inset-bottom));pointer-events:none;text-shadow:0 1px 0 rgba(255,255,255,.6)}
@@ -157,7 +158,8 @@
   <canvas id="bigMap" width="720" height="720"></canvas>
 </div></div>
 <div id="joy"><div id="knob"></div></div>
-<div id="help" class="card"><b>화면 클릭 → 마우스로 둘러보기</b> (Esc 해제) · WASD·↑↓ 이동 · ←→ 돌기 · Shift 달리기 · 휠 확대·축소 · E 상황 버튼 · 1 합장 2 절 3 앉기 4 목탁 5 염주 · 미니맵 누르면 지도</div>
+<div id="help" class="card">WASD·방향키 이동 · <b>Space 점프</b> · Shift 달리기 · <b>화면 클릭 → 마우스로 둘러보기</b>(Esc 해제)·드래그 시점 · 휠 확대 · F 1인칭 · E 상황 버튼 · 1 합장 2 절 3 앉기 4 목탁 5 염주 · 미니맵 누르면 지도</div>
+<button id="btnJump" aria-label="점프">⤒<span>점프</span></button>
 <div id="aim"></div>
 <div id="toast" class="card"></div>
 <button id="bowPrompt">🙇 여기서 삼배 올리기</button>
@@ -181,6 +183,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=26"></script>
+<script type="module" src="./app.js?v=27"></script>
 </body>
 </html>

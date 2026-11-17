@@ -400,6 +400,10 @@ export function treeKit() {
   return {
     species,
     pick(weights) { let t = rnd() * Object.values(weights).reduce((a, b) => a + b, 0); for (const [k, w] of Object.entries(weights)) { t -= w; if (t <= 0) return k; } return Object.keys(weights)[0]; },
+    // 줄기·대나무·덤불 자리 (부딪히는 기둥으로 씀): [x, z, 반지름, 높이]
+    trunks() { const out = [], v = new THREE.Vector3(), q2 = new THREE.Quaternion(), sc = new THREE.Vector3();
+      for (const k of ['trunk', 'pineTrunk', 'bamboo', 'bush', 'tea']) for (const m of lists[k]) { m.decompose(v, q2, sc); const r = k === 'bush' ? sc.x * .8 : k === 'tea' ? sc.x * .9 : .22 * sc.x; out.push([v.x, v.z, r, k === 'tea' ? .7 : 3]); }
+      return out; },
     commit(scene) {
       for (const k in P) { const arr = lists[k]; if (!arr.length) continue; const im = new THREE.InstancedMesh(P[k][0], P[k][1], arr.length); arr.forEach((m, i) => im.setMatrixAt(i, m)); im.castShadow = !['red', 'orange', 'bambooLeaf'].includes(k); scene.add(im); }
     },
