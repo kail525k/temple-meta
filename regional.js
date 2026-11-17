@@ -4,7 +4,7 @@
 //   통도사 금강계단, 해인사 장경판전, 백양사 쌍계루, 선암사 승선교, 관음사 석불 길, 조계사 노거수 등
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
-import { hipRoofGeo, gableRoofGeo } from './hall.js?v=7';
+import { hipRoofGeo, gableRoofGeo } from './hall.js?v=8';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const R = {
@@ -173,6 +173,23 @@ export function buildExtras(h, T) {
       fig.push({ k: b.k, tint: b.tint, lx: x, ly: 2.05, lz: z, h: b.h, ry: 0, ph: [ph] });
       if (b.name) add(new THREE.PlaneGeometry(1.7, .42), new THREE.MeshStandardMaterial({ map: h.nameTex(b.name, '#2b1d14', '#f2cf72', 38), roughness: .6 }), x, .62, z + 2.27, false);
       col(x, z, 2.3, 2.3);
+    }
+    if (kind === 'buldu') { // 와우정사 입구 황금 불두: 돌로 쌓은 받침 위 8m 부처님 머리, 앞에 작은 연못
+      const z = h.PZ, by = 1.5;
+      add(new THREE.CylinderGeometry(2.2, 2.6, by, 12), R.granite2, 0, by / 2, z);
+      for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2, r = .35 + Math.random() * .2; add(new THREE.IcosahedronGeometry(r, 0), i % 2 ? R.rock : R.rock2, Math.cos(a) * 2.45, .25 + Math.random() * .9, z + Math.sin(a) * 2.45); }
+      const ph = add(new THREE.SphereGeometry(2.3, 20, 14), R.gold, 0, by + 2.6, z); ph.scale.set(.85, 1.1, .9);
+      fig.push({ k: 'buldu', lx: 0, ly: by, lz: z, h: 6.0, ry: 0, ph: [ph] });
+      const pond = add(new THREE.CylinderGeometry(1.7, 1.7, .06, 24), R.sea || h.MAT.stone, 0, .05, z + 3.9, false); pond.receiveShadow = true;
+      add(new THREE.TorusGeometry(1.75, .14, 6, 28), R.granite, 0, .08, z + 3.9).rotation.x = Math.PI / 2;
+      col(0, z, 2.7, 2.7); col(0, z + 3.9, 1.9, 1.9);
+      out.pagoda = { x: 0, z, r: 2.7 };
+    }
+    if (kind === 'cairns') { // 통일의 돌탑: 세계 성지에서 가져온 돌을 쌓아 올린 작은 돌탑들
+      for (const [x, z, n] of [[-4.6, D / 2 + 2.2, 7], [-5.8, D / 2 + 3.4, 5], [4.6, D / 2 + 2.4, 6], [5.9, D / 2 + 3.2, 8], [-6.2, D / 2 + 1.2, 4], [6.4, D / 2 + 1.4, 5]]) {
+        let y = 0; for (let i = 0; i < n; i++) { const r = .34 - i * .028, m = add(new THREE.IcosahedronGeometry(r, 0), i % 2 ? R.rock : R.granite2, x + (Math.random() - .5) * .06, y + r * .45, z + (Math.random() - .5) * .06); m.scale.y = .55; m.rotation.y = Math.random() * 3; y += r * .78; }
+        col(x, z, .35, .35);
+      }
     }
     if (kind === 'mireuk') { // 금산사 미륵전: 3층 법당
       const x = -SX, z = -.5;
@@ -463,8 +480,8 @@ export function buildHyuhyu(h, T) {
     add(new THREE.CylinderGeometry(1.0, 1.1, .3, 18), R.marble, x, 1.3, z - 1.2);
     const fig = h.fig || (h.fig = []);
     fig.push({ k: 'bosalS', tint: 'marble', lx: x, ly: 1.45, lz: z - 1.2, h: 8.2, ry: 0, ph: [standingGwaneum(o => h.site.add(o), x, 1.45, z - 1.2, 7.8, 0)] });
-    fig.push({ k: 'disciple', tint: 'marble', lx: x - 2.7, ly: .45, lz: z + .4, h: 1.6, ry: .25, ph: [standingGwaneum(o => h.site.add(o), x - 2.7, .45, z + .4, 1.5, .25)] }); // 남순동자
-    standingGwaneum(o => h.site.add(o), x + 2.8, .45, z + .3, 2.5, -.25, R.gold);        // 동해용왕
+    fig.push({ k: 'dongja', lx: x - 2.7, ly: .45, lz: z + .4, h: 1.5, ry: .25, ph: [standingGwaneum(o => h.site.add(o), x - 2.7, .45, z + .4, 1.5, .25)] }); // 남순동자 (합장한 동자)
+    fig.push({ k: 'yongwang', lx: x + 2.8, ly: .45, lz: z + .3, h: 2.6, ry: -.25, ph: [standingGwaneum(o => h.site.add(o), x + 2.8, .45, z + .3, 2.5, -.25, R.gold)] }); // 동해용왕 (진주를 든 용왕)
     add(new THREE.PlaneGeometry(1.8, .44), new THREE.MeshStandardMaterial({ map: h.nameTex('지혜관세음보살', '#2b1d14', '#f2cf72', 38), roughness: .6 }), x, .72, z + 4.62, false);
     col(x, z - 1.2, 1.5, 1.5); col(x - 2.7, z + .4, .4, .4); col(x + 2.8, z + .3, .5, .5);
   }

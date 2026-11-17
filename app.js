@@ -2,11 +2,11 @@
 import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=3';
-import { buildHall } from './hall.js?v=7';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=7';
+import { buildHall } from './hall.js?v=8';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=8';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
-import { REGIONS } from './temples.js?v=6';
+import { REGIONS } from './temples.js?v=7';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=2';
 
 /* ───────── 설정 ───────── */
@@ -412,11 +412,11 @@ let blinkT = 2.5, idleT = 0;
 // disciple 선 제자 · chunsu 천수관음 · buddhaS 선 부처 · budai 포대화상. 아직 없는 모델은 비슷한 모델이나 코드로 그린 자리표시로 대신함
 const ASSET = 'https://cdn.jsdelivr.net/gh/kail525k/temple-meta@';
 const STATUE_URL = QS.get('statue') || ASSET + '898d0acabdb82f4c5bf3bbe52d99d4619ad7b591/assets/buddha.glb';
-const KIT_SHA = QS.get('kits') || '9d6246685b3ce50906233eec17c3c7c32859b7ee';
-const KIT_HAVE = new Set(['amita', 'biro', 'yaksa', 'bosal', 'bosalS', 'disciple', 'chunsu', 'buddhaS', 'budai']);
+const KIT_SHA = QS.get('kits') || '5a35011cef232382400aa936e99f3a9cc8ae72ae';
+const KIT_HAVE = new Set(['amita', 'biro', 'yaksa', 'bosal', 'bosalS', 'disciple', 'chunsu', 'buddhaS', 'budai', 'yongwang', 'dongja', 'wabul', 'buldu']);
 const KIT_URL = k => k === 'sakya' ? STATUE_URL : KIT_HAVE.has(k) ? `${ASSET}${KIT_SHA}/assets/statue-${k}.glb` : null;
-const KIT_FALLBACK = { amita: 'sakya', yaksa: 'sakya', biro: 'sakya', bosal: 'sakya' };
-const KIT_H = { sakya: 2.0, amita: 2.0, yaksa: 2.0, biro: 2.0, bosal: 1.9, bosalS: 2.45, disciple: 2.1, chunsu: 2.5, buddhaS: 2.6, budai: 2.0 };
+const KIT_FALLBACK = { amita: 'sakya', yaksa: 'sakya', biro: 'sakya', bosal: 'sakya', dongja: 'disciple' };
+const KIT_H = { sakya: 2.0, amita: 2.0, yaksa: 2.0, biro: 2.0, bosal: 1.9, bosalS: 2.45, disciple: 2.1, chunsu: 2.5, buddhaS: 2.6, budai: 2.0, wabul: 2.6, yongwang: 2.6, dongja: 1.5, buldu: 6 };
 const kitCache = new Map();
 function kitFor(k) {
   if (!kitCache.has(k)) {
@@ -426,12 +426,13 @@ function kitFor(k) {
   }
   return kitCache.get(k);
 }
-const TINT = (() => { const cache = { bronze: new Map(), stone: new Map(), gold: new Map(), marble: new Map() };
+const TINT = (() => { const cache = { bronze: new Map(), stone: new Map(), gold: new Map(), marble: new Map(), wood: new Map() };
   const mk = (kind, fn) => m => { const c = cache[kind]; if (!c.has(m)) { const k = m.clone(); fn(k); c.set(m, k); } return c.get(m); };
   return {
     bronze: mk('bronze', k => { k.color.set('#8c7650'); k.metalness = .75; k.roughness = .42; k.emissiveIntensity = .05; }),
     stone: mk('stone', k => { k.map = null; k.emissiveMap = null; k.emissiveIntensity = 0; k.color.set('#a7a29a'); k.metalness = 0; k.roughness = .95; k.envMapIntensity = .25; }),
     gold: mk('gold', k => { k.color.set('#ffd98a'); k.metalness = .8; k.roughness = .3; k.emissiveIntensity = .22; }),
+    wood: mk('wood', k => { k.color.set('#c99566'); k.metalness = .05; k.roughness = .62; k.emissiveIntensity = .08; }), // 향나무 목조 (와우정사 와불)
     marble: mk('marble', k => { k.map = null; k.emissiveMap = null; k.emissiveIntensity = 0; k.color.set('#f1eee8'); k.metalness = 0; k.roughness = .55; k.envMapIntensity = .4; }),
   };
 })();
@@ -447,6 +448,7 @@ async function enshrineStatues() {
       const old = sl.obj, s = sl.s;
       old.children.forEach(ch => { if (!isHalo(ch)) ch.visible = false; }); // 두광·신광(뒤쪽 원판)만 남김
       const st = kit.make((KIT_H[sl.k] || 2) * s), d = st.userData.depth;
+      if (sl.k === 'wabul') tintObj(st, (T.style && T.style.wabulTint) || null);
       const back = sl.z - .27 * s, cz = Math.min(back + d / 2, sl.z + .95 - d / 2);
       st.position.set(sl.x, sl.y, cz);
       old.parent.add(st); sl.statue = st; n++;
@@ -787,6 +789,7 @@ function step() {
   // 아래에서 올려다볼 때: 카메라가 바닥 밑으로 들어가지 않게 바닥 바로 위에 붙이고, 시선은 조금 더 위로
   { let fy = 0; if (hall) { const [fl, fz] = W2L(camGoal.x, camGoal.z); fy = hall.heightAt(fl, fz); } camGoal.y = Math.max(camGoal.y, fy + .16); }
   camera.position.lerp(camGoal, Math.min(1, dt * 8));
+  { const cd = Math.hypot(camera.position.x - avatar.position.x, camera.position.y - avatar.position.y - 1.1, camera.position.z - avatar.position.z); avatar.visible = cd > .8; } // 벽에 바짝 붙어 카메라가 머리까지 오면 몸을 숨겨 시야 확보
   camera.lookAt(avatar.position.x + shX, avatar.position.y + 1.05 + Math.max(0, -effP) * Math.min(effD, 3) * .3, avatar.position.z + shZ);
   faceFill.position.set(camera.position.x, camera.position.y + 1.2, camera.position.z); faceFill.target.position.set(avatar.position.x, avatar.position.y + 1, avatar.position.z);
   sun.position.set(avatar.position.x + 50, 100, avatar.position.z + 35); sun.target.position.copy(avatar.position);

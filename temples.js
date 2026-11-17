@@ -10,6 +10,7 @@ export const REGIONS = [
   { id: 'gyeonggi', name: '경기·인천', env: { trees: { pine: .5, broad: .25, maple: .25 }, mtn: { h: 46 }, grass: '#a6bd7e', note: '나지막한 산 · 소나무' }, temples: [
     { name: '용주사', hall: '대웅보전', altar: 'amita sakya yaksa', buddhas: 3, lat: 37.212441, lng: 127.005010, where: '화성' },
     { name: '봉선사', hall: '큰법당', altar: 'bosal sakya bosal', buddhas: 3, lat: 37.7370, lng: 127.1800, where: '남양주', style: { signHangul: true } },
+    { name: '와우정사', hall: '열반전', altar: 'wabul', buddhas: 1, lat: 37.1939, lng: 127.2780, where: '용인 연화산', note: '입구의 8m 황금 불두 → 뒤편 열반전의 12m 목조 와불(누운 부처) · 통일의 돌탑', style: { pagoda: 'none', extras: ['buldu', 'cairns'], wabulTint: 'wood' } },
   ] },
   { id: 'gangwon', name: '강원', env: { trees: { fir: .6, maple: .2, pine: .2 }, mtn: { h: 100, rock: true, snow: true }, grass: '#9cb07c', note: '높은 산 · 전나무 숲' }, temples: [
     { name: '월정사', hall: '적광전', altar: 'sakya', buddhas: 1, lat: 37.7318, lng: 128.5926, where: '평창 오대산', style: { pagoda: 'octa9' } },

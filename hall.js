@@ -123,14 +123,14 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
   for (const sx of [-1, 1]) box(.1, PH, .07, MAT.trim, sx * (AW / 2 + .35), PY, iz0 + .05);
   // 부처님 (삼존불 또는 한 분)
   const BY = FY + AH + .1;
-  const STAND = k => ['bosalS', 'disciple', 'chunsu', 'buddhaS'].includes(k), WID = k => STAND(k) ? (k === 'chunsu' ? 1.2 : .8) : 1.45;
+  const STAND = k => ['bosalS', 'disciple', 'chunsu', 'buddhaS'].includes(k), WID = k => k === 'wabul' ? 6.0 : STAND(k) ? (k === 'chunsu' ? 1.2 : .8) : 1.45;
   const list = altar && altar.length ? altar : buddhas >= 3 ? [{ k: 'amita', s: .8 }, { k: 'sakya', s: 1 }, { k: 'yaksa', s: .8 }] : buddhas >= 1 ? [{ k: 'sakya', s: 1 }] : [];
   const gap = .25, need = list.reduce((a, it) => a + WID(it.k) * it.s, 0) + Math.max(0, list.length - 1) * gap, fit = Math.min(1.15, (AW - .4) / Math.max(.1, need));
   const slots = []; // 부처님 자리 (나중에 실제 불상 모델로 바꿔 끼움)
   let cx = -need * fit / 2;
   for (const it of list) {
     const w = WID(it.k) * it.s * fit, x = cx + w / 2, s = it.s * fit; cx += w + gap * fit;
-    const b = STAND(it.k) ? standing(THREE, MAT, s, it.k) : buddha(THREE, MAT, s); b.position.set(x, BY, AZ - .15); g.add(b);
+    const b = it.k === 'wabul' ? reclining(THREE, MAT, s) : STAND(it.k) ? standing(THREE, MAT, s, it.k) : buddha(THREE, MAT, s); b.position.set(x, BY, AZ - .15); g.add(b);
     slots.push({ x, y: BY, z: AZ - .15, s, k: it.k, stand: STAND(it.k), obj: b });
   }
   const seats = list;
@@ -185,6 +185,14 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
 }
 
 // 부처님 (단순한 도형으로 공손하게 표현한 좌상)
+// 와불 자리표시: 오른쪽으로 누워 팔을 괸 모습 (모델을 불러오면 바뀜)
+function reclining(THREE, MAT, s) {
+  const b = new THREE.Group(), L = 6.0 * s, H = 2.4 * s;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(.32 * H, L * .62, 6, 14), MAT.gold); body.rotation.z = Math.PI / 2; body.position.set(.08 * L, .34 * H, 0); body.scale.set(1, 1, .8); b.add(body);
+  const hd = new THREE.Mesh(new THREE.SphereGeometry(.2 * H, 14, 10), MAT.gold); hd.position.set(-.4 * L, .62 * H, 0); b.add(hd);
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(.08 * H, .1 * H, .5 * H, 8), MAT.gold); arm.position.set(-.42 * L, .3 * H, .05); b.add(arm);
+  return b;
+}
 // 선 존상 자리표시 (모델을 불러오기 전·못 불러올 때): 옷자락을 돌려 깎은 금빛 입상
 function standing(THREE, MAT, s, k) {
   const b = new THREE.Group(), H = (k === 'disciple' ? 2.2 : 2.5) * s;
