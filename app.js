@@ -420,8 +420,8 @@ const KIT_H = { sakya: 2.0, amita: 2.0, yaksa: 2.0, biro: 2.0, bosal: 1.9, bosal
 const kitCache = new Map();
 function kitFor(k) {
   if (!kitCache.has(k)) {
-    const url = KIT_URL(k);
-    const p = url ? loadStatue(url, renderer).catch(e => { dbg('kitError.' + k, e.message); return null; }) : Promise.resolve(null);
+    const url = KIT_URL(k), local = KIT_HAVE.has(k) ? `./assets/statue-${k}.glb` : null; // CDN이 막히면 이 사이트에서 직접
+    const p = url ? loadStatue(url, renderer).catch(e => { dbg('kitError.' + k, e.message); return local ? loadStatue(local, renderer).catch(() => null) : null; }) : Promise.resolve(null);
     kitCache.set(k, p.then(kit => kit || (KIT_FALLBACK[k] ? kitFor(KIT_FALLBACK[k]) : null)));
   }
   return kitCache.get(k);
