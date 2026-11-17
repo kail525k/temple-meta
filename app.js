@@ -160,6 +160,34 @@ const SKY = new THREE.Color('#cfe7f5');
 scene.background = SKY;
 scene.fog = new THREE.Fog(SKY, 70, 320);
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1200);
+// 실제 하늘: 지역마다 다른 하늘 사진(Poly Haven, CC0)을 하늘 공에 입힘 · 사진 속 해를 게임의 해 쪽으로 돌려 맞추고, 지평선 근처는 안개색으로 이어서 산·바다와 자연스럽게 맞물림
+const SKY_PHOTO = { seoul: 'miyako', gyeonggi: 'jeju', gangwon: 'gangwon', chungcheong: 'quarry', jeonbuk: 'jeju', jeonnam: 'miyako', gyeongbuk: 'quarry', gyeongnam: 'blouberg', jeju: 'jeju' };
+const SKY_SUNU = { jeju: .5999, gangwon: .6233, miyako: .5999, quarry: .608, blouberg: .03 };
+const SUN_DIR = new THREE.Vector3(50, 100, 35).normalize();
+const skyMat = new THREE.ShaderMaterial({
+  uniforms: { uTop: { value: new THREE.Color('#5aa6e0') }, uHor: { value: SKY }, uSunC: { value: new THREE.Color('#fff2d8') }, uSunDir: { value: SUN_DIR }, uPhoto: { value: null }, uPK: { value: 0 }, uYaw: { value: 0 } },
+  vertexShader: 'varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform vec3 uTop, uHor, uSunC, uSunDir; uniform sampler2D uPhoto; uniform float uPK, uYaw; varying vec3 vD;
+    void main(){ vec3 d = normalize(vD); float h = d.y;
+      vec3 col = mix(uHor, uTop, smoothstep(0.0, 0.55, h));
+      col = mix(col, uHor * 0.92, smoothstep(0.0, -0.2, h));
+      float s = max(dot(d, normalize(uSunDir)), 0.0);
+      col += uSunC * (pow(s, 900.0) * 4.0 + pow(s, 14.0) * 0.32);
+      if (uPK > 0.001 && h > 0.0) { float u = atan(d.z, d.x) * 0.15915494 + 0.5 + uYaw; float v = asin(clamp(h, 0.0, 1.0)) * 0.63661977;
+        vec3 ph = texture2D(uPhoto, vec2(fract(u), clamp(v, 0.004, 0.996))).rgb;
+        col = mix(col, ph, smoothstep(0.015, 0.2, h) * uPK); }
+      gl_FragColor = vec4(col, 1.0);
+      #include <colorspace_fragment>
+    }`,
+  side: THREE.BackSide, depthWrite: false, fog: false,
+});
+const skyDome = new THREE.Mesh(new THREE.SphereGeometry(1000, 32, 18), skyMat); skyDome.renderOrder = -10; skyDome.frustumCulled = false; scene.add(skyDome);
+{ const name = SKY_PHOTO[REGION.id] || 'jeju';
+  new THREE.TextureLoader().load(`./assets/sky/${name}.jpg?v=1`, t => {
+    t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4; skyMat.uniforms.uPhoto.value = t;
+    skyMat.uniforms.uYaw.value = SKY_SUNU[name] - (Math.atan2(SUN_DIR.z, SUN_DIR.x) / (Math.PI * 2) + .5);
+    skyDome.userData.on = true; dbg('sky', name);
+  }, undefined, () => dbg('sky', 'fail ' + name)); }
 scene.add(new THREE.HemisphereLight(0xfffaf0, 0x8fae6a, 1.1));
 const sun = new THREE.DirectionalLight(0xfff0d8, 1.6);
 sun.castShadow = true;
@@ -893,6 +921,7 @@ function step() {
     camera.lookAt(camera.position.x + fx * cp * 5, hy - Math.sin(pitch) * 5, camera.position.z + fz * cp * 5);
     avatar.visible = false;
   }
+  skyDome.position.copy(camera.position); if (skyDome.userData.on && skyMat.uniforms.uPK.value < 1) skyMat.uniforms.uPK.value = Math.min(1, skyMat.uniforms.uPK.value + dt * .8); // 하늘 사진이 오면 천천히 드러남
   faceFill.position.set(camera.position.x, camera.position.y + 1.2, camera.position.z); faceFill.target.position.set(avatar.position.x, avatar.position.y + 1, avatar.position.z);
   sun.position.set(avatar.position.x + 50, 100, avatar.position.z + 35); sun.target.position.copy(avatar.position);
   if (hall) { glowT += dt; hall.glow.visible = !sam; hall.glow.material.opacity = .35 + .25 * Math.sin(glowT * 3); }
