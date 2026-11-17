@@ -1275,12 +1275,12 @@ function openRegions() {
   regionList.innerHTML = '';
   for (const r of REGIONS) {
     const el = document.createElement('div'); el.className = 'rg' + (r === REGION ? ' on' : '');
-    el.innerHTML = `<b>${r.name}${r === REGION ? ' · 지금 여기' : ''}</b><span>${r.temples.map(t => t.name).join(' · ')}</span>`;
-    // 모든 지역에 '○○사 가기' 버튼: 지금 지역은 바로 걸어가고, 다른 지역은 그 지역을 불러와 그 절 앞에 섬
+    el.innerHTML = `<b>${r.name}${r === REGION ? ' · 지금 여기' : ''}</b>`;
+    // 모든 지역에 절 이름 버튼: 지금 지역은 바로 걸어가고, 다른 지역은 그 지역을 불러와 그 절 앞에 섬
     const go = document.createElement('div'); go.className = 'go';
     const far = (tn) => { const q = new URLSearchParams(location.search); q.set('r', r.id); if (tn) q.set('t', tn); else q.delete('t'); location.search = q.toString(); };
-    if (r === REGION) for (const T of temples) { const bt = document.createElement('button'); bt.textContent = `${T.name} 가기`; bt.onclick = e => { e.stopPropagation(); regionModal.classList.remove('show'); goTemple(T); }; go.appendChild(bt); }
-    else { for (const t of r.temples) { const bt = document.createElement('button'); bt.textContent = `${t.name} 가기`; bt.onclick = e => { e.stopPropagation(); far(t.name); }; go.appendChild(bt); } el.onclick = () => far(null); }
+    if (r === REGION) for (const T of temples) { const bt = document.createElement('button'); bt.textContent = T.name; bt.onclick = e => { e.stopPropagation(); regionModal.classList.remove('show'); goTemple(T); }; go.appendChild(bt); }
+    else { for (const t of r.temples) { const bt = document.createElement('button'); bt.textContent = t.name; bt.onclick = e => { e.stopPropagation(); far(t.name); }; go.appendChild(bt); } el.onclick = () => far(null); }
     el.appendChild(go);
     regionList.appendChild(el);
   }
