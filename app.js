@@ -6,7 +6,7 @@ import { buildHall } from './hall.js?v=8';
 import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=21';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=2';
-import { REGIONS } from './temples.js?v=7';
+import { REGIONS } from './temples.js?v=8';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=3';
 
 /* ───────── 설정 ───────── */
@@ -72,6 +72,11 @@ function vworldJSONP(path, params, ms = 15000) {
 async function findHallPoint(t) {
   const norm = v => (v || '').replace(/\s/g, '');
   const near = it => it.point && !/정류장|주차장|입구|화장실/.test(it.title || '') && Math.hypot((+it.point.y - t.lat) * 111, (+it.point.x - t.lng) * 111 * Math.cos(t.lat * Math.PI / 180)) < 12;
+  if (t.addr) try { // 제보로 들어온 작은 절: 도로명주소로 그 자리 건물을 바로 찾음 (매번 불러오고 저장하지 않음)
+    const d = await vworldJSONP('search', { service: 'search', request: 'search', version: '2.0', crs: 'EPSG:4326', size: '5', page: '1', query: t.addr, type: 'address', category: 'road', format: 'json', errorformat: 'json' }, 9000);
+    const it = ((d.response && d.response.result && d.response.result.items) || []).find(near);
+    if (it) return { lat: +it.point.y, lng: +it.point.x, via: '도로명주소 ' + ((it.address && it.address.bldnm) || '') };
+  } catch (e) { }
   for (const q of [`${t.name} ${t.hall}`, t.q || `${t.where.split(' ')[0]} ${t.name}`, t.name]) {
     try {
       const d = await vworldJSONP('search', { service: 'search', request: 'search', version: '2.0', crs: 'EPSG:4326', size: '10', page: '1', query: q, type: 'place', format: 'json', errorformat: 'json' }, 9000);
