@@ -503,14 +503,20 @@ const endDrag = e => {
   if (e.pointerId === drag.id) {
     drag.id = null;
     const tap = e.type === 'pointerup' && downInfo && Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y) < 7 && performance.now() - downInfo.t < 400;
-    if (tap) { if (FINE && e.pointerType === 'mouse') lockMouse(); else clickMove(e); } // PC: 화면을 누르면 3인칭 마우스 시점, 터치: 누른 곳으로 걷기
+    if (tap) { if (FINE && e.pointerType === 'mouse') lockMouse(e); else clickMove(e); } // PC: 화면을 누르면 3인칭 마우스 시점, 터치: 누른 곳으로 걷기
     downInfo = null;
   }
 };
 // 3인칭 마우스 시점 (총게임처럼): 화면을 한 번 누르면 마우스로 바로 둘러보고 WASD로 이동, Esc로 해제
 const FINE = matchMedia('(pointer: fine)').matches;
 const isLocked = () => document.pointerLockElement === canvas;
-function lockMouse() { if (!rituals.open && !isLocked() && canvas.requestPointerLock) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { } } }
+function lockMouse(ev) {
+  if (rituals.open || isLocked()) return;
+  const fail = err => { dbg('pointerLock', String(err && err.message || err || 'denied')); if (ev) clickMove(ev); }; // 브라우저가 막으면 예전처럼 누른 곳으로 걷기
+  if (!canvas.requestPointerLock) return fail('unsupported');
+  try { const p = canvas.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(() => { try { const q = canvas.requestPointerLock(); if (q && q.catch) q.catch(fail); } catch (e) { fail(e); } }); } catch (e) { fail(e); }
+}
+document.addEventListener('pointerlockerror', () => dbg('pointerLock', 'error'));
 addEventListener('mousemove', e => {
   if (!isLocked()) return;
   yaw -= e.movementX * 0.0024; pitch = clamp(pitch + e.movementY * 0.0019, PMIN, PMAX); intro = -1;
