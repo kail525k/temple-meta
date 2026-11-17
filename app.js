@@ -1080,12 +1080,13 @@ function buildBellAndRack(g, add) {
     // 당목: 밧줄 두 가닥에 매달린 통나무 · 뒤끝에 손으로 당기는 줄
     const LR = PIV - HS, LOGZ = 1.85;
     const strG = new THREE.Group(); strG.position.set(0, PIV, LOGZ); grp.add(strG);
-    const log = new THREE.Mesh(new THREE.CylinderGeometry(.12, .13, 1.7, 14), MAT.trunk); log.rotation.x = Math.PI / 2; log.position.set(0, -LR, 0); log.castShadow = true; strG.add(log);
-    for (const zz of [-.85, .85]) { const cap = new THREE.Mesh(new THREE.CircleGeometry(.12, 14), new THREE.MeshStandardMaterial({ color: '#9a7350', roughness: .9 })); cap.position.set(0, -LR, zz + Math.sign(zz) * .002); cap.rotation.y = zz > 0 ? 0 : Math.PI; strG.add(cap); }
-    for (const zz of [-.55, .55]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.014, .014, LR, 5), MAT.line); r.position.set(0, -LR / 2, zz); strG.add(r); }
+    const logG = new THREE.Group(); strG.add(logG); // 두 줄(평행)에 매달려 수평을 유지한 채 앞뒤로 흔들림
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(.12, .13, 1.7, 14), MAT.trunk); log.rotation.x = Math.PI / 2; log.position.set(0, -LR, 0); log.castShadow = true; logG.add(log);
+    for (const zz of [-.85, .85]) { const cap = new THREE.Mesh(new THREE.CircleGeometry(.12, 14), new THREE.MeshStandardMaterial({ color: '#9a7350', roughness: .9 })); cap.position.set(0, -LR, zz + Math.sign(zz) * .002); cap.rotation.y = zz > 0 ? 0 : Math.PI; logG.add(cap); }
+    const ropes = []; for (const zz of [-.55, .55]) { const rg = new THREE.Group(); rg.position.set(0, 0, zz); strG.add(rg); const r = new THREE.Mesh(new THREE.CylinderGeometry(.014, .014, LR, 5), MAT.line); r.position.set(0, -LR / 2, 0); rg.add(r); ropes.push(rg); }
     const pullRope = new THREE.Mesh(new THREE.CylinderGeometry(.016, .016, 1, 5), MAT.line); grp.add(pullRope); // 길이·방향은 매 프레임 맞춤
     obstacles.push({ cx: x, cz: z, c: 1, s: 0, hu: 1.05, hv: 1.05 });
-    BELL = { x, z, ux, uz, grp, bellG, strG, LR, LOGZ, pullRope, theta: 0, omega: 0, sway: 0, swayV: 0, struck: false, stand: [ux * (R0 - 3.3), uz * (R0 - 3.3)] };
+    BELL = { x, z, ux, uz, grp, bellG, strG, logG, ropes, LR, LOGZ, pullRope, theta: 0, omega: 0, sway: 0, swayV: 0, struck: false, stand: [ux * (R0 - 3.3), uz * (R0 - 3.3)] };
   }
   // 소원 연등대
   { const ux = Math.sin(aRack), uz = Math.cos(aRack), x = ux * R0, z = uz * R0, grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = Math.atan2(-ux, -uz); g.add(grp);
@@ -1189,11 +1190,11 @@ function updateBell(dt) {
     const HIT = .053;
     if (B.theta > HIT && B.omega > 0) { const v = B.omega; B.theta = HIT; B.omega = -v * .35; if (v > .18) ringBell(Math.min(1, v / 1.0)); }
   }
-  B.strG.rotation.x = B.theta;
+  B.logG.position.set(0, B.LR * (1 - Math.cos(B.theta)), -B.LR * Math.sin(B.theta)); for (const r of B.ropes) r.rotation.x = B.theta;
   { const bp = document.getElementById('bellPull'); if (bp) { const on = !!bellHold; if (bp._on !== on) { bp._on = on; bp.style.display = on ? 'block' : 'none'; } if (on) bp.style.setProperty('--p', Math.round((bellHold.pulling ? bellHold.pull : 0) * 100) + '%'); } }
   B.swayV += (-14 * B.sway - .8 * B.swayV) * dt; B.sway += B.swayV * dt; B.bellG.rotation.x = -B.sway;
   // 당기는 줄: 당목 뒤끝 → 잡고 있으면 손, 아니면 아래로 늘어짐
-  const a = B.strG.localToWorld(_bv.set(0, -B.LR, .85));
+  const a = B.strG.localToWorld(_bv.set(0, -B.LR * Math.cos(B.theta), .85 - B.LR * Math.sin(B.theta)));
   const b = bellHold ? _bv2.set(avatar.position.x + Math.sin(avatar.rotation.y) * .28, avatar.position.y + .78, avatar.position.z + Math.cos(avatar.rotation.y) * .28) : _bv2.copy(a).add(new THREE.Vector3(0, -.75, 0));
   const R = B.pullRope, par = R.parent; par.worldToLocal(a); par.worldToLocal(b);
   const d = b.clone().sub(a), len = Math.max(.05, d.length()); R.position.copy(a).addScaledVector(d, .5); R.scale.set(1, len, 1); R.quaternion.setFromUnitVectors(_UP, d.normalize());
@@ -1591,6 +1592,7 @@ async function startTogether() {
 if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   pos: () => { const p = avatar.position, [lx, lz] = W2L(p.x, p.z); return { lx: +lx.toFixed(2), lz: +lz.toFixed(2), y: +p.y.toFixed(3), feet: +feetY.toFixed(3), grounded, solids: SOLID.list.length }; },
   key: (code, on) => { keys[code] = on; },
+  bell: () => BELL && { th: +BELL.theta.toFixed(3), om: +BELL.omega.toFixed(3), hold: bellHold && { ...bellHold }, sway: +BELL.sway.toFixed(3) },
   probe: (lx, lz, feet) => { const [x, z] = L2W(lx, lz); const f = feet ?? feetY; const near = solidsNear(x, z).map(i => SOLID.list[i]).filter(o => solidHit(o, x, z, BODY_R)).map(o => ({ t: o.t, y0: +o.y0.toFixed(2), y1: +o.y1.toFixed(2), r: o.r && +o.r.toFixed(2), hu: o.hu && +o.hu.toFixed(2), hv: o.hv && +o.hv.toFixed(2) })); return { hAt: hall && +hall.heightAt(lx, lz).toFixed(3), g: +groundAt(x, z, f).toFixed(3), blocked: blockedAt(x, z, f), near }; },
   front(d = 3, p = .15) { intro = -1; yaw = behind() + Math.PI; dist = d; pitch = p; },
   side(d = 3, p = .15) { intro = -1; yaw = behind() + Math.PI / 2; dist = d; pitch = p; },
