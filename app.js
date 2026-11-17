@@ -12,7 +12,8 @@ import { createStore, createSound, initTodo, initRituals, initSoundPanel } from 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
 const QS = new URLSearchParams(location.search);
-const REGION = REGIONS.find(r => r.id === QS.get('r')) || REGIONS[0]; // 권역 = 한 장면(나중엔 한 방/서버)
+const HASH_R = location.hash.slice(1); // 아티팩트 안에서는 주소 뒤 #지역 으로 권역을 고름
+const REGION = REGIONS.find(r => r.id === (QS.get('r') || HASH_R)) || REGIONS[0]; // 권역 = 한 장면(나중엔 한 방/서버)
 const CFG = {
   vworldKey: '8047AF94-B2B2-49BC-9C11-746A988127D4',
   naverKeyId: '0fdr2ec8dd',
@@ -23,6 +24,8 @@ const CFG = {
 
 /* ───────── 디버그 ───────── */
 const DBG = { page: location.origin, three: THREE.REVISION };
+// Claude 아티팩트 안에서는 바깥 연결(브이월드·네이버 거리뷰·함께 순례·제보함)이 막혀 있어 그 기능은 끄고 사이트로 안내
+const OFFLINE = !!window.JEOLLO_ARTIFACT, SITE = 'https://temple-meta.vercel.app/';
 const dbgEl = document.getElementById('dbg');
 function dbg(k, v) { DBG[k] = v; renderDbg(); }
 function renderDbg() { dbgEl.textContent = Object.entries(DBG).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join('\n'); }
@@ -52,6 +55,7 @@ function toLatLng(x, z) {
 
 /* ───────── 브이월드 (실시간 호출, 저장하지 않음) ───────── */
 function vworldJSONP(path, params, ms = 15000) {
+  if (OFFLINE) return Promise.reject(new Error('offline'));
   return new Promise((resolve, reject) => {
     const cb = '__vw' + Math.random().toString(36).slice(2);
     const p = new URLSearchParams({ ...params, key: CFG.vworldKey, domain: location.protocol + '//' + location.hostname, callback: cb });
@@ -79,6 +83,7 @@ async function findHallPoint(t) {
   return { lat: t.lat, lng: t.lng, via: '대략 위치' };
 }
 function vworldBuildings(ref) {
+  if (OFFLINE) return Promise.reject(new Error('offline'));
   return new Promise((resolve, reject) => {
     const cb = '__vw' + Math.random().toString(36).slice(2);
     const domain = location.protocol + '//' + location.hostname;
@@ -776,6 +781,11 @@ async function openPano() {
   sizePano();
 }
 document.getElementById('btnPano').onclick = openPano;
+if (OFFLINE) { // 거리뷰는 사이트에서: 버튼을 사이트 링크로 바꿈
+  const b = document.getElementById('btnPano'), a = document.createElement('a');
+  a.id = 'btnPano'; a.className = b.className; a.href = SITE; a.target = '_blank'; a.rel = 'noopener';
+  a.innerHTML = '<i>🌐</i><span>사이트에서 거리뷰</span>'; b.replaceWith(a);
+}
 document.getElementById('btnClose').onclick = () => modal.classList.remove('show');
 
 /* ───────── 미니맵 (권역 전체, 위 = 처음 바라보는 쪽) ───────── */
@@ -1344,7 +1354,7 @@ function openRegions() {
     el.innerHTML = `<b>${r.name}${r === REGION ? ' · 지금 여기' : ''}</b>`;
     // 모든 지역에 절 이름 버튼: 지금 지역은 바로 걸어가고, 다른 지역은 그 지역을 불러와 그 절 앞에 섬
     const go = document.createElement('div'); go.className = 'go';
-    const far = (tn) => { const q = new URLSearchParams(location.search); q.set('r', r.id); if (tn) q.set('t', tn); else q.delete('t'); location.search = q.toString(); };
+    const far = (tn) => { if (OFFLINE) { try { sessionStorage.setItem('jeollo.t', tn || ''); } catch (e) { } location.hash = r.id; location.reload(); return; } const q = new URLSearchParams(location.search); q.set('r', r.id); if (tn) q.set('t', tn); else q.delete('t'); location.search = q.toString(); };
     if (r === REGION) for (const T of temples) { const bt = document.createElement('button'); bt.textContent = T.name; bt.onclick = e => { e.stopPropagation(); regionModal.classList.remove('show'); goTemple(T); }; go.appendChild(bt); }
     else { for (const t of r.temples) { const bt = document.createElement('button'); bt.textContent = t.name; bt.onclick = e => { e.stopPropagation(); far(t.name); }; go.appendChild(bt); } el.onclick = () => far(null); }
     el.appendChild(go);
@@ -1353,7 +1363,8 @@ function openRegions() {
   // 작은 절 제보: 스님·종무소·신도가 알려 주면 검토해서 넣음
   const rp = document.createElement('div'); rp.className = 'rg report';
   rp.innerHTML = `<b>🙏 우리 절도 넣어 주세요</b><span>지도에 없는 작은 절을 알려 주시면 검토해서 실제 모습대로 순례길에 넣어요 · 스님·종무소·신도 누구나</span><div class="go"><button>사찰 제보하기</button></div>`;
-  rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=2').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
+  if (OFFLINE) rp.innerHTML = `<b>🙏 우리 절도 넣어 주세요</b><span>사찰 제보는 사이트에서 받아요 · temple-meta.vercel.app</span><div class="go"><a href="${SITE}" target="_blank" rel="noopener" style="display:inline-block;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;text-decoration:none">사이트에서 제보하기</a></div>`;
+  else rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=2').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
   regionList.appendChild(rp);
   regionModal.classList.add('show');
 }
@@ -1462,6 +1473,7 @@ function onOffer(r) {
 }
 function hangLocal() { for (const w of store.wishes(REGION.id)) hangWish(w, false); for (const w of store.tiles(REGION.id)) hangTile(w, false); for (const T of temples) for (const w of store.tlan(T.name)) hangTempleLantern(T, w, false); }
 async function startTogether() {
+  if (OFFLINE) { hangLocal(); return; }
   try { NET = await connectTogether({ region: REGION.id, me: ME, onPeers, onState, onOffer, onStatus: s => { DBG.net = s; renderPeople(); } }); }
   catch (e) { dbg('netError', e.message); hangLocal(); return; }
   try { const rows = await Promise.race([NET.load(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 7000))]); applyOffers(rows); onlineOffers = true; DBG.offers = rows.length; }
@@ -1506,12 +1518,12 @@ async function startTogether() {
   document.getElementById('loading').classList.add('hide');
   canvas.focus();
   loop();
-  { const tq = QS.get('t'), T = tq && temples.find(t => t.name === tq); if (T) { goTemple(T); intro = -1; } } // 다른 지역 창에서 '○○사 가기'로 왔으면 그 절 앞으로
-  if (!QS.get('r') && !QS.has('dbg')) setTimeout(openRegions, 4200); // 처음 오면 지역 고르기를 보여 줌
+  { let tq = QS.get('t'); if (!tq && OFFLINE) { try { tq = sessionStorage.getItem('jeollo.t'); sessionStorage.removeItem('jeollo.t'); } catch (e) { } } const T = tq && temples.find(t => t.name === tq); if (T) { goTemple(T); intro = -1; } } // 다른 지역 창에서 '○○사 가기'로 왔으면 그 절 앞으로
+  if (!QS.get('r') && !REGIONS.some(r => r.id === HASH_R) && !QS.has('dbg')) setTimeout(openRegions, 4200); // 처음 오면 지역 고르기를 보여 줌
 })();
 
 // 점검용 (주소에 ?dbg 가 있을 때만): 카메라·자세를 고정해 확인
-if (/[?&]dbg/.test(location.search)) window.__t = {
+if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   pos: () => { const p = avatar.position, [lx, lz] = W2L(p.x, p.z); return { lx: +lx.toFixed(2), lz: +lz.toFixed(2), y: +p.y.toFixed(3), feet: +feetY.toFixed(3), grounded, solids: SOLID.list.length }; },
   key: (code, on) => { keys[code] = on; },
   probe: (lx, lz, feet) => { const [x, z] = L2W(lx, lz); const f = feet ?? feetY; const near = solidsNear(x, z).map(i => SOLID.list[i]).filter(o => solidHit(o, x, z, BODY_R)).map(o => ({ t: o.t, y0: +o.y0.toFixed(2), y1: +o.y1.toFixed(2), r: o.r && +o.r.toFixed(2), hu: o.hu && +o.hu.toFixed(2), hv: o.hv && +o.hv.toFixed(2) })); return { hAt: hall && +hall.heightAt(lx, lz).toFixed(3), g: +groundAt(x, z, f).toFixed(3), blocked: blockedAt(x, z, f), near }; },
