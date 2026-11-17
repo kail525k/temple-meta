@@ -1358,6 +1358,8 @@ async function startTogether() {
 
 // 점검용 (주소에 ?dbg 가 있을 때만): 카메라·자세를 고정해 확인
 if (/[?&]dbg/.test(location.search)) window.__t = {
+  pos: () => { const p = avatar.position, [lx, lz] = W2L(p.x, p.z); return { lx: +lx.toFixed(2), lz: +lz.toFixed(2), y: +p.y.toFixed(3), feet: +feetY.toFixed(3), grounded, solids: SOLID.list.length }; },
+  key: (code, on) => { keys[code] = on; },
   front(d = 3, p = .15) { intro = -1; yaw = behind() + Math.PI; dist = d; pitch = p; },
   side(d = 3, p = .15) { intro = -1; yaw = behind() + Math.PI / 2; dist = d; pitch = p; },
   back(d = 3, p = .2) { intro = -1; yaw = behind(); dist = d; pitch = p; },
