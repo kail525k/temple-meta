@@ -5,7 +5,7 @@
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=8';
-import { createSchool, tankFish } from './fish.js?v=1';
+import { createSchool, tankFish } from './fish.js?v=2';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const R = {
