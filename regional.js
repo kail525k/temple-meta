@@ -517,7 +517,7 @@ export function buildHyuhyu(h, T) {
 export function yonggungFrame(h) {
   const { L, D, YX, YZ1 } = h, TY = 1.6;
   const ZC0 = D / 2 + 8.6, ZC1 = D / 2 + 10.4, ZB = ZC1 + .3, ZS1 = D / 2 + 14, ZT1 = YZ1 - 2;
-  const HXc = L / 2 + 3.2, HZc = -1.4, HR = 2.4, HY = 2.4, HS1 = HZc + HR + 2.6; // 해수관음 언덕
+  const HXc = L / 2 + 2.45, HZc = -1.4, HR = 1.95, HY = 2.4, HS1 = HZc + HR + 2.6; // 해수관음 언덕 (오른쪽 담과 사이로 일출암 가는 길이 지나감)
   // 걸어 다니는 높이 (언덕·계단·다리)
   const ground = (lx, lz) => {
     if (lz > YZ1 + .05) return 0;
@@ -635,7 +635,7 @@ export function buildYonggung(h, T, F) {
   // ⑤ 해수관음대불: 대웅보전 오른쪽 계단 위 바위 언덕
   { const x = HXc, z = HZc;
     const hill = add(new THREE.CylinderGeometry(HR, HR + .5, HY, 12), R.rock, x, HY / 2, z); hill.scale.z = 1;
-    for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; if (Math.abs(Math.sin(a) - 1) < .25) continue; const r = .6 + Math.random() * .5, m = add(new THREE.IcosahedronGeometry(r, 0), i % 2 ? R.rock2 : R.rock, x + Math.cos(a) * (HR + .3), r * .4, z + Math.sin(a) * (HR + .3)); m.scale.y = .7; }
+    for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; if (Math.abs(Math.sin(a) - 1) < .25 || Math.cos(a) > .15) continue; /* 앞(계단)·오른쪽(길)은 비움 */ const r = .6 + Math.random() * .5, m = add(new THREE.IcosahedronGeometry(r, 0), i % 2 ? R.rock2 : R.rock, x + Math.cos(a) * (HR + .3), r * .4, z + Math.sin(a) * (HR + .3)); m.scale.y = .7; }
     plane(HR * 2 - .2, HR * 2 - .2, R.granite, x, HY + .01, z).geometry = new THREE.CircleGeometry(HR - .1, 20);
     const n = 9; for (let i = 0; i < n; i++) { const hh = HY * (n - i) / n, z0 = HZc + HR - .2 + (HS1 - (HZc + HR - .2)) * i / n, dz = (HS1 - (HZc + HR - .2)) / n; box(1.3, hh, dz + .01, R.granite, x, hh / 2, z0 + dz / 2); }
     add(new THREE.CylinderGeometry(1.0, 1.15, .4, 16), R.granite2, x, HY + .2, z - .5);

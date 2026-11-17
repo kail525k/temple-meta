@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB } from './monk-glb.js?v=3';
 import { buildHall } from './hall.js?v=8';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=18';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=19';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=1';
 import { REGIONS } from './temples.js?v=7';
@@ -580,6 +580,9 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyE') useContext();
   if (e.code === 'Space') e.preventDefault();
+  if (e.code === 'KeyC') toggleSit();
+  if (e.code === 'KeyM') openMap();
+  if (e.code === 'Tab') { e.preventDefault(); openRegions(); }
   if (e.code === 'KeyF') { fpv = !fpv; toast(fpv ? '👀 아기 스님 눈으로 봐요 (F 다시 누르면 돌아와요)' : '🎥 3인칭 시점', 1600); }
   if (e.code === 'Digit1') doHap(); if (e.code === 'Digit2') tryBow(); if (e.code === 'Digit3') toggleSit(); if (e.code === 'Digit4') rituals.openMoktak(); if (e.code === 'Digit5') rituals.openBeads();
 });
@@ -587,7 +590,7 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 let yaw = Math.PI, pitch = 0.24, dist = 6;
 let feetY = 0, vy = 0, grounded = true, jumpLatch = false, lastY = 0, jumpBtn = false, fpv = false; // 점프·1인칭
 const drag = { id: null, x: 0, y: 0 };
-const ZMIN = 1.4, ZMAX = 45; // 확대·축소 범위 (얼굴 가까이 ~ 권역 전체)
+const ZMIN = 1.4, ZMAX = 110; // 확대·축소 범위 (얼굴 가까이 ~ 권역을 높이서 내려다보기)
 const PMIN = -0.85, PMAX = 1.48; // 보는 각도: 아래에서 올려다보기(-) ~ 거의 위에서 내려다보기
 const ptrs = new Map(); let pinchD = 0, pinchDist0 = 0, downInfo = null;
 canvas.addEventListener('pointerdown', e => {
@@ -634,8 +637,22 @@ document.addEventListener('pointerlockchange', () => {
   if (isLocked() && !store.d.tpsTip) { store.d.tpsTip = 1; store.save(); toast('🖱️ 마우스로 둘러보고 WASD로 걸어요 · Esc를 누르면 마우스가 풀려요', 4200); }
 });
 canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
-canvas.addEventListener('wheel', e => { dist = clamp(dist * Math.exp(e.deltaY * .0013), ZMIN, ZMAX); e.preventDefault(); }, { passive: false });
-addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; if (e.code === 'Equal' || e.code === 'NumpadAdd') dist = clamp(dist / 1.25, ZMIN, ZMAX); if (e.code === 'Minus' || e.code === 'NumpadSubtract') dist = clamp(dist * 1.25, ZMIN, ZMAX); });
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoomBy(Math.exp(e.deltaY * .0024)); }, { passive: false });
+// 휠: 한 번에 크게 확대·축소 · 끝까지 당기면 1인칭(FPS), 1인칭에서 밀면 다시 3인칭
+let zoomLatch = 0;
+function zoomBy(f) {
+  const now = performance.now();
+  if (fpv && f > 1) { if (now - zoomLatch > 180) { fpv = false; dist = 2.2; zoomLatch = now; } return; }
+  if (!fpv && f < 1 && dist <= ZMIN + .01) { if (now - zoomLatch > 180 && !sit) { fpv = true; zoomLatch = now; } return; }
+  dist = clamp(dist * f, ZMIN, ZMAX); zoomLatch = now;
+}
+// 오른쪽 버튼을 누르고 있으면 조준하듯 확대 (FPS 정조준처럼)
+let aimZoom = false;
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('mousedown', e => { if (e.button === 2) aimZoom = true; });
+addEventListener('mouseup', e => { if (e.button === 2) aimZoom = false; });
+addEventListener('blur', () => { aimZoom = false; });
+addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; if (e.code === 'Equal' || e.code === 'NumpadAdd') zoomBy(1 / 1.45); if (e.code === 'Minus' || e.code === 'NumpadSubtract') zoomBy(1.45); });
 if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
 const joyEl = document.getElementById('joy'), knob = document.getElementById('knob');
 { const jb = document.getElementById('btnJump'); if (jb) { const on = e => { e.preventDefault(); jumpBtn = true; }, off = () => { jumpBtn = false; }; jb.addEventListener('pointerdown', on); jb.addEventListener('pointerup', off); jb.addEventListener('pointercancel', off); jb.addEventListener('pointerleave', off); } }
@@ -923,6 +940,7 @@ function step() {
     camera.lookAt(camera.position.x + fx * cp * 5, hy - Math.sin(pitch) * 5, camera.position.z + fz * cp * 5);
     avatar.visible = false;
   }
+  { const fov = aimZoom ? 26 : 55; if (Math.abs(camera.fov - fov) > .05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 12); camera.updateProjectionMatrix(); } }
   skyDome.position.copy(camera.position); if (skyDome.userData.on && skyMat.uniforms.uPK.value < 1) skyMat.uniforms.uPK.value = Math.min(1, skyMat.uniforms.uPK.value + dt * .8); // 하늘 사진이 오면 천천히 드러남
   faceFill.position.set(camera.position.x, camera.position.y + 1.2, camera.position.z); faceFill.target.position.set(avatar.position.x, avatar.position.y + 1, avatar.position.z);
   sun.position.set(avatar.position.x + 50, 100, avatar.position.z + 35); sun.target.position.copy(avatar.position);
