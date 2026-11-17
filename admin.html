@@ -28,6 +28,7 @@
   .tabs button{background:#fff;border:1px solid var(--line)}
   .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
   .item h3{margin:0;font-size:16px}.item .meta{color:var(--sub);font-size:12px;margin:2px 0 8px}
+  #mOut .code{font:800 26px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.08em;color:#7a4a00;background:#fff3c8;border-radius:10px;padding:10px 14px;display:inline-block;margin:8px 0}#mOut textarea{width:100%;min-height:92px}.mrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0;border-top:1px dashed #e5d9c4;font-size:14px}.mrow b{min-width:150px}.mrow .st{color:var(--sub);flex:1}.mrow .live{color:#2e7d32;font-weight:700}
   .item dl{display:grid;grid-template-columns:96px 1fr;gap:4px 10px;margin:0 0 10px;font-size:14px}
   .item dt{color:var(--sub)}.item dd{margin:0;white-space:pre-wrap;word-break:break-all}
   .badge{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:2px}
@@ -38,7 +39,7 @@
 </style>
 </head>
 <body>
-<header><div style="flex:1"><b>🙏 절로 · 사찰 제보 관리</b><small>스님·종무소·신도가 보낸 작은 절 제보를 검토해서 순례길에 넣어요</small></div><button id="btnTest" hidden>테스트 알림</button><button id="btnOut" hidden>로그아웃</button></header>
+<header><div style="flex:1"><b>🙏 절로 · 운영 관리</b><small>작은 절 제보 검토 · 스님 인증 초대</small></div><button id="btnTest" hidden>테스트 알림</button><button id="btnOut" hidden>로그아웃</button></header>
 <main>
   <section id="setup" class="card" hidden>
     <h2>① 텔레그램 알림 연결 (처음 한 번만)</h2>
@@ -60,6 +61,15 @@
     <div class="msg" id="loginMsg"></div>
   </section>
 
+  <section id="monks" class="card" hidden>
+    <h2>🪷 스님 인증 · 초대 코드</h2>
+    <p style="margin:0 0 10px;font-size:14px;color:var(--sub)">스님께 드릴 코드를 만들어요. 스님이 절로에서 <b>👥 함께 순례 → "스님이신가요? 인증 코드 넣기"</b>에 넣으면 그 기기가 금빛 이름표 <b>"🪷 ○○사 ○○ 스님"</b>과 가사를 두른 모습으로 보여요. 코드는 14일 안에 한 번만 쓸 수 있고, 이름에 '스님'을 적은 다른 사람은 스님으로 보이지 않아요.</p>
+    <div class="row"><select id="mRegion"></select><select id="mTemple"></select><input id="mName" maxlength="12" placeholder="법명 (예: 법운)" style="width:140px"><button class="main" id="mMake">초대 코드 만들기</button></div>
+    <div class="msg" id="mMsg"></div>
+    <div id="mOut"></div>
+    <div id="mList"></div>
+  </section>
+
   <section id="list" hidden>
     <div class="tabs" id="tabs"></div>
     <div id="items"></div>
@@ -73,7 +83,7 @@ const ERR = {
   no_token: 'Supabase에 TELEGRAM_BOT_TOKEN이 아직 없어요 (위 ③번)', not_linked: '봇에게 /start 를 보낸 뒤 연결 확인을 눌러 주세요',
   wait: '코드를 방금 보냈어요. 40초 뒤에 다시 받을 수 있어요', too_many: '오늘 코드를 너무 많이 받았어요. 내일 다시 해 주세요',
   bad_code: '6자리 숫자를 넣어 주세요', expired: '코드가 없거나 10분이 지났어요. 다시 받아 주세요', wrong_code: '코드가 맞지 않아요', too_many_tries: '여러 번 틀렸어요. 코드를 다시 받아 주세요',
-  auth: '로그인이 풀렸어요. 다시 로그인해 주세요',
+  auth: '로그인이 풀렸어요. 다시 로그인해 주세요', need_fields: '지역·사찰·법명을 모두 골라 주세요',
 };
 const errText = e => { const m = String(e && e.message || e); for (const k in ERR) if (m.includes(k)) return ERR[k]; if (m.includes('telegram:')) return '텔레그램이 거절했어요: ' + m.split('telegram:')[1] + ' (토큰을 다시 확인해 주세요)'; return '잠시 뒤에 다시 해 주세요 (' + m + ')'; };
 let token = ''; try { token = localStorage.getItem('templeAdmin.token') || ''; } catch (e) { }
@@ -128,10 +138,41 @@ function confirmClear() { return window.confirm('제보하신 분께 결과를 �
 function alertMsg(m) { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9;max-width:90vw'; d.textContent = m; document.body.appendChild(d); setTimeout(() => d.remove(), 3500); }
 async function load() { const j = await call('list'); items = j.items || []; render(); }
 
+/* ── 스님 인증 ── */
+let RG = [];
+import('./temples.js?v=9').then(m => { RG = m.REGIONS; $('mRegion').innerHTML = RG.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join(''); fillTemples(); });
+function fillTemples() { const r = RG.find(x => x.id === $('mRegion').value); $('mTemple').innerHTML = r ? r.temples.map(t => `<option>${esc(t.name)}</option>`).join('') : ''; }
+$('mRegion').onchange = fillTemples;
+const ago = t => { const m = Math.round((Date.now() - Date.parse(t)) / 60e3); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.round(m / 60) + '시간 전' : Math.round(m / 1440) + '일 전'; };
+async function loadMonks() {
+  const j = await call('monk_list'), rg = id => (RG.find(r => r.id === id) || {}).name || id;
+  $('mList').innerHTML = (j.items || []).map(m => {
+    const st = m.revoked_at ? '해제됨' : m.redeemed_at ? (m.last_seen && Date.now() - Date.parse(m.last_seen) < 4 * 60e3 ? `<span class="live">● 지금 접속 중${m.cur_temple ? ' · ' + esc(m.cur_temple) : ''}</span>` : `인증됨 · ${m.last_seen ? '마지막 접속 ' + ago(m.last_seen) : '아직 접속 전'}`) : Date.parse(m.code_expires) < Date.now() ? '코드 기간 지남' : `코드 전달 대기 · ${new Date(m.code_expires).toLocaleDateString('ko-KR')}까지`;
+    return `<div class="mrow"><b>🪷 ${esc(m.temple)} ${esc(m.name)} 스님</b><span class="st">${esc(rg(m.region))} · ${st}</span>${m.revoked_at ? '' : `<button data-rv="${m.id}">해제</button>`}</div>`;
+  }).join('') || '<div class="empty" style="padding:10px 0">아직 초대한 스님이 없어요</div>';
+}
+$('mMake').onclick = async () => {
+  $('mMsg').className = 'msg'; $('mMsg').textContent = ''; const name = $('mName').value.trim();
+  if (!name) { $('mMsg').textContent = '법명을 적어 주세요'; return; }
+  $('mMake').disabled = true;
+  try {
+    const j = await call('monk_invite', { region: $('mRegion').value, temple: $('mTemple').value, name });
+    const txt = `🪷 절로 스님 인증 초대 코드: ${j.code}\n1) https://temple-meta.vercel.app 에 들어가세요\n2) 오른쪽 위 👥 버튼 → "스님이신가요? 인증 코드 넣기"\n3) 코드 ${j.code} 를 넣고 [인증] (14일 안에 한 번만)\n인증한 기기에서 "🪷 ${$('mTemple').value} ${name.replace(/\s*스님$/, '')} 스님"으로 보여요.`;
+    $('mOut').innerHTML = `<div class="code">${esc(j.code)}</div><textarea readonly>${esc(txt)}</textarea><div class="row"><button id="mCopy">안내 문구 복사</button></div>`;
+    $('mCopy').onclick = () => { navigator.clipboard.writeText(txt).then(() => alertMsg('복사했어요. 스님께 문자·카톡으로 보내 드리세요'), () => alertMsg('복사가 안 되면 위 글을 길게 눌러 복사해 주세요')); };
+    $('mName').value = ''; await loadMonks();
+  } catch (e) { $('mMsg').textContent = errText(e); }
+  $('mMake').disabled = false;
+};
+$('mList').onclick = async e => {
+  const id = e.target.dataset.rv; if (!id || !window.confirm('이 스님 인증을 해제할까요? 그 기기는 더 이상 스님으로 보이지 않아요.')) return;
+  try { await call('monk_revoke', { id }); await loadMonks(); } catch (err) { alertMsg(errText(err)); }
+};
+
 async function boot() {
-  for (const s of ['setup', 'login', 'list']) $(s).hidden = true;
+  for (const s of ['setup', 'login', 'list', 'monks']) $(s).hidden = true;
   $('btnTest').hidden = $('btnOut').hidden = true;
-  if (token) { try { await load(); $('list').hidden = false; $('btnTest').hidden = $('btnOut').hidden = false; return; } catch (e) { if (token) { $('list').hidden = false; $('items').innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; } } }
+  if (token) { try { await load(); $('list').hidden = false; $('monks').hidden = false; loadMonks().catch(e => { $('mList').textContent = errText(e); }); $('btnTest').hidden = $('btnOut').hidden = false; return; } catch (e) { if (token) { $('list').hidden = false; $('items').innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; } } }
   let st = { token: false, linked: false };
   try { st = await call('status'); } catch (e) { $('setup').hidden = false; $('setupMsg').textContent = errText(e); return; }
   if (!st.token || !st.tokenOk || !st.linked) {

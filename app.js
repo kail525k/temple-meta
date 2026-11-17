@@ -7,6 +7,7 @@ import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggun
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=2';
 import { REGIONS } from './temples.js?v=9';
+import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=3';
 
 /* ───────── 설정 ───────── */
@@ -241,6 +242,7 @@ function useTemple(T) {
   if (h1) h1.innerHTML = `${T.name} ${T.hallName} <small>${REGION.name} · ${T.where}</small>`;
   if (p) p.textContent = (T.note ? T.note : `${REGION.name}의 큰 사찰 ${temples.length}곳을 걸어서 돌아볼 수 있어요`) + (ENV.note ? ` · ${ENV.note}` : '');
   document.title = `${T.name} · 절로`;
+  if (myMonk()) try { monkPing(); } catch (e) { } // 스님이 다른 절로 옮기면 '계신 절'도 바로 바뀜
 }
 
 // 불단 구성 문자열 'amita biro:1.15 sakya' → [{k, s}]
@@ -513,7 +515,7 @@ const MONK_URL = new URLSearchParams(location.search).get('monk') || './assets/b
 const MONK_CLOSED = './assets/monk-eyes-closed.webp'; // 눈 감은 얼굴 (Meshy AI 텍스처 편집)
 let glb = null;
 const glbReady = loadMonkGLB(MONK_URL, { closedUrl: MONK_CLOSED, onProgress: f => { const m = document.getElementById('loadMsg'); if (m && !document.getElementById('loading').classList.contains('hide')) m.innerHTML = `아기 스님을 모시는 중… ${Math.round(f * 100)}%`; } })
-  .then(m => { glb = m; avatar.add(m.root); body.visible = false; dbg('monk', m.info); return m; })
+  .then(m => { glb = m; avatar.add(m.root); body.visible = false; dbg('monk', m.info); if (monkGlbWait || myMonk()) addKasaya(m); return m; })
   .catch(e => { dbg('monkError', e.message); return null; });
 let blinkT = 2.5, idleT = 0;
 
@@ -1428,8 +1430,8 @@ function openRegions() {
     // 모든 지역에 절 이름 버튼: 지금 지역은 바로 걸어가고, 다른 지역은 그 지역을 불러와 그 절 앞에 섬
     const go = document.createElement('div'); go.className = 'go';
     const far = (tn) => { if (OFFLINE) { try { sessionStorage.setItem('jeollo.t', tn || ''); } catch (e) { } location.hash = r.id; location.reload(); return; } const q = new URLSearchParams(location.search); q.set('r', r.id); if (tn) q.set('t', tn); else q.delete('t'); location.search = q.toString(); };
-    if (r === REGION) for (const T of temples) { const bt = document.createElement('button'); bt.textContent = T.name; bt.onclick = e => { e.stopPropagation(); regionModal.classList.remove('show'); goTemple(T); }; go.appendChild(bt); }
-    else { for (const t of r.temples) { const bt = document.createElement('button'); bt.textContent = t.name; bt.onclick = e => { e.stopPropagation(); far(t.name); }; go.appendChild(bt); } el.onclick = () => far(null); }
+    if (r === REGION) for (const T of temples) { const bt = document.createElement('button'); bt.textContent = T.name; bt.dataset.r = r.id; bt.dataset.t = T.name; bt.onclick = e => { e.stopPropagation(); regionModal.classList.remove('show'); goTemple(T); }; go.appendChild(bt); }
+    else { for (const t of r.temples) { const bt = document.createElement('button'); bt.textContent = t.name; bt.dataset.r = r.id; bt.dataset.t = t.name; bt.onclick = e => { e.stopPropagation(); far(t.name); }; go.appendChild(bt); } el.onclick = () => far(null); }
     el.appendChild(go);
     regionList.appendChild(el);
   }
@@ -1440,6 +1442,12 @@ function openRegions() {
   else rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=2').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
   regionList.appendChild(rp);
   regionModal.classList.add('show');
+  if (!OFFLINE) monkRoster(true).then(list => { // 지금 접속해 계신 인증 스님의 절에 🪷 표시
+    for (const bt of regionList.querySelectorAll('button[data-t]')) {
+      const here = list.filter(m => m.live && m.cur_region === bt.dataset.r && m.cur_temple === bt.dataset.t);
+      if (here.length) { bt.classList.add('monkHere'); bt.textContent = '🪷 ' + bt.dataset.t; bt.title = here.map(m => `${m.temple} ${m.name} 스님`).join(', ') + ' 계심'; }
+    }
+  });
 }
 document.getElementById('btnRegion').onclick = openRegions;
 document.getElementById('regionClose').onclick = () => regionModal.classList.remove('show');
@@ -1460,21 +1468,69 @@ function nickSprite(nick) {
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthWrite: false, transparent: true })); sp.scale.set(1.3, .29, 1); sp.position.y = 1.52; sp.renderOrder = 5; return sp;
 }
+// 인증된 스님 이름표: 금빛 바탕 + 🪷 (서버 명단의 공개키로 서명이 맞을 때만)
+function monkSprite(text) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 84; const c = cv.getContext('2d');
+  c.font = '700 32px "Noto Sans KR",sans-serif'; const w = Math.min(500, c.measureText(text).width + 48);
+  const gr = c.createLinearGradient(0, 8, 0, 76); gr.addColorStop(0, '#fff1bf'); gr.addColorStop(1, '#f0c862');
+  c.fillStyle = gr; c.strokeStyle = '#b07a1e'; c.lineWidth = 3; c.beginPath(); if (c.roundRect) c.roundRect((512 - w) / 2, 10, w, 62, 31); else c.rect((512 - w) / 2, 10, w, 62); c.fill(); c.stroke();
+  c.fillStyle = '#4a2a0c'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 256, 42);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthWrite: false, transparent: true })); sp.scale.set(2.05, .34, 1); sp.position.y = 1.56; sp.renderOrder = 6; return sp;
+}
+// 가사(袈裟): 괴색 조각 천을 이어 붙인 모양, 왼쪽 어깨에서 오른쪽 옆구리로 비스듬히 두름 · 가슴뼈에 붙여 절·앉기 동작을 따라감
+let KASAYA_MAT = null;
+function kasayaMat() {
+  if (KASAYA_MAT) return KASAYA_MAT;
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const c = cv.getContext('2d');
+  c.fillStyle = '#93452c'; c.fillRect(0, 0, 256, 128);
+  for (let i = 0; i < 9; i++) { c.fillStyle = i % 2 ? 'rgba(0,0,0,.06)' : 'rgba(255,220,180,.05)'; c.fillRect(i * 29, 0, 29, 128); }
+  c.strokeStyle = '#6a2c18'; c.lineWidth = 3; for (let x = 0; x <= 256; x += 29) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, 128); c.stroke(); }
+  for (const y of [43, 86]) { c.beginPath(); c.moveTo(0, y); c.lineTo(256, y); c.stroke(); }
+  c.strokeStyle = '#c99a4a'; c.lineWidth = 4; c.strokeRect(2, 2, 252, 124);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  return KASAYA_MAT = new THREE.MeshStandardMaterial({ map: t, roughness: .85, side: THREE.DoubleSide });
+}
+function addKasaya(m) {
+  if (!m || m.kasaya || !m.B) return; const sp = m.B.Spine2 || m.B.Spine1 || m.B.Spine; if (!sp) return;
+  m.root.updateMatrixWorld(true);
+  const c = sp.getWorldPosition(new THREE.Vector3()); m.root.worldToLocal(c);
+  const sc = m.root.getWorldScale(new THREE.Vector3()).x || 1;
+  const g = new THREE.Group(), mat = kasayaMat(), R = .165 / sc;
+  const wrap = new THREE.Mesh(new THREE.CylinderGeometry(R, R * 1.08, .2 / sc, 28, 1, true, -1.75, 3.5), mat); wrap.rotation.z = .5; wrap.castShadow = true; g.add(wrap);
+  const strap = new THREE.Mesh(new THREE.CylinderGeometry(R * .98, R * .98, .07 / sc, 20, 1, true, Math.PI * .35, Math.PI * 1.1), mat); strap.rotation.set(0, 0, Math.PI / 2 + .5); strap.position.set(.03 / sc, .06 / sc, 0); g.add(strap); // 어깨 넘어가는 자락
+  g.position.set(c.x, c.y - .03 / sc, c.z);
+  m.root.add(g); m.root.updateMatrixWorld(true); sp.attach(g); m.kasaya = g;
+}
+function removeKasaya(m) { if (m && m.kasaya) { m.kasaya.removeFromParent(); m.kasaya = null; } }
+function refreshLabel(P) {
+  if (P.label) { P.g.remove(P.label); P.label.material.map.dispose(); }
+  P.label = P.monk ? monkSprite(monkLabel(P.monk)) : nickSprite(plainNick(P.nick) || '순례자'); P.g.add(P.label);
+}
+function setPeerMonk(P, info) {
+  if ((P.monk && P.monk.id) === (info && info.id)) return;
+  P.monk = info; refreshLabel(P);
+  if (P.glb) { if (info) addKasaya(P.glb); else removeKasaya(P.glb); }
+  renderPeople();
+}
 function ensurePeer(id, nick) {
   let P = peers.get(id);
   if (!P) {
     const g = new THREE.Group(); g.visible = false; scene.add(g);
     P = { id, nick: '', g, glb: null, label: null, goal: null, goalSt: null, st: { sit: 0, walkAmp: 0, speed: 0, hap: 0, kneel: 0, bend: 0, headX: 0, headZ: 0, closed: false, blink: false }, last: 0, blinkT: 2 + Math.random() * 3 };
     peers.set(id, P);
-    if (peers.size <= 16) loadMonkGLB(MONK_URL, { closedUrl: MONK_CLOSED }).then(m => { if (peers.get(id) !== P) return; P.glb = m; g.add(m.root); }).catch(e => dbg('peerModelError', e.message)); // 16명까지 아기 스님 모습, 그 이상은 이름표만
+    if (peers.size <= 16) loadMonkGLB(MONK_URL, { closedUrl: MONK_CLOSED }).then(m => { if (peers.get(id) !== P) return; P.glb = m; g.add(m.root); if (P.monk) addKasaya(m); }).catch(e => dbg('peerModelError', e.message)); // 16명까지 아기 스님 모습, 그 이상은 이름표만
   }
-  if (nick && nick !== P.nick) { P.nick = nick; if (P.label) { P.g.remove(P.label); P.label.material.map.dispose(); } P.label = nickSprite(nick); P.g.add(P.label); }
+  if (nick && nick !== P.nick) { P.nick = nick; refreshLabel(P); }
   return P;
 }
 function removePeer(id) { const P = peers.get(id); if (!P) return; P.g.removeFromParent(); peers.delete(id); }
 function onPeers(state) {
   const keys = new Set(Object.keys(state).filter(k => k !== ME.id));
-  for (const k of keys) { const a = state[k]; ensurePeer(k, a && a[0] && a[0].nick); }
+  for (const k of keys) {
+    const a = state[k], meta = a && a[0], P = ensurePeer(k, meta && meta.nick), mk = meta && meta.mk;
+    if (mk) checkBadge(k, mk).then(info => { const P2 = peers.get(k); if (P2) setPeerMonk(P2, info); }); else if (P.monk) setPeerMonk(P, null);
+  }
   for (const id of [...peers.keys()]) if (!keys.has(id)) removePeer(id);
   renderPeople();
 }
@@ -1518,14 +1574,49 @@ function netTick(dt, ST) {
 function renderPeople() {
   const n = peers.size + 1; if (peopleBtn) peopleBtn.textContent = `👥 ${n}`;
   if (!peoplePanel || !peoplePanel.classList.contains('show')) return;
-  const list = [...peers.values()].map(P => `<div>🙏 ${esc(P.nick || '순례자')}</div>`).join('') || '<div class="empty">아직 다른 분이 없어요. 주소를 보내 함께 걸어 보세요</div>';
+  const ps = [...peers.values()].sort((a, b) => !!b.monk - !!a.monk);
+  const list = ps.map(P => P.monk ? `<div class="monk">${esc(monkLabel(P.monk))}</div>` : `<div>🙏 ${esc(plainNick(P.nick) || '순례자')}</div>`).join('') || '<div class="empty">아직 다른 분이 없어요. 주소를 보내 함께 걸어 보세요</div>';
+  const mm = myMonk();
+  const monkBox = OFFLINE ? '' : mm ? `<div class="monkme on">${esc(monkLabel(mm))} · 인증된 기기예요<button id="monkOff">인증 풀기</button></div>` : `<div class="monkme"><a href="#" id="monkOpen">🪷 스님이신가요? 인증 코드 넣기</a><span id="monkForm" hidden><input id="monkCode" maxlength="11" placeholder="초대 코드 (예: ABCD-EFGH)" autocomplete="off" autocapitalize="characters"><button id="monkGo">인증</button></span></div>`;
   const st = NET && NET.joined ? '' : ' (연결 중…)';
-  peoplePanel.innerHTML = `<b>함께 순례 중 · ${n}명</b><small>${REGION.name} 권역에 지금 접속한 분들이에요${st}</small><div class="me">내 법명 <input id="nickIn" maxlength="12" value="${esc(ME.nick)}"><button id="nickSave">바꾸기</button></div>${list}`;
+  peoplePanel.innerHTML = `<b>함께 순례 중 · ${n}명</b><small>${REGION.name} 권역에 지금 접속한 분들이에요${st}</small><div class="me">내 법명 <input id="nickIn" maxlength="12" value="${esc(ME.nick)}"><button id="nickSave">바꾸기</button></div>${monkBox}${list}`;
+  wireMonkBox();
   document.getElementById('nickSave').onclick = () => {
     const v = document.getElementById('nickIn').value.trim().replace(/\s+/g, ' ').slice(0, 12);
     if (!v) return; if (BAD.test(v)) { toast('고운 이름으로 지어 주세요'); return; }
+    if (plainNick(v) !== v && !myMonk()) { toast('🪷 스님 표시는 인증된 스님만 쓸 수 있어요 · 스님이시면 아래에서 인증 코드를 넣어 주세요', 3600); return; }
     ME.nick = v; saveNick(v); if (NET) NET.retrack(); lastSent = ''; toast(`🙏 이제 '${v}'(으)로 보여요`); renderPeople();
   };
+}
+function wireMonkBox() {
+  const $ = id => document.getElementById(id);
+  if ($('monkOpen')) $('monkOpen').onclick = e => { e.preventDefault(); $('monkOpen').hidden = true; $('monkForm').hidden = false; $('monkCode').focus(); };
+  const go = async () => {
+    const b = $('monkGo'), v = $('monkCode').value; if (!v.trim()) return; b.disabled = true;
+    try { const m = await redeem(v); toast(`🪷 ${m.temple} ${m.name} 스님, 인증되었어요 · 이제 다른 순례자에게 스님으로 보여요`, 4200); await applyMyMonk(); }
+    catch (e) { b.disabled = false; toast('🪷 ' + monkError(e), 3800); }
+  };
+  if ($('monkGo')) { $('monkGo').onclick = go; $('monkCode').onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') go(); }; }
+  if ($('monkOff')) $('monkOff').onclick = async () => { if (!window.confirm('이 기기의 스님 인증을 풀까요? 다시 하려면 관리자에게 새 코드를 받아야 해요.')) return; await forgetMonk(); await applyMyMonk(); toast('인증을 풀었어요'); };
+}
+// 내가 인증된 스님이면: 머리 위 금빛 이름표 + 가사, 2분마다 서명 표식 갱신·서버에 '지금 여기 계심' 알림
+let myMonkLabel = null, monkTimer = 0, monkPingAt = 0, monkPingTemple = null;
+async function applyMyMonk() {
+  const mm = myMonk();
+  if (myMonkLabel) { avatar.remove(myMonkLabel); myMonkLabel.material.map.dispose(); myMonkLabel = null; }
+  if (mm) { myMonkLabel = monkSprite(monkLabel(mm)); avatar.add(myMonkLabel); if (glb) addKasaya(glb); else monkGlbWait = true; }
+  else removeKasaya(glb);
+  if (NET) NET.retrack(); lastSent = ''; renderPeople();
+  clearInterval(monkTimer); monkTimer = 0;
+  if (mm && NET) { monkPing(true); monkTimer = setInterval(() => { if (NET) NET.retrack(); monkPing(true); }, 120e3); }
+}
+let monkGlbWait = false;
+async function monkPing(force = false) {
+  if (!myMonk() || OFFLINE) return; const tn = cur ? cur.name : '';
+  if (!force && tn === monkPingTemple && Date.now() - monkPingAt < 30e3) return;
+  monkPingAt = Date.now(); monkPingTemple = tn;
+  const r = await pingMonk(REGION.id, tn);
+  if (r && r.revoked) { toast('🪷 이 기기의 스님 인증이 해제되었어요', 3600); applyMyMonk(); }
 }
 if (peopleBtn) peopleBtn.onclick = () => { ['todoPanel', 'soundPanel'].forEach(i => document.getElementById(i).classList.remove('show')); peoplePanel.classList.toggle('show'); renderPeople(); };
 function hangOffer(r, fresh) {
@@ -1547,8 +1638,10 @@ function onOffer(r) {
 function hangLocal() { for (const w of store.wishes(REGION.id)) hangWish(w, false); for (const w of store.tiles(REGION.id)) hangTile(w, false); setTileCount(Math.max(TILE ? TILE.count : 0, store.tiles(REGION.id).length)); for (const T of temples) for (const w of store.tlan(T.name)) hangTempleLantern(T, w, false); }
 async function startTogether() {
   if (OFFLINE) { hangLocal(); return; }
-  try { NET = await connectTogether({ region: REGION.id, me: ME, onPeers, onState, onOffer, onStatus: s => { DBG.net = s; renderPeople(); } }); }
+  await loadMonk().catch(() => null);
+  try { NET = await connectTogether({ region: REGION.id, me: ME, onPeers, onState, onOffer, onStatus: s => { DBG.net = s; renderPeople(); }, extra: async () => { const b = await monkBadge(ME.id); return b ? { mk: b } : {}; } }); }
   catch (e) { dbg('netError', e.message); hangLocal(); return; }
+  if (myMonk()) applyMyMonk();
   try { const rows = await Promise.race([NET.load(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 7000))]); applyOffers(rows); onlineOffers = true; DBG.offers = rows.length; setTileCount(rows.filter(r => r.kind === 'tile').length); NET.count('tile').then(setTileCount).catch(() => { }); }
   catch (e) { dbg('offerLoadError', e.message); hangLocal(); }
 }

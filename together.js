@@ -28,7 +28,8 @@ const ERR = {
 };
 export const offerError = e => { const m = String(e && (e.message || e)); for (const k in ERR) if (m.includes(k)) return ERR[k]; return null; };
 
-export async function connectTogether({ region, me, onPeers, onState, onOffer, onStatus }) {
+export async function connectTogether({ region, me, onPeers, onState, onOffer, onStatus, extra }) {
+  const meta = async () => ({ nick: me.nick, at: Date.now(), ...(extra ? await extra().catch(() => ({})) : {}) }); // extra: 인증된 스님 표식(서명) 등
   // 외부 라이브러리는 필요할 때 불러옴 (못 불러와도 앱은 혼자 순례로 계속 동작)
   const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
   const sb = createClient(SB_URL, SB_KEY, { auth: { persistSession: false }, realtime: { params: { eventsPerSecond: 20 } } });
@@ -39,12 +40,12 @@ export async function connectTogether({ region, me, onPeers, onState, onOffer, o
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'temple_offerings', filter: `region=eq.${region}` }, p => p && p.new && onOffer(p.new))
     .subscribe(async status => {
       joined = status === 'SUBSCRIBED'; onStatus && onStatus(status);
-      if (joined) await ch.track({ nick: me.nick, at: Date.now() });
+      if (joined) await ch.track(await meta());
     });
   return {
     get joined() { return joined; },
     send(state) { if (joined) ch.send({ type: 'broadcast', event: 's', payload: state }); },
-    retrack() { if (joined) ch.track({ nick: me.nick, at: Date.now() }); },
+    async retrack() { if (joined) ch.track(await meta()); },
     async load() {
       const { data, error } = await sb.from('temple_offerings').select('id,region,kind,temple,color,body,nick,created_at').eq('region', region).order('created_at', { ascending: false }).limit(300);
       if (error) throw error; return data || [];

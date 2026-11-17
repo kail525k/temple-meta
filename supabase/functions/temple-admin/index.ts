@@ -1,4 +1,5 @@
 // 사찰 제보 운영: 새 제보 텔레그램 알림 · 텔레그램 코드로 관리자 로그인 · 제보 목록/상태 변경
+// 스님 인증: 관리자가 초대 코드 발급 → 스님 기기가 코드+서명 공개키 등록 → 서명으로 접속 확인 (사칭 방지)
 // 비밀값: TELEGRAM_BOT_TOKEN (운영자가 Supabase 대시보드 Edge Function Secrets에 직접 넣음)
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -12,6 +13,43 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: 
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))).map(b => b.toString(16).padStart(2, '0')).join('');
 const cut = (s: string | null, n = 700) => !s ? '' : s.length > n ? s.slice(0, n) + '…' : s;
 const STATUS = ['new', 'review', 'done', 'reject'];
+
+/* ── 스님 인증 ── */
+const ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 헷갈리는 글자(0·O·1·I) 뺌
+const mkCode = () => { const s = [...crypto.getRandomValues(new Uint8Array(8))].map(b => ABC[b % 32]).join(''); return s.slice(0, 4) + '-' + s.slice(4); };
+const normCode = (c: unknown) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const b64d = (x: string) => Uint8Array.from(atob(x), c => c.charCodeAt(0));
+const clean = (x: unknown, n: number) => String(x ?? '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, n);
+async function pubKey(pub: string) { return await crypto.subtle.importKey('raw', b64d(pub), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']); }
+async function verifySig(pub: string, msg: string, sig: unknown) {
+  try { return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, await pubKey(pub), b64d(String(sig)), new TextEncoder().encode(msg)); } catch { return false; }
+}
+const LIVE_MS = 4 * 60e3;
+async function monkRedeem(b: Record<string, unknown>) {
+  const code = normCode(b.code); if (code.length !== 8) throw new Error('bad_code');
+  const pub = String(b.pubkey || ''); try { await pubKey(pub); } catch { throw new Error('bad_key'); }
+  const { data: m } = await SB.from('temple_monks').select('*').eq('code_hash', await sha('m:' + code)).is('redeemed_at', null).is('revoked_at', null).maybeSingle();
+  if (!m || !m.code_expires || Date.parse(m.code_expires) < Date.now()) throw new Error('no_code');
+  const { data: got } = await SB.from('temple_monks').update({ pubkey: pub, redeemed_at: new Date().toISOString(), code_hash: null }).eq('id', m.id).is('redeemed_at', null).select('id');
+  if (!got || !got.length) throw new Error('no_code');
+  return { id: m.id, region: m.region, temple: m.temple, name: m.name };
+}
+async function monkPing(b: Record<string, unknown>) {
+  const id = String(b.id || ''), t = Number(b.t), region = clean(b.region, 20), temple = clean(b.temple, 30);
+  if (!/^[0-9a-f-]{36}$/.test(id) || !Number.isFinite(t) || Math.abs(Date.now() - t) > 10 * 60e3) throw new Error('bad_ping');
+  const { data: m } = await SB.from('temple_monks').select('id,region,temple,name,pubkey,revoked_at,last_t').eq('id', id).maybeSingle();
+  if (!m || !m.pubkey) throw new Error('no_monk');
+  if (m.revoked_at) throw new Error('revoked');
+  if (m.last_t && t <= Number(m.last_t)) throw new Error('old_ping');
+  if (!(await verifySig(m.pubkey, `ping|${id}|${t}|${region}|${temple}`, b.sig))) throw new Error('bad_sig');
+  await SB.from('temple_monks').update({ last_seen: new Date().toISOString(), last_t: t, cur_region: region || null, cur_temple: temple || null }).eq('id', id);
+  return { ok: true, monk: { id, region: m.region, temple: m.temple, name: m.name } };
+}
+async function monksPublic() { // 누구나: 인증된 스님 명단(공개키 포함 · 서명 확인용) + 지금 접속 여부
+  const { data, error } = await SB.from('temple_monks').select('id,region,temple,name,pubkey,last_seen,cur_region,cur_temple').not('redeemed_at', 'is', null).is('revoked_at', null).limit(500);
+  if (error) throw error;
+  return (data || []).map(m => { const live = !!m.last_seen && Date.now() - Date.parse(m.last_seen) < LIVE_MS; return { id: m.id, region: m.region, temple: m.temple, name: m.name, pubkey: m.pubkey, live, cur_region: live ? m.cur_region : null, cur_temple: live ? m.cur_temple : null }; });
+}
 
 async function tg(method: string, body: Record<string, unknown>) {
   if (!TOKEN) throw new Error('no_token');
@@ -107,6 +145,9 @@ Deno.serve(async req => {
       case 'notify': return json(await notify());
       case 'code': await sendCode(); return json({ ok: true });
       case 'login': return json({ token: await login(b.code) });
+      case 'monk_redeem': return json({ monk: await monkRedeem(b) });
+      case 'monk_ping': return json(await monkPing(b));
+      case 'monks': return json({ monks: await monksPublic() });
     }
     if (!(await authed(b.token))) return json({ error: 'auth' }, 401);
     switch (b.action) {
@@ -124,6 +165,18 @@ Deno.serve(async req => {
       }
       case 'test': { const id = await chatId(); if (!id) throw new Error('not_linked'); await tg('sendMessage', { chat_id: id, text: '🔔 테스트 알림이에요. 새 사찰 제보가 오면 이렇게 알려 드려요.' }); await notify().catch(() => null); return json({ ok: true }); }
       case 'unlink': await setKv('tg_chat_id', null); return json({ ok: true });
+      case 'monk_invite': {
+        const region = clean(b.region, 20), temple = clean(b.temple, 30), name = clean(b.name, 12).replace(/\s*스님$/, '');
+        if (!region || !temple || !name) throw new Error('need_fields');
+        const code = mkCode();
+        const { data, error } = await SB.from('temple_monks').insert({ region, temple, name, code_hash: await sha('m:' + normCode(code)), code_expires: new Date(Date.now() + 14 * 86400e3).toISOString() }).select('id').single();
+        if (error) throw error; return json({ id: data.id, code });
+      }
+      case 'monk_list': {
+        const { data, error } = await SB.from('temple_monks').select('id,region,temple,name,created_at,code_expires,redeemed_at,revoked_at,last_seen,cur_temple').order('created_at', { ascending: false }).limit(300);
+        if (error) throw error; return json({ items: data });
+      }
+      case 'monk_revoke': { const { error } = await SB.from('temple_monks').update({ revoked_at: new Date().toISOString(), code_hash: null }).eq('id', String(b.id)); if (error) throw error; return json({ ok: true }); }
       case 'logout': await SB.from('admin_sessions').delete().eq('token_hash', await sha('s:' + String(b.token))); return json({ ok: true });
     }
     return json({ error: 'unknown' }, 400);

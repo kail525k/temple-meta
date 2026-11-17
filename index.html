@@ -78,7 +78,7 @@
   .rg{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fffaf0;cursor:pointer;text-align:left;font-family:inherit;color:var(--ink)}
   .rg:hover{border-color:var(--accent)}.rg.on{border:2px solid var(--accent);background:#fff3df}
   .rg b{font-size:15px;display:block}.rg span{font-size:12px;color:#7a6a52;display:block;margin-top:3px;line-height:1.45}
-  .rg .go{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.rg .go button{border:0;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit}
+  .rg .go{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.rg .go button{border:0;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;cursor:pointer;font-family:inherit}.rg .go button.monkHere{background:linear-gradient(180deg,#f7d97a,#e0ad3a);color:#4a2a0c;box-shadow:0 0 0 2px #fff3c8 inset}
   #tools{position:fixed;left:50%;transform:translateX(-50%);bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));display:flex;gap:4px;padding:6px;border-radius:18px;z-index:4}
   #tools button{border:0;background:transparent;border-radius:12px;padding:6px 9px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:50px}
   #tools button i{font-style:normal;font-size:20px;line-height:1}
@@ -94,7 +94,7 @@
   #todoPanel div{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed var(--line);color:#6d5f4b}
   #todoPanel div.on{color:var(--jade);font-weight:600}#todoPanel i{font-style:normal;width:18px;height:18px;border-radius:50%;border:1.5px solid #cbbd9f;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none}
   #todoPanel div.on i{background:var(--jade);border-color:var(--jade);color:#fff}
-  #peoplePanel div{padding:5px 0;border-top:1px dashed var(--line);color:#6d5f4b}#peoplePanel div.empty{color:#9a8b72}#peoplePanel .me{display:flex;align-items:center;gap:6px;color:var(--ink);font-weight:600}#peoplePanel .me input{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-family:inherit;font-size:13px;background:#fffdf8}#peoplePanel .me button{border:0;border-radius:99px;padding:6px 10px;background:var(--accent);color:#fff;font-weight:700;font-family:inherit;cursor:pointer}
+  #peoplePanel div{padding:5px 0;border-top:1px dashed var(--line);color:#6d5f4b}#peoplePanel div.empty{color:#9a8b72}#peoplePanel .me{display:flex;align-items:center;gap:6px;color:var(--ink);font-weight:600}#peoplePanel .me input{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-family:inherit;font-size:13px;background:#fffdf8}#peoplePanel .me button{border:0;border-radius:99px;padding:6px 10px;background:var(--accent);color:#fff;font-weight:700;font-family:inherit;cursor:pointer}#peoplePanel div.monk{color:#7a4a00;font-weight:800;background:linear-gradient(90deg,#fff3c8,transparent);border-radius:8px;padding:6px 8px}#peoplePanel .monkme{font-size:13px;color:#7a5a2a}#peoplePanel .monkme a{color:#9a6a1a;font-weight:700;text-decoration:none}#peoplePanel .monkme span{display:flex;gap:6px;margin-top:4px}#peoplePanel .monkme span[hidden]{display:none}#peoplePanel .monkme input{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid #d8b878;font-family:inherit;font-size:13px;letter-spacing:.05em;text-transform:uppercase}#peoplePanel .monkme button{border:0;border-radius:99px;padding:6px 10px;background:#b07a1e;color:#fff;font-weight:700;font-family:inherit;cursor:pointer;margin-left:6px}#peoplePanel .monkme.on{color:#7a4a00;font-weight:700}
   #soundPanel label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line)}#soundPanel input[type=range]{width:130px}
   #ritual{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:25;background:rgba(40,30,20,.18);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
   #ritual.show{display:flex}#ritualStage{touch-action:none;user-select:none}#ritualStage svg{cursor:pointer;filter:drop-shadow(0 14px 18px rgba(60,30,10,.35))}
@@ -208,6 +208,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=57"></script>
+<script type="module" src="./app.js?v=58"></script>
 </body>
 </html>
