@@ -3,7 +3,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const SB = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
-const TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
+// 붙여 넣을 때 앞뒤 공백·줄바꿈이나 BotFather 안내 문구가 같이 들어가도 토큰 부분만 골라 씀
+const RAW = (Deno.env.get('TELEGRAM_BOT_TOKEN') || '').trim();
+const TOKEN = (RAW.match(/\d{5,}:[A-Za-z0-9_-]{30,}/) || [RAW.replace(/^bot/i, '').replace(/\s+/g, '')])[0];
 const ADMIN_URL = 'https://temple-meta.vercel.app/admin.html';
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type, apikey, authorization, x-client-info', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } });
@@ -96,7 +98,11 @@ Deno.serve(async req => {
   let b: Record<string, unknown> = {}; try { b = await req.json(); } catch { /* 빈 요청 */ }
   try {
     switch (b.action) {
-      case 'status': return json({ token: !!TOKEN, linked: !!(await chatId()) });
+      case 'status': { // 토큰이 맞는지 텔레그램에 물어봐서 봇 아이디를 알려 줌 (토큰 자체는 절대 내보내지 않음)
+        let bot = null, tokenError = null;
+        if (TOKEN) { try { bot = (await tg('getMe', {}) as { username?: string }).username || null; } catch (e) { tokenError = String((e as Error).message || e); } }
+        return json({ token: !!TOKEN, tokenOk: !!bot, bot, tokenError, linked: !!(await chatId()) });
+      }
       case 'link': { if (!TOKEN) throw new Error('no_token'); const id = await link(); if (id) await notify().catch(() => null); return json({ linked: !!id }); }
       case 'notify': return json(await notify());
       case 'code': await sendCode(); return json({ ok: true });

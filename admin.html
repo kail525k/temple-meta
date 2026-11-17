@@ -134,7 +134,11 @@ async function boot() {
   if (token) { try { await load(); $('list').hidden = false; $('btnTest').hidden = $('btnOut').hidden = false; return; } catch (e) { if (token) { $('list').hidden = false; $('items').innerHTML = `<div class="empty">${esc(errText(e))}</div>`; return; } } }
   let st = { token: false, linked: false };
   try { st = await call('status'); } catch (e) { $('setup').hidden = false; $('setupMsg').textContent = errText(e); return; }
-  if (!st.token || !st.linked) { $('setup').hidden = false; $('setupState').textContent = st.token ? '토큰 확인됨 ✓ · 이제 봇에게 /start 를 보내 주세요' : '아직 토큰이 없어요 (①~③)'; return; }
+  if (!st.token || !st.tokenOk || !st.linked) {
+    $('setup').hidden = false;
+    $('setupState').textContent = !st.token ? '아직 토큰이 없어요 (1~3번)' : !st.tokenOk ? '⚠️ 토큰이 맞지 않아요 · BotFather가 준 토큰 전체(숫자:글자)를 다시 붙여 넣어 주세요' : `@${st.bot} 확인됨 ✓ · 이제 이 봇에게 /start 를 보내고 연결 확인을 눌러 주세요`;
+    return;
+  }
   $('login').hidden = false;
 }
 $('btnLink').onclick = async () => { $('setupMsg').textContent = ''; $('btnLink').disabled = true; try { const j = await call('link'); if (j.linked) { $('setupMsg').className = 'msg ok'; $('setupMsg').textContent = '연결되었어요! 텔레그램을 확인해 보세요'; setTimeout(boot, 1200); } else $('setupMsg').textContent = '봇에게 /start 를 보냈는지 확인해 주세요'; } catch (e) { $('setupMsg').textContent = errText(e); } finally { $('btnLink').disabled = false; } };
