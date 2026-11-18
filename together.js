@@ -28,7 +28,7 @@ const ERR = {
 };
 export const offerError = e => { const m = String(e && (e.message || e)); for (const k in ERR) if (m.includes(k)) return ERR[k]; return null; };
 
-export async function connectTogether({ region, me, onPeers, onState, onOffer, onStatus, extra }) {
+export async function connectTogether({ region, me, onPeers, onState, onOffer, onStatus, extra, onEvent }) {
   const meta = async () => ({ nick: me.nick, at: Date.now(), ...(extra ? await extra().catch(() => ({})) : {}) }); // extra: 인증된 스님 표식(서명) 등
   // 외부 라이브러리는 필요할 때 불러옴 (못 불러와도 앱은 혼자 순례로 계속 동작)
   const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
@@ -37,6 +37,7 @@ export async function connectTogether({ region, me, onPeers, onState, onOffer, o
   let joined = false;
   ch.on('presence', { event: 'sync' }, () => onPeers(ch.presenceState()))
     .on('broadcast', { event: 's' }, ({ payload }) => payload && payload.id !== me.id && onState(payload))
+    .on('broadcast', { event: 'e' }, ({ payload }) => payload && payload.id !== me.id && onEvent && onEvent(payload)) // 한 번 일어난 일 (예: 범종 울림)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'temple_offerings', filter: `region=eq.${region}` }, p => p && p.new && onOffer(p.new))
     .subscribe(async status => {
       joined = status === 'SUBSCRIBED'; onStatus && onStatus(status);
@@ -45,6 +46,7 @@ export async function connectTogether({ region, me, onPeers, onState, onOffer, o
   return {
     get joined() { return joined; },
     send(state) { if (joined) ch.send({ type: 'broadcast', event: 's', payload: state }); },
+    emit(k, data = {}) { if (joined) ch.send({ type: 'broadcast', event: 'e', payload: { ...data, id: me.id, n: me.nick, k } }); },
     async retrack() { if (joined) ch.track(await meta()); },
     async load() {
       const { data, error } = await sb.from('temple_offerings').select('id,region,kind,temple,color,body,nick,created_at').eq('region', region).order('created_at', { ascending: false }).limit(300);
