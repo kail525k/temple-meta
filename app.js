@@ -9,7 +9,7 @@ import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
 import { REGIONS } from './temples.js?v=9';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
-import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=7';
+import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=8';
 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
@@ -1115,8 +1115,14 @@ function updateNear() {
   if (Math.hypot(avatar.position.x, avatar.position.z) < 9.5) html = `<b>${REGION.name} 순례 마당</b><span>길 입구마다 표지석이 있어요 · 가고 싶은 절 쪽 길로 걸어가 보세요 (사찰 ${temples.length}곳)</span>`;
   else if (inside) html = `<b>${CFG.temple.name} ${CFG.hall.name} 안</b><span>${CFG.hall.buddhas === 0 ? '불상 대신 불단 뒤 창 너머 금강계단(부처님 진신사리)을 향해 삼배를 올려요' : '가운데 빛나는 방석에서 삼배를 올릴 수 있어요'}${bowCount ? ` · 오늘 ${bowCount}번 올렸어요` : ''}</span>`;
   else if (Math.abs(lx) < hall.L / 2 + 3 && lz > -hall.D / 2 && lz < hall.D / 2 + 8) html = `<b>${CFG.temple.name} ${CFG.hall.name}</b><span>가운데 계단으로 올라가 안으로 들어가 보세요</span>`;
+  if (document.body.classList.contains('touch')) { // 휴대폰: 장소가 바뀔 때만 4초 보여 주고 접음 (다니는 길을 가리지 않게)
+    if (html === nearLast) return; nearLast = html; clearTimeout(nearT);
+    if (!html) { nearEl.style.display = 'none'; return; }
+    nearEl.innerHTML = html; nearEl.style.display = 'block'; nearT = setTimeout(() => { nearEl.style.display = 'none'; }, 4000); return;
+  }
   nearEl.style.display = html ? 'block' : 'none'; if (html && nearEl.innerHTML !== html) nearEl.innerHTML = html;
 }
+let nearLast = '', nearT = 0;
 
 /* ───────── 루프 ───────── */
 function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
@@ -1696,8 +1702,14 @@ function updateCtx(inside, dBow, lx, lz) {
   }
   if (tapdori) acts.push(['⏹ 탑돌이 멈추기', () => stopTapdori('탑돌이를 멈췄어요')]);
   const key = acts.map(a => a[0]).join('|'); ctxActs = acts;
-  if (key === ctxKey) return; ctxKey = key; ctxBar.innerHTML = '';
-  acts.forEach(([t, fn, kind], i) => { const b = document.createElement('button'); b.textContent = t; if (i === 0 && kind !== 'plain') b.className = 'main'; b.onclick = () => fn(); ctxBar.appendChild(b); });
+  if (key === ctxKey) return; ctxKey = key; ctxBar.innerHTML = ''; ctxBar.classList.remove('open');
+  const mkB = ([t, fn, kind], i, extra) => { const b = document.createElement('button'); b.textContent = t; if (i === 0 && kind !== 'plain') b.className = 'main'; if (extra) b.classList.add('extra'); b.onclick = () => { ctxBar.classList.remove('open'); fn(); }; return b; };
+  if (document.body.classList.contains('touch') && acts.length > 1) { // 휴대폰: 길을 가리지 않게 첫 번째 할 일만 작게, 나머지는 ⋯ 를 눌러 펼침
+    const row = document.createElement('div'); row.className = 'ctxRow'; row.appendChild(mkB(acts[0], 0));
+    const more = document.createElement('button'); more.className = 'more'; more.textContent = '⋯'; more.setAttribute('aria-label', `다른 할 일 ${acts.length - 1}개`);
+    more.onclick = () => { ctxBar.classList.toggle('open'); clearTimeout(ctxBar._t); if (ctxBar.classList.contains('open')) ctxBar._t = setTimeout(() => ctxBar.classList.remove('open'), 6000); };
+    row.appendChild(more); ctxBar.appendChild(row); acts.slice(1).forEach((a, i) => ctxBar.appendChild(mkB(a, i + 1, true)));
+  } else acts.forEach((a, i) => ctxBar.appendChild(mkB(a, i)));
 }
 function useContext() { if (ctxActs[0]) ctxActs[0][1](); else if (sit) standUp(); }
 // 휴휴암 물고기 밥·방생

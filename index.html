@@ -98,8 +98,8 @@
   #soundPanel label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line)}#soundPanel input[type=range]{width:130px}
   #ritual{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:25;background:rgba(40,30,20,.18);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
   #ritual.show{display:flex}#ritualStage{touch-action:none;user-select:none}#ritualStage svg{cursor:pointer;filter:drop-shadow(0 14px 18px rgba(60,30,10,.35))}
-  #mok #mkbody{transform-origin:120px 204px}#mok #mallet{transform-origin:250px 196px}#mok.hit #mkbody{animation:mokbody .22s ease-out}#mok.hit #mallet{animation:mallet .22s ease-out}#mok.hit #eh{animation:mokeye .3s ease-out}#mok.hit #en{animation:mokeye2 .3s ease-out}#mok.hit #ttok{animation:moktok .45s ease-out}
-  @keyframes mokbody{35%{transform:scale(1.05,.92)}70%{transform:scale(.98,1.03)}}@keyframes mallet{0%{transform:rotate(-16deg)}35%{transform:rotate(3deg)}100%{transform:rotate(0)}}@keyframes mokeye{0%,80%{opacity:1}100%{opacity:0}}@keyframes mokeye2{0%,80%{opacity:0}100%{opacity:1}}@keyframes moktok{0%{opacity:0;transform:translateY(6px) scale(.7)}30%{opacity:1;transform:translateY(-4px) scale(1.1)}100%{opacity:0;transform:translateY(-14px)}}
+  #mok{position:relative;width:min(310px,80vw);aspect-ratio:772/711;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}#mok img{position:absolute;pointer-events:none;-webkit-user-drag:none}#mok .mkShadow{position:absolute;left:20%;top:84%;width:52%;height:7%;border-radius:50%;background:radial-gradient(closest-side,rgba(40,20,5,.35),rgba(40,20,5,0))}#mok #mkbody{transform-origin:50% 96%}#mok #mallet{transform-origin:96% 6%}#mok #ttok{position:absolute;left:4%;top:22%;font-size:clamp(20px,6vw,28px);font-weight:800;color:#fff3dd;text-shadow:0 2px 8px rgba(80,30,0,.6);opacity:0;pointer-events:none}#mok.hit #mkbody{animation:mokbody .22s ease-out}#mok.hit #mallet{animation:mallet .24s ease-out}#mok.hit #ttok{animation:moktok .45s ease-out}
+  @keyframes mokbody{35%{transform:scale(1.03,.96)}70%{transform:scale(.99,1.01)}}@keyframes mallet{0%{transform:rotate(-8deg)}35%{transform:rotate(11deg)}100%{transform:rotate(0)}}@keyframes moktok{0%{opacity:0;transform:translateY(6px) scale(.7)}30%{opacity:1;transform:translateY(-4px) scale(1.1)}100%{opacity:0;transform:translateY(-14px)}}
   #ritualStage canvas{cursor:grab;touch-action:none}
   #ritualInfo{text-align:center;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.45)}#ritualInfo b{font-size:40px;display:block;line-height:1}#ritualInfo span{font-size:13px}
   #ritualCtrl{display:flex;gap:8px}#ritualCtrl button,#ritualClose{border:0;border-radius:99px;padding:9px 16px;font-weight:700;background:var(--paper);cursor:pointer;font-family:inherit;color:var(--ink)}
@@ -164,12 +164,12 @@
   body.touch #joy{left:12px;bottom:calc(var(--sb) + 62px);width:104px;height:104px}
   body.touch #knob{width:44px;height:44px;margin:-22px 0 0 -22px}
   body.touch #btnJump{right:14px;bottom:calc(var(--sb) + 80px);width:56px;height:56px;font-size:20px}
-  body.touch #ctxBar{bottom:calc(var(--sb) + 178px)}
-  body.touch #bowPrompt{bottom:calc(var(--sb) + 178px)}
+  body.touch #ctxBar{bottom:calc(var(--sb) + 70px)}
+  body.touch #bowPrompt{bottom:calc(var(--sb) + 70px)}
   body.touch #bellPull{bottom:calc(var(--sb) + 232px)}
   #bellPull{left:64%;white-space:nowrap}body.touch #bellPull{left:64%;padding:13px 18px}
   body.touch #toast{left:10px;right:auto;transform:none;top:calc(var(--st) + 100px);bottom:auto;max-width:calc(100vw - 80px);font-size:12.5px;line-height:1.45;padding:7px 12px} /* 휴대폰: 안내는 위쪽 왼편(경치·물고기를 가리지 않게) */
-  body.touch #ctxBar{gap:6px;max-width:calc(100vw - 16px)}body.touch #ctxBar button{font-size:13.5px;padding:9px 14px;white-space:nowrap}body.touch #ctxBar button.main{font-size:14.5px;padding:10px 17px}
+  body.touch #ctxBar{gap:6px;max-width:calc(100vw - 206px);flex-direction:column-reverse;flex-wrap:nowrap;align-items:center}body.touch #ctxBar .ctxRow{display:flex;gap:5px;align-items:center;max-width:100%}body.touch #ctxBar button{max-width:calc(100vw - 206px);overflow:hidden;text-overflow:ellipsis}body.touch #ctxBar .ctxRow .main,body.touch #ctxBar .ctxRow button:first-child{max-width:calc(100vw - 252px)}body.touch #ctxBar button.more{padding:8px 12px;font-size:16px;line-height:1;flex:0 0 auto}body.touch #ctxBar:not(.open) button.extra{display:none}body.touch #ctxBar button.main{animation:none}body.touch #ctxBar button{font-size:13.5px;padding:9px 14px;white-space:nowrap}body.touch #ctxBar button.main{font-size:14.5px;padding:10px 17px}
   body.touch #dbg{top:calc(var(--st) + 48px);right:auto;left:10px;width:min(calc(100vw - 80px),330px)}
   /* 가로로 눕힌 휴대폰: 높이가 낮으니 오른쪽 아이콘을 작은 지도 왼쪽에 가로로 */
   @media (max-height:560px){body.touch #actions{top:var(--st);right:102px;flex-direction:row}body.touch #topBtns{top:calc(var(--st) + 92px)}body.touch .panel{max-height:calc(100% - var(--st) - 110px)}body.touch #ctxBar,body.touch #bowPrompt{bottom:calc(var(--sb) + 64px)}body.touch #bellPull{bottom:calc(var(--sb) + 116px)}}
@@ -249,6 +249,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=70"></script>
+<script type="module" src="./app.js?v=71"></script>
 </body>
 </html>

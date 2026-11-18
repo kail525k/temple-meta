@@ -115,32 +115,9 @@ export function initRituals({ sound, store, toast, done, onUse }) {
   // 목탁: 두드리면 소리 + 살짝 눌리는 모양, 자동재생은 염불 박자(0.62초)
   function openMoktak() {
     close(); mode = 'moktak'; ov.classList.add('show'); onUse && onUse('moktak');
-    stage.innerHTML = `<svg id="mok" viewBox="0 0 260 220" width="270" height="228" role="button" aria-label="목탁 두드리기">
-      <defs>
-        <radialGradient id="mkB" cx="36%" cy="28%" r="78%"><stop offset="0" stop-color="#ffdca2"/><stop offset=".45" stop-color="#eb9d52"/><stop offset="1" stop-color="#a5541f"/></radialGradient>
-        <radialGradient id="mkM" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#fff4dc"/><stop offset="1" stop-color="#efbf83"/></radialGradient>
-      </defs>
-      <ellipse cx="124" cy="206" rx="82" ry="9" fill="rgba(60,30,10,.18)"/>
-      <g id="mkbody">
-        <path d="M150 70 C160 28 214 20 222 50 C229 74 207 88 195 72" fill="none" stroke="#a85e25" stroke-width="17" stroke-linecap="round"/>
-        <path d="M152 66 C162 32 210 26 216 52" fill="none" stroke="#dd9550" stroke-width="5" stroke-linecap="round" opacity=".7"/>
-        <ellipse cx="120" cy="128" rx="96" ry="76" fill="url(#mkB)"/>
-        <ellipse cx="120" cy="128" rx="95" ry="75" fill="none" stroke="#8a4416" stroke-width="3" opacity=".3"/>
-        <path d="M46 100 Q120 68 194 100" fill="none" stroke="rgba(140,70,25,.16)" stroke-width="3"/>
-        <path d="M40 166 Q120 196 200 166" fill="none" stroke="rgba(140,70,25,.16)" stroke-width="3"/>
-        <g fill="#ffe7bf" opacity=".75"><ellipse cx="120" cy="72" rx="5" ry="10"/><ellipse cx="111" cy="76" rx="4" ry="8" transform="rotate(-35 111 76)"/><ellipse cx="129" cy="76" rx="4" ry="8" transform="rotate(35 129 76)"/></g>
-        <g id="en" fill="none" stroke="#4a2410" stroke-width="5" stroke-linecap="round"><path d="M80 114 q10 -11 20 0"/><path d="M140 114 q10 -11 20 0"/></g>
-        <g id="eh" fill="none" stroke="#4a2410" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0"><path d="M82 105 l13 7 l-13 7"/><path d="M158 105 l-13 7 l13 7"/></g>
-        <ellipse cx="72" cy="130" rx="13" ry="8" fill="#ff8f86" opacity=".45"/><ellipse cx="168" cy="130" rx="13" ry="8" fill="#ff8f86" opacity=".45"/>
-        <path d="M60 142 C84 151 156 151 180 142 C168 175 72 175 60 142 Z" fill="#5b2a0c"/>
-        <path d="M76 152 Q120 170 164 152" fill="none" stroke="#2e1305" stroke-width="3" opacity=".45"/>
-        <ellipse cx="76" cy="84" rx="28" ry="13" fill="#fff" opacity=".35" transform="rotate(-22 76 84)"/><circle cx="104" cy="68" r="5" fill="#fff" opacity=".55"/>
-      </g>
-      <text id="ttok" x="34" y="52" font-size="24" font-weight="800" fill="#c2561c" opacity="0">똑!</text>
-      <g id="mallet"><path d="M190 154 L250 196" stroke="#a8642c" stroke-width="11" stroke-linecap="round"/><circle cx="184" cy="149" r="18" fill="url(#mkM)"/><path d="M172 140 q12 -8 24 0" fill="none" stroke="#e0a86a" stroke-width="3" opacity=".8"/><circle cx="178" cy="142" r="4" fill="#fff" opacity=".7"/></g>
-    </svg>`;
+    stage.innerHTML = `<div id="mok" role="button" aria-label="목탁 두드리기"><i class="mkShadow"></i><img id="mkbody" src="./assets/moktak-body.webp" alt="" draggable="false" style="left:17.49%;top:10.83%;width:58.42%"><img id="mallet" src="./assets/moktak-mallet.webp" alt="" draggable="false" style="left:49.22%;top:56.12%;width:41.06%"><b id="ttok">똑!</b></div>`; // 실제 목탁 (Gemini로 만든 그림에서 배경을 지움) · 채는 따로 움직임
     const svg = document.getElementById('mok');
-    const hit = () => { sound.moktak(); const n = store.count('moktak'); info.innerHTML = `<b>${n}</b><span>오늘 두드린 목탁</span>`; svg.classList.remove('hit'); void svg.getBBox(); svg.classList.add('hit'); if (n >= 21) done('moktak'); };
+    const hit = () => { sound.moktak(); const n = store.count('moktak'); info.innerHTML = `<b>${n}</b><span>오늘 두드린 목탁</span>`; svg.classList.remove('hit'); void svg.offsetWidth; svg.classList.add('hit'); if (n >= 21) done('moktak'); };
     svg.addEventListener('pointerdown', e => { e.preventDefault(); hit(); });
     info.innerHTML = `<b>${store.get('moktak')}</b><span>목탁을 눌러 두드려 보세요</span>`;
     ctrl.innerHTML = `<button id="mokAuto">▶ 자동재생</button>`;
