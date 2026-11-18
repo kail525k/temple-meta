@@ -1,0 +1,7 @@
+# 배포(Vercel)에서 빼는 파일 — 실제 서비스에서 안 쓰는 원본·작업 파일
+# Meshy 원본 모델(줄이기 전): 서비스는 assets/*.glb(줄인 것)만 씀
+assets/source/
+Meshy_AI_*.glb
+# 서버 함수·DB 소스는 Supabase에 따로 올림 (사이트 주소로 열리지 않게)
+supabase/
+README.md
