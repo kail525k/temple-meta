@@ -32,6 +32,7 @@ export const TODO = [
   ['tap', '🪷 탑돌이 세 바퀴'],
   ['wish', '🏮 소원 연등 걸기'],
   ['giwa', '✍️ 기와에 소원 적어 올리기'],
+  ['unryeok', '🧹 운력: 싸리비로 마당 쓸기·걸레로 마루 닦기'],
   ['visit', '🗺 다른 사찰 한 곳 더 가 보기'],
 ];
 export function initTodo(store, toast, sound) {
@@ -89,6 +90,8 @@ export function createSound(store) {
     setAmb(on) { V.ambOn = on; store.save(); if (!unlock()) return; amb.gain.value = on ? V.amb : 0; on ? startAmb() : stopAmb(); },
     moktak() { if (!unlock()) return; tone(640, .9, .002, .16, 'sine', 430); tone(1290, .18, .002, .05, 'triangle'); burst(1900, 1.4, .5, .045); },
     bead() { if (!unlock()) return; burst(3200, 5, .25, .03); tone(2300, .06, .001, .05); },
+    sweep() { if (!unlock()) return; burst(1900 + Math.random() * 500, .8, .07, .26); }, // 싸리비 쓱
+    wipe() { if (!unlock()) return; burst(700, .6, .05, .2); },
     chime() { if (!unlock()) return; [[1046, .14], [1568, .09], [2093, .05]].forEach(([f, p], i) => setTimeout(() => tone(f, p, .005, 1.4), i * 90)); },
     bell(vol = .3) { if (!unlock()) return; [[196, 1], [392, .45], [588, .18], [784, .08]].forEach(([f, a]) => tone(f, vol * a, .015, 3.2)); },
     // 범종: 낮은 울림 + 살짝 어긋난 두 음이 만드는 맥놀이(웅~웅~)

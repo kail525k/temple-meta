@@ -8,7 +8,7 @@ import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=2';
 import { REGIONS } from './temples.js?v=9';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
-import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=3';
+import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=4';
 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
@@ -242,6 +242,7 @@ function useTemple(T) {
   if (h1) h1.innerHTML = `${T.name} ${T.hallName} <small>${REGION.name} · ${T.where}</small>`;
   if (p) p.textContent = (T.note ? T.note : `${REGION.name}의 큰 사찰 ${temples.length}곳을 걸어서 돌아볼 수 있어요`) + (ENV.note ? ` · ${ENV.note}` : '');
   document.title = `${T.name} · 절로`;
+  leavesOf(T); dustOf(T); ensureNpc(T); // 운력: 마당 낙엽 · 법당 마루 먼지 · 비질하는 동자승
   if (myMonk()) try { monkPing(); } catch (e) { } // 스님이 다른 절로 옮기면 '계신 절'도 바로 바뀜
 }
 
@@ -329,11 +330,174 @@ function buildSite(info, T) {
     const bd = new THREE.Mesh(new THREE.BoxGeometry(1.52, 1.02, .06), [edge, edge, edge, edge, face, edge]); bd.position.set(sx, b + 1.24, sz); bd.castShadow = true; site.add(bd);
     add(new THREE.BoxGeometry(1.66, .07, .14), wood, sx, b + 1.78, sz); // 지붕턱
     col(sx, sz, .85, .12); T.sign = { lx: sx, lz: sz }; }
+  { const bx = YX - 1.1, bz = Math.min(D / 2 + 5.5, YZ1 - 3), b = gy(bx, bz); // 싸리비 걸이 (운력: 마당 쓸기)
+    for (const pz of [-.5, .5]) add(new THREE.CylinderGeometry(.035, .04, 1.3, 6), MAT.trunk, bx, b + .65, bz + pz);
+    add(new THREE.CylinderGeometry(.028, .028, 1.1, 6), MAT.trunk, bx, b + 1.22, bz).rotation.x = Math.PI / 2;
+    for (const k of [-.24, .02, .26]) { const br = makeBroom(); br.position.set(bx + .07, b + 1.2, bz + k); br.rotation.z = -.16 + k * .2; site.add(br); }
+    col(bx, bz, .25, .62); T.broomAt = { lx: bx - .8, lz: bz }; }
   startL = [0, YZ1 - 3];
   T.hall = hall; T.YARD = YARD; T.startL = startL; T.L = L; T.D = D;
   const [ycx, ycz] = L2W(0, (YZ0 + YZ1) / 2); T.cx = ycx; T.cz = ycz;
   return { L, D };
 }
+/* ───────── 운력(運力): 마당 낙엽 쓸기 · 법당 마루 닦기 ─────────
+   스님들이 날마다 하는 청소를 함께 — 싸리비 걸이에서 비를 들고 걸으면 앞의 낙엽이 쓸려 나가고,
+   법당 안에서 걸레를 들고 다니면 마루의 먼지 자국이 닦임 · 낙엽은 나무에서 조금씩 다시 떨어짐 · 마당마다 비질하는 동자승 */
+let BROOM_M = null;
+function makeBroom() {
+  if (!BROOM_M) BROOM_M = { h: new THREE.MeshStandardMaterial({ color: '#9b7444', roughness: .8 }), t: new THREE.MeshStandardMaterial({ color: '#5a4636', roughness: .9 }), b: new THREE.MeshStandardMaterial({ color: '#b8995e', roughness: 1 }) };
+  const g = new THREE.Group(), m = (geo, mat, y) => { const o = new THREE.Mesh(geo, mat); o.position.y = y; o.castShadow = true; g.add(o); return o; };
+  m(new THREE.CylinderGeometry(.016, .02, .64, 6), BROOM_M.h, -.32); m(new THREE.CylinderGeometry(.034, .034, .05, 8), BROOM_M.t, -.63);
+  m(new THREE.CylinderGeometry(.034, .15, .36, 10), BROOM_M.b, -.8).scale.z = .42; // 납작하게 퍼진 싸리 가지
+  return g; // 손잡이 끝이 원점, 아래로 0.98m
+}
+function makeRag() { const g = new THREE.Group(), r = new THREE.Mesh(new THREE.BoxGeometry(.24, .035, .17), new THREE.MeshStandardMaterial({ color: '#e9e3d3', roughness: 1 })); r.castShadow = true; g.add(r); return g; }
+function holdTool(parent, kind) { // 모델 단위(키 1.11)로 손 앞에 쥐어 줌
+  const m = kind === 'broom' ? makeBroom() : makeRag();
+  if (kind === 'broom') { m.scale.setScalar(.75); m.position.set(.13, .5, .18); m.rotation.x = -.82; } else m.position.set(.06, .1, .36);
+  parent.add(m); return m;
+}
+const LEAF_GEO = new THREE.PlaneGeometry(.26, .16).rotateX(-Math.PI / 2), LEAF_COL = ['#c2701f', '#d99a2b', '#9e3f1e', '#7a4a22', '#c4a53a', '#b05a26', '#8c5a26', '#a8281e'];
+const DUST_GEO = new THREE.CircleGeometry(.3, 16).rotateX(-Math.PI / 2);
+const _cm = new THREE.Matrix4(), _cq = new THREE.Quaternion(), _ce = new THREE.Euler(), _cs = new THREE.Vector3(), _cp = new THREE.Vector3();
+function leavesOf(T) { // 그 절 마당 낙엽 (처음 들를 때 만듦 · 법당 앞뒤와 탑 둘레는 비움)
+  if (T.leaves) return T.leaves;
+  const Y = T.YARD, Hh = T.hall, N = Math.round(Math.min(320, Math.max(140, (Y.x1 - Y.x0) * (Y.z1 - Y.z0) / 4.5))), list = [];
+  const pg = T.pagoda ? W2L(T.pagoda.x, T.pagoda.z) : null;
+  const heaps = Array.from({ length: 9 }, () => [Y.x0 + 1 + Math.random() * (Y.x1 - Y.x0 - 2), Y.z0 + 1 + Math.random() * (Y.z1 - Y.z0 - 2)]); // 바람에 몰린 낙엽 무더기
+  heaps.push([Y.x0 + 1.2, Y.z1 - 2], [Y.x1 - 1.2, Y.z1 - 2], [Y.x0 + 1.2, (Y.z0 + Y.z1) / 2], [Y.x1 - 1.2, (Y.z0 + Y.z1) / 2]); // 담 밑
+  const gss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.4;
+  const spot = () => { for (let k = 0; k < 30; k++) { const h = Math.random() < .6 ? heaps[Math.floor(Math.random() * heaps.length)] : null; let x = h ? h[0] + gss() : Y.x0 + .9 + Math.random() * (Y.x1 - Y.x0 - 1.8), z = h ? h[1] + gss() : Y.z0 + .9 + Math.random() * (Y.z1 - Y.z0 - 1.8); x = Math.max(Y.x0 + .7, Math.min(Y.x1 - .7, x)); z = Math.max(Y.z0 + .7, Math.min(Y.z1 - .7, z)); if (Math.abs(x) < T.L / 2 + 1.6 && z > -T.D / 2 - 1.6 && z < T.D / 2 + 2.6) continue; if (Hh.isInside(x, z) || (pg && Math.hypot(x - pg[0], z - pg[1]) < (T.pagodaR || 2.4))) continue; return [x, z]; } return null; };
+  const im = new THREE.InstancedMesh(LEAF_GEO, new THREE.MeshStandardMaterial({ roughness: .9, side: THREE.DoubleSide }), N); im.frustumCulled = false; im.receiveShadow = true;
+  const col = new THREE.Color();
+  for (let i = 0; i < N; i++) { const p = spot() || [Y.x0 + 1, Y.z1 - 1], L = { x: p[0], z: p[1], y: 0, yaw: Math.random() * 6.28, tilt: (Math.random() - .5) * .5, s: .8 + Math.random() * .5, st: 0, t: 0, vx: 0, vy: 0, vz: 0 }; L.y = (Hh.heightAt ? Hh.heightAt(L.x, L.z) : 0) + .022; list.push(L); im.setColorAt(i, col.set(LEAF_COL[i % LEAF_COL.length]).offsetHSL(0, 0, (Math.random() - .5) * .08)); }
+  T.site.add(im); T.leaves = { im, list, spot, regrow: 0 }; list.forEach((L, i) => setLeaf(T.leaves, i)); im.instanceMatrix.needsUpdate = true;
+  return T.leaves;
+}
+function setLeaf(LV, i) { const L = LV.list[i], k = L.st === 2 ? 0 : L.s; _ce.set(L.tilt, L.yaw, L.st === 1 ? L.t * 9 : 0); _cq.setFromEuler(_ce); LV.im.setMatrixAt(i, _cm.compose(_cp.set(L.x, L.y, L.z), _cq, _cs.setScalar(k))); }
+function sweepLeaves(T, cx, cz, r, dx, dz) { // 반지름 r 안의 낙엽을 (dx,dz) 쪽으로 쓸어 냄 → 쓴 장수
+  const LV = T.leaves; if (!LV) return 0; let n = 0;
+  LV.list.forEach((L, i) => { if (L.st !== 0 || Math.hypot(L.x - cx, L.z - cz) > r) return; L.st = 1; L.t = 0; L.vx = dx * 1.5 + (Math.random() - .5) * .8; L.vz = dz * 1.5 + (Math.random() - .5) * .8; L.vy = .8 + Math.random() * .5; n++; });
+  return n;
+}
+function updateLeaves(T, dt) {
+  const LV = T && T.leaves; if (!LV) return; let ch = false, gone = 0;
+  LV.list.forEach((L, i) => {
+    if (L.st === 1) { L.t += dt; L.x += L.vx * dt; L.z += L.vz * dt; L.y += L.vy * dt; L.vy -= 5 * dt; L.s *= 1 - dt * 2.2; if (L.t > .55) L.st = 2; setLeaf(LV, i); ch = true; }
+    else if (L.st === 3) { L.t += dt; const k = Math.min(1, L.t / 2.8); L.y = L.y0 + (1 - k) * 2.6; L.x = L.fx + Math.sin(L.t * 2.6) * .25 * (1 - k); L.yaw += dt * 1.5; if (k >= 1) { L.st = 0; L.y = L.y0; } setLeaf(LV, i); ch = true; }
+    else if (L.st === 2) gone++;
+  });
+  LV.regrow += dt; // 나무에서 낙엽이 다시 조금씩 떨어짐
+  if (gone && LV.regrow > 4) { LV.regrow = 0; const i = LV.list.findIndex(L => L.st === 2), L = LV.list[i], p = LV.spot(); if (p) { L.fx = L.x = p[0]; L.z = p[1]; L.y0 = (T.hall.heightAt ? T.hall.heightAt(p[0], p[1]) : 0) + .022; L.s = .8 + Math.random() * .5; L.st = 3; L.t = 0; setLeaf(LV, i); ch = true; } }
+  if (ch) LV.im.instanceMatrix.needsUpdate = true;
+}
+function dustOf(T) { // 법당 마루 먼지 자국
+  if (T.dust) return T.dust;
+  const H = T.hall, I = H.interior, list = [], N = 22, im = new THREE.InstancedMesh(DUST_GEO, new THREE.MeshStandardMaterial({ color: '#9d937f', roughness: 1, transparent: true, opacity: .42, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), N);
+  im.frustumCulled = false;
+  const free = (x, z) => { const [wx, wz] = L2W(x, z); for (const [a, b] of [[0, 0], [.35, 0], [-.35, 0], [0, .35], [0, -.35]]) { const [px, pz] = L2W(x + a, z + b); if (blockedAt(px, pz, H.FY + .02)) return false; } return !(H.cushions || []).some(c => Math.hypot((c.lx ?? c.x) - x, (c.lz ?? c.z) - z) < .7); }; // 방석·기둥 위는 빼고 걸어 다닐 수 있는 마루에만
+  for (let i = 0; i < N; i++) { let x = 0, z = 0; for (let k = 0; k < 40; k++) { x = I.ix0 + .6 + Math.random() * (I.ix1 - I.ix0 - 1.2); z = I.iz0 + .6 + Math.random() * (I.iz1 - I.iz0 - 1.2); if (z > H.altarZ + 1.3 && Math.hypot(x - H.bowSpot.lx, z - H.bowSpot.lz) > 1.1 && free(x, z)) break; } list.push({ x, z, s: .7 + Math.random() * .6, d: 1 }); }
+  const D = { im, list, back: 0 }; list.forEach((P, i) => setDust(T, D, i)); T.site.add(im); T.dust = D; return D;
+}
+function setDust(T, D, i) { const P = D.list[i]; D.im.setMatrixAt(i, _cm.compose(_cp.set(P.x, T.hall.FY + .012, P.z), _cq.identity(), _cs.set(P.s * P.d + 1e-3, 1, P.s * P.d + 1e-3))); D.im.instanceMatrix.needsUpdate = true; }
+
+let chore = null, choreSwish = 0; // 들고 있는 도구 { kind:'broom'|'rag', mesh, phase, tick, n }
+function pickTool(kind) {
+  if (sit) standUp(); if (tapdori) stopTapdori(); dropTool(true);
+  chore = { kind, mesh: holdTool(glb ? glb.root : avatar, kind), phase: 0, tick: 0, n: 0 };
+  toast(kind === 'broom' ? '🧹 싸리비를 들었어요 · 마당을 걸어 다니면 앞의 낙엽이 쓸려요' : '🧽 걸레를 들었어요 · 마루의 먼지 자국 위로 다니면 깨끗이 닦여요', 3800);
+  lastSent = ''; updateNear();
+}
+function dropTool(silent = false, msg = '') {
+  if (!chore) return; chore.mesh.removeFromParent(); const k = chore.kind; chore = null; resetBody(); lastSent = '';
+  if (!silent) toast(msg || (k === 'broom' ? '🧹 싸리비를 걸이에 두었어요' : '🧽 걸레를 내려놓았어요'), 2200); updateNear();
+}
+function choreDone(n, what) { // 운력 공덕
+  const total = store.count('unryeok', n);
+  if (chore && (chore.kind === 'broom' ? chore.n >= 30 : chore.n >= 8)) done('unryeok');
+  if (Math.floor((total - n) / 25) !== Math.floor(total / 25)) toast(`🧹 ${what} · 지금까지 운력 ${total}번 · 수고하셨어요`, 2200);
+}
+function updateChore(dt, speed) {
+  if (cur) updateLeaves(cur, dt);
+  updateNpc(dt);
+  if (!chore) return;
+  const [lx, lz] = W2L(avatar.position.x, avatar.position.z), inside = hall && hall.isInside(lx, lz), moving = speed > .35;
+  if (chore.kind === 'broom' && inside) return dropTool(false, '🧹 싸리비는 법당 밖에 두고 들어가요');
+  if (chore.kind === 'rag' && !inside) return dropTool(false, '🧽 걸레는 법당 안에 두고 나왔어요');
+  if (!sam && !pose && !sit) body.rotation.x += ((chore.kind === 'rag' ? .55 : .2) * (moving || chore.kind === 'rag' ? 1 : .5) - body.rotation.x) * Math.min(1, dt * 6); // 비질·걸레질 하느라 허리를 숙임
+  chore.phase += dt * (moving ? 3 + speed * 1.6 : 2.4); const sw = Math.sin(chore.phase); // 서 있어도 제자리에서 쓸고 닦음
+  if (chore.kind === 'broom') { chore.mesh.rotation.y = sw * (moving ? .55 : .4); chore.mesh.position.x = .13 + sw * .05; }
+  else { chore.mesh.position.x = .06 + sw * .12; chore.mesh.position.z = .36 + Math.cos(chore.phase) * .05; }
+  chore.tick += dt; if (chore.tick < (moving ? .1 : .28)) return; chore.tick = 0;
+  const ry = avatar.rotation.y, fx = Math.sin(ry), fz = Math.cos(ry), sx = Math.cos(ry), sz = -Math.sin(ry);
+  const wx = avatar.position.x + fx * .55 + sx * sw * .28, wz = avatar.position.z + fz * .55 + sz * sw * .28;
+  const [cx, cz] = W2L(wx, wz), [dx1, dz1] = W2L(wx + fx, wz + fz), dx = dx1 - cx, dz = dz1 - cz;
+  if (chore.kind === 'broom') {
+    const n = sweepLeaves(cur, cx, cz, .55, dx, dz);
+    if (n) { chore.n += n; puff(wx, avatar.position.y + .05, wz); if (performance.now() - choreSwish > 230) { choreSwish = performance.now(); sound.sweep(); } choreDone(n, `낙엽 ${chore.n}장 쓸었어요`); }
+    else if (performance.now() - choreSwish > 520 && Math.abs(sw) > .9) { choreSwish = performance.now(); sound.sweep(); }
+  } else {
+    const D = dustOf(cur); let n = 0;
+    D.list.forEach((P, i) => { if (P.d <= 0 || Math.hypot(P.x - cx, P.z - cz) > .75) return; P.d = Math.max(0, P.d - .4); setDust(cur, D, i); if (P.d <= 0) n++; });
+    if (performance.now() - choreSwish > 420) { choreSwish = performance.now(); sound.wipe(); }
+    if (n) { chore.n += n; choreDone(n, `먼지 자국 ${chore.n}곳 닦았어요`); if (D.list.every(P => P.d <= 0)) toast('✨ 법당 마루가 반짝반짝해졌어요 · 부처님 앞이 환해요', 3200); }
+  }
+}
+// 흙먼지 (쓸 때 살짝 피어오름)
+const PUFFS = [];
+function puff(x, y, z) {
+  let p = PUFFS.find(q => q.t >= 1);
+  if (!p) { if (PUFFS.length > 14) return; p = { s: new THREE.Sprite(new THREE.SpriteMaterial({ color: '#d6c7a2', transparent: true, opacity: 0, depthWrite: false })), t: 1 }; scene.add(p.s); PUFFS.push(p); }
+  p.t = 0; p.s.position.set(x + (Math.random() - .5) * .2, y + .08, z + (Math.random() - .5) * .2);
+}
+function updatePuffs(dt) { for (const p of PUFFS) { if (p.t >= 1) continue; p.t = Math.min(1, p.t + dt * 1.6); p.s.scale.setScalar(.18 + p.t * .55); p.s.position.y += dt * .35; p.s.material.opacity = .5 * (1 - p.t); } }
+
+// 마당 쓰는 동자승 (지금 있는 절 마당을 천천히 돌며 비질)
+let npc = null;
+function ensureNpc(T) {
+  if (!T || !T.leaves) return;
+  if (!npc) {
+    const g = new THREE.Group(); scene.add(g);
+    npc = { g, glb: null, broom: null, label: nickSprite('🧹 마당 쓰는 동자승'), T: null, x: 0, z: 0, goal: null, wait: 1, phase: 0, tick: 0, amp: 0, st: { sit: 0, walkAmp: 0, speed: 0, hap: 0, kneel: 0, bend: .2, headX: .18, headZ: 0, closed: false, blink: false } };
+    npc.label.scale.set(1.5, .33, 1); g.add(npc.label);
+    loadMonkGLB(MONK_URL, { closedUrl: MONK_CLOSED }).then(m => { npc.glb = m; g.add(m.root); npc.broom = holdTool(m.root, 'broom'); }).catch(e => dbg('npcModelError', e.message));
+  }
+  if (npc.T === T) return;
+  npc.T = T; const p = T.leaves.spot(); npc.x = p ? p[0] : 0; npc.z = p ? p[1] : T.YARD.z1 - 3; npc.goal = null; npc.wait = 1;
+}
+function updateNpc(dt) {
+  if (!npc || !npc.T || npc.T !== cur) { if (npc) npc.g.visible = false; return; }
+  const T = cur, LV = T.leaves; npc.g.visible = true;
+  if (!npc.goal && npc.wait <= 0) { // 다음에 쓸 곳: 사람과 떨어진 낙엽 (탑·법당을 가로지르지 않게)
+    const [ax, az] = W2L(avatar.position.x, avatar.position.z), pg = T.pagoda ? W2L(T.pagoda.x, T.pagoda.z) : null;
+    for (let k = 0; k < 12 && !npc.goal; k++) {
+      const L = LV.list[Math.floor(Math.random() * LV.list.length)]; if (L.st !== 0 || Math.hypot(L.x - ax, L.z - az) < 2.5 || Math.hypot(L.x - npc.x, L.z - npc.z) > 9) continue;
+      if (pg) { const vx = L.x - npc.x, vz = L.z - npc.z, l2 = vx * vx + vz * vz || 1, t = Math.max(0, Math.min(1, ((pg[0] - npc.x) * vx + (pg[1] - npc.z) * vz) / l2)); if (Math.hypot(npc.x + vx * t - pg[0], npc.z + vz * t - pg[1]) < (T.pagodaR || 2.4) + .4) continue; }
+      if (Math.min(Math.abs(L.x), Math.abs(npc.x)) < T.L / 2 + 1.6 && Math.min(L.z, npc.z) < T.D / 2 + 2.6) continue;
+      npc.goal = [L.x, L.z];
+    }
+    if (!npc.goal) npc.wait = 2;
+  }
+  let moving = false;
+  if (npc.wait > 0) npc.wait -= dt;
+  else if (npc.goal) {
+    const vx = npc.goal[0] - npc.x, vz = npc.goal[1] - npc.z, d = Math.hypot(vx, vz);
+    if (d < .45) { npc.goal = null; npc.wait = 1.5 + Math.random() * 2.5; }
+    else { const sp = .7; npc.x += vx / d * sp * dt; npc.z += vz / d * sp * dt; moving = true; npc.ry = Math.atan2(vx, vz); }
+  }
+  // 걷거나 서서 쓸 때 비를 좌우로 · 앞의 낙엽을 쓸어 냄
+  const sweeping = moving || npc.wait > 0; npc.phase += dt * (sweeping ? 4.2 : 0); const sw = Math.sin(npc.phase);
+  if (npc.broom) { npc.broom.rotation.y = sw * .5; npc.broom.position.x = .13 + sw * .05; }
+  npc.amp += ((moving ? 1 : 0) - npc.amp) * Math.min(1, dt * 5);
+  const [wx, wz] = L2W(npc.x, npc.z);
+  npc.g.position.set(wx, T.hall.heightAt ? T.hall.heightAt(npc.x, npc.z) : 0, wz); npc.g.rotation.y = npcYaw(npc.ry || 0);
+  npc.tick += dt; if (sweeping && npc.tick > .3) { npc.tick = 0; const fx = Math.sin(npc.ry || 0), fz = Math.cos(npc.ry || 0); if (sweepLeaves(T, npc.x + fx * .5, npc.z + fz * .5, .45, fx, fz)) { const [px, pz] = L2W(npc.x + fx * .5, npc.z + fz * .5); puff(px, npc.g.position.y + .05, pz); } }
+  const S = npc.st; S.walkAmp = npc.amp; S.speed = npc.amp * .8; S.bend = .22; if (npc.glb) npc.glb.update(dt, S);
+}
+function npcYaw(localYaw) { // 절 기준 방향 → 세상 방향
+  const [ax, az] = L2W(0, 0), [bx, bz] = L2W(Math.sin(localYaw), Math.cos(localYaw)); return Math.atan2(bx - ax, bz - az);
+}
+
 // 스님 등록 팻말 글판
 function monkSignTex(name) {
   const cv = document.createElement('canvas'); cv.width = 768; cv.height = 512; const c = cv.getContext('2d');
@@ -762,7 +926,7 @@ document.getElementById('btnHome').onclick = () => { sam = null; resetBody(); if
 function resetBody() { body.position.y = 0; body.rotation.x = 0; headG.rotation.x = 0; }
 function placeAtStart() { const T = temples[0]; if (T && cur !== T) useTemple(T); avatar.position.set(T ? T.ux * 2 : 0, 0, T ? T.uz * 2 : 0); avatar.rotation.y = faceHall(); yaw = behind(); dist = 6; pitch = .24; }
 // 사찰로 바로 가기: 그 절 일주문 앞 길에 서서 법당 쪽을 바라봄
-function goTemple(T) { sam = null; pose = null; resetBody(); if (sit) standUp(); if (tapdori) stopTapdori(); moveTarget = null; useTemple(T); const [x, z] = L2W(0, T.YARD.z1 + 2.5); avatar.position.set(x, 0, z); avatar.rotation.y = faceHall(); yaw = behind(); dist = 6; pitch = .24; intro = -1; toast(`🛕 ${T.name}에 왔어요`); }
+function goTemple(T) { dropTool(true); sam = null; pose = null; resetBody(); if (sit) standUp(); if (tapdori) stopTapdori(); moveTarget = null; useTemple(T); const [x, z] = L2W(0, T.YARD.z1 + 2.5); avatar.position.set(x, 0, z); avatar.rotation.y = faceHall(); yaw = behind(); dist = 6; pitch = .24; intro = -1; toast(`🛕 ${T.name}에 왔어요`); }
 // 가장 가까운 사찰을 '지금 사찰'로
 function pickCurrent() {
   if (sam || temples.length < 2) return;
@@ -912,11 +1076,12 @@ function step() {
   let speed = (keys.ShiftLeft || keys.ShiftRight || il > 0.95 && joy.id !== null ? 7 : 3.6);
   let mx = 0, mz = 0, moving = false;
   if (!sam && !sit && pose !== 'bow') {
+    if (chore) speed = Math.min(speed, chore.kind === 'rag' ? 1.6 : 2.4); // 비·걸레를 들면 천천히
     if (il > 0.05) { const c = Math.cos(yaw), s = Math.sin(yaw); mx = ix * c + iz * s; mz = -ix * s + iz * c; moving = true; }
     else if (tapdori) { speed = 2.2; const v = tapdoriStep(dt); mx = v[0]; mz = v[1]; moving = true; }
     else if (moveTarget) {
       const dx = moveTarget.x - avatar.position.x, dz = moveTarget.z - avatar.position.z, d = Math.hypot(dx, dz);
-      moveTarget.t += dt; if (d < .35 || moveTarget.t > 25) { moveTarget = null; markMove(null); } else { mx = dx / d; mz = dz / d; moving = true; if (d > 6) speed = 5; }
+      moveTarget.t += dt; if (d < .35 || moveTarget.t > 25) { moveTarget = null; markMove(null); } else { mx = dx / d; mz = dz / d; moving = true; if (d > 6 && !chore) speed = 5; }
     }
   }
   if (moving) {
@@ -969,6 +1134,7 @@ function step() {
     if (pose === 'bow') { body.rotation.x = clamp(Math.min((poseT - .3) / .4, (dur - poseT) / .5), 0, 1) * 0.8; headG.rotation.x = body.rotation.x * .3; }
     if (poseT > dur) { pose = null; resetBody(); }
   }
+  updateChore(dt, walkAmp > .3 ? speed : 0); updatePuffs(dt);
   if (tapdori) hap = Math.max(hap, .9);
   const ST = { sit: sitW, walkAmp, speed, hap, kneel: body.position.y < 0 ? Math.min(1, -body.position.y / .2) : 0, bend: body.rotation.x, headX: headG.rotation.x, headZ: headG.rotation.z, closed: hap > .5 || (sit && sitW > .6 && sit.inHall), blink: blinkT < .12 };
   if (glb) glb.update(dt, ST);
@@ -1308,6 +1474,10 @@ function updateCtx(inside, dBow, lx, lz) {
     if (bellHold) acts.push(['✋ 당목 줄 놓기', releaseBellRope]);
     else if (BELL && Math.hypot(avatar.position.x - BELL.x, avatar.position.z - BELL.z) < 4.2) acts.push(['🔔 당목 줄 잡기', grabBell]);
     if (!inside && cur && cur.sign && Math.hypot(lx - cur.sign.lx, lz - cur.sign.lz) < 2.5) acts.push(['🪷 스님 등록 신청', () => openMonkReq(), 'plain']); // 팻말 앞에 다가간 분께만, 눈에 띄는 빨간 버튼은 아님
+    if (!inside && cur && cur.broomAt && !chore && Math.hypot(lx - cur.broomAt.lx, lz - cur.broomAt.lz) < 2.3) acts.push(['🧹 싸리비 들기 (마당 쓸기)', () => pickTool('broom')]);
+    if (!inside && npc && npc.T === cur && !chore && Math.hypot(lx - npc.x, lz - npc.z) < 2.6) acts.push(['🧹 동자승과 같이 마당 쓸기', () => pickTool('broom')]);
+    if (inside && !chore && !sit && !sam) acts.push(['🧽 걸레로 마루 닦기', () => pickTool('rag'), 'plain']);
+    if (chore) acts.push([chore.kind === 'broom' ? '🧹 싸리비 내려놓기' : '🧽 걸레 내려놓기', () => dropTool(), 'plain']);
     if (RACK && Math.hypot(avatar.position.x - RACK.x, avatar.position.z - RACK.z) < 3.8) acts.push(['🏮 소원 연등 걸기', () => openWish('lantern')]);
     if (TILE && Math.hypot(avatar.position.x - TILE.x, avatar.position.z - TILE.z) < 4.2) acts.push(['✍️ 기와 올리기', () => openWish('tile')]);
     if (!inside && cur && cur.fish) { // 휴휴암: 판매대에서 물고기 밥·방생 물고기를 받아 연화대 끝에서 던지거나 놓아 줌
@@ -1566,6 +1736,7 @@ function onState(p) {
   if (p.tn) { const T = temples.find(t => t.name === p.tn); if (T) { setFrame(T); [x, z] = L2W(p.lx, p.lz); if (cur) setFrame(cur); } }
   P.goal = { x, y: p.y || 0, z, ry: p.ry || 0 };
   const s = p.s || [];
+  if ((p.tl || 0) !== (P.tl || 0)) { P.tl = p.tl || 0; if (P.toolM) { P.toolM.removeFromParent(); P.toolM = null; } if (P.tl) P.toolM = holdTool(P.glb ? P.glb.root : P.g, P.tl === 1 ? 'broom' : 'rag'); } // 함께 운력: 다른 분의 비·걸레
   P.goalSt = { sit: s[0] || 0, walkAmp: s[1] || 0, speed: s[2] || 0, hap: s[3] || 0, kneel: s[4] || 0, bend: s[5] || 0, headX: s[6] || 0, headZ: s[7] || 0, closed: !!s[8] };
   if (!P.last) { P.g.position.set(x, P.goal.y, z); P.g.rotation.y = P.goal.ry; }
   P.last = performance.now(); P.g.visible = true;
@@ -1580,6 +1751,7 @@ function updatePeers(dt) {
       const S = P.st, G = P.goalSt; for (const key of ['sit', 'walkAmp', 'speed', 'hap', 'kneel', 'bend', 'headX', 'headZ']) S[key] += (G[key] - S[key]) * k; S.closed = G.closed;
       P.blinkT -= dt; S.blink = P.blinkT < .12; if (P.blinkT < 0) P.blinkT = 2 + Math.random() * 3;
       P.glb.update(dt, S);
+      if (P.toolM && P.tl === 1) { P.ph = (P.ph || 0) + dt * (3 + S.speed * 1.6) * (S.walkAmp > .2 ? 1 : 0); P.toolM.rotation.y = Math.sin(P.ph) * .55 * S.walkAmp; }
     }
   }
 }
@@ -1591,7 +1763,7 @@ function netTick(dt, ST) {
   let tn = '', lx = 0, lz = 0;
   if (cur && cur.YARD) { const [a, b] = W2L(x, z), Y = cur.YARD; if (a > Y.x0 - 4 && a < Y.x1 + 4 && b > Y.z0 - 4 && b < Y.z1 + 6) { tn = cur.name; lx = q(a); lz = q(b); } }
   const s = [q(ST.sit), q(ST.walkAmp), q(ST.speed), q(ST.hap), q(ST.kneel), q(ST.bend), q(ST.headX), q(ST.headZ), ST.closed ? 1 : 0];
-  const msg = { id: ME.id, n: ME.nick, tn, lx, lz, x: q(x), z: q(z), y: q(avatar.position.y), ry: q(avatar.rotation.y), s };
+  const msg = { id: ME.id, n: ME.nick, tn, lx, lz, x: q(x), z: q(z), y: q(avatar.position.y), ry: q(avatar.rotation.y), s, tl: chore ? (chore.kind === 'broom' ? 1 : 2) : 0 };
   const key = JSON.stringify(msg);
   if (key === lastSent && netBeat < 2) return; // 가만히 있으면 2초에 한 번만
   lastSent = key; netBeat = 0; NET.send(msg);
@@ -1732,6 +1904,9 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   sam(t) { startSambae(); if (t !== undefined) { sam.t = t; sam.hold = true; } },
   release() { poseHold = false; if (sam) sam.hold = false; },
   walk(on, run) { keys.KeyW = !!on; keys.ShiftLeft = !!run; },
+  goTo(lx, lz) { const [x, z] = L2W(lx, lz); moveTarget = { x, z, t: 0 }; },
+  npc: () => npc && { x: +npc.x.toFixed(2), z: +npc.z.toFixed(2), vis: npc.g.visible, glb: !!npc.glb, goal: npc.goal, wait: +npc.wait.toFixed(2) },
+  chore: () => chore && { kind: chore.kind, n: chore.n },
   get glb() { return glb; },
   get cur() { return cur; },
   get statuesDone() { return statuesDone; },
