@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>수월 · 전국 사찰 온라인 순례</title>
+<title>수월(水月) · 전국 사찰 온라인 순례</title>
 <meta name="description" content="오늘 하루, 수월하셨나요? 조계사부터 휴휴암까지 실제 절을 걸어서 돌고, 법당에서 삼배를 올려요">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="수월">
-<meta property="og:title" content="수월 · 전국 사찰 온라인 순례">
+<meta property="og:site_name" content="수월(水月)">
+<meta property="og:title" content="수월(水月) · 전국 사찰 온라인 순례">
 <meta property="og:description" content="오늘 하루, 수월하셨나요? 조계사부터 휴휴암까지 실제 절을 걸어서 돌고, 법당에서 삼배를 올려요">
 <meta property="og:url" content="https://temple-meta.vercel.app/">
-<meta property="og:image" content="https://temple-meta.vercel.app/assets/og-suwol.jpg">
+<meta property="og:image" content="https://temple-meta.vercel.app/assets/og-suwol.jpg?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="ko_KR">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="수월 · 전국 사찰 온라인 순례">
+<meta name="twitter:title" content="수월(水月) · 전국 사찰 온라인 순례">
 <meta name="twitter:description" content="오늘 하루, 수월하셨나요? 조계사부터 휴휴암까지 실제 절을 걸어서 돌고, 법당에서 삼배를 올려요">
-<meta name="twitter:image" content="https://temple-meta.vercel.app/assets/og-suwol.jpg">
+<meta name="twitter:image" content="https://temple-meta.vercel.app/assets/og-suwol.jpg?v=2">
 <meta name="apple-mobile-web-app-title" content="수월">
 <meta name="application-name" content="수월">
 <meta name="theme-color" content="#9b3b2b">
@@ -67,6 +67,7 @@
   #loading .lotus{font-size:46px;animation:breathe 2.4s ease-in-out infinite}
   #loading p{margin:14px 0 0;font-size:14px;color:#6d5f4b;text-align:center;line-height:1.6}
   #loading .brand{margin-top:10px;font:700 30px/1.2 "Noto Serif KR","Nanum Myeongjo",serif;letter-spacing:.14em;color:#4a3626;padding-left:.14em}
+  #loading .brand .hanja{display:block;margin-top:2px;font-size:15px;font-weight:600;letter-spacing:.5em;padding-left:.5em;color:#a07d4a}
   #loading .slogan{margin-top:6px;font-style:normal;font-size:15px;color:#8a6a3f;letter-spacing:.02em}
   @keyframes breathe{50%{transform:scale(1.12)}}
   #regionModal{position:fixed;inset:0;background:rgba(30,25,15,.45);display:none;align-items:center;justify-content:center;z-index:31;padding:14px}
@@ -181,11 +182,11 @@
 <body>
 <canvas id="c" tabindex="0"></canvas>
 
-<div id="loading"><div class="lotus">🪷</div><b class="brand">수월</b><i class="slogan">오늘 하루, 수월하셨나요?</i><p id="loadMsg">사찰로 가는 중…<br>브이월드에서 실제 법당 위치를 불러오고 있어요</p></div>
+<div id="loading"><div class="lotus">🪷</div><b class="brand">수월<span class="hanja">水月</span></b><i class="slogan">오늘 하루, 수월하셨나요?</i><p id="loadMsg">사찰로 가는 중…<br>브이월드에서 실제 법당 위치를 불러오고 있어요</p></div>
 
 <div id="title" class="card">
   <h1>사찰 순례 <small>불러오는 중</small></h1>
-  <p>수월 · 법당 안에 들어가 부처님께 삼배를 올리는 전국 사찰 온라인 순례</p>
+  <p>수월(水月) · 법당 안에 들어가 부처님께 삼배를 올리는 전국 사찰 온라인 순례</p>
   <div class="row"><span id="badge" class="badge">불러오는 중…</span><button id="dbgBtn" title="디버그 정보">🛠 상태</button></div>
 </div>
 <canvas id="minimap" class="card" width="264" height="264"></canvas>
@@ -251,6 +252,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=73"></script>
+<script type="module" src="./app.js?v=74"></script>
 </body>
 </html>
