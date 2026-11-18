@@ -361,7 +361,7 @@ function gripBroom(br, m, groundY) { // 비 손잡이를 위쪽 손에서 아래
   const top = _gh1.y >= _gh2.y ? _gh1 : _gh2, low = top === _gh1 ? _gh2 : _gh1;
   _gd.subVectors(low, top); const sep = _gd.length(); if (sep < .015) _gd.set(0, -1, .35); _gd.normalize();
   if (_gd.y > -.45) { _gd.y = -.45; _gd.normalize(); } // 너무 눕지 않게
-  br.position.copy(top).addScaledVector(_gd, -.07);
+  br.position.copy(top).addScaledVector(_gd, -.17); // 손잡이 끝이 위쪽 손 위로 조금 더 나오게 (긴 싸리비)
   const len = Math.max(.45, Math.min(1.25, (br.position.y - groundY - .015) / -_gd.y));
   br.quaternion.setFromUnitVectors(_DOWN, _gd); br.scale.setScalar(len / .98);
   return br.userData.tip = (br.userData.tip || new THREE.Vector3()).copy(br.position).addScaledVector(_gd, len);
@@ -461,9 +461,16 @@ function updateChore(dt, speed) {
 }
 // 흙먼지 (쓸 때 살짝 피어오름)
 const PUFFS = [];
+let PUFF_TEX = null;
+function puffTex() { // 가장자리가 흐린 동그란 흙먼지 (네모 판이 보이지 않게)
+  if (PUFF_TEX) return PUFF_TEX;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.45, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  PUFF_TEX = new THREE.CanvasTexture(c); PUFF_TEX.colorSpace = THREE.SRGBColorSpace; return PUFF_TEX;
+}
 function puff(x, y, z) {
   let p = PUFFS.find(q => q.t >= 1);
-  if (!p) { if (PUFFS.length > 14) return; p = { s: new THREE.Sprite(new THREE.SpriteMaterial({ color: '#d6c7a2', transparent: true, opacity: 0, depthWrite: false })), t: 1 }; scene.add(p.s); PUFFS.push(p); }
+  if (!p) { if (PUFFS.length > 14) return; p = { s: new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex(), color: '#d6c7a2', transparent: true, opacity: 0, depthWrite: false })), t: 1 }; scene.add(p.s); PUFFS.push(p); }
   p.t = 0; p.s.position.set(x + (Math.random() - .5) * .2, y + .08, z + (Math.random() - .5) * .2);
 }
 function updatePuffs(dt) { for (const p of PUFFS) { if (p.t >= 1) continue; p.t = Math.min(1, p.t + dt * 1.6); p.s.scale.setScalar(.18 + p.t * .55); p.s.position.y += dt * .35; p.s.material.opacity = .5 * (1 - p.t); } }
@@ -1931,8 +1938,9 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   walk(on, run) { keys.KeyW = !!on; keys.ShiftLeft = !!run; },
   sweepOK(v = true) { SWEEP_OK = v; },
   goTo(lx, lz) { const [x, z] = L2W(lx, lz); moveTarget = { x, z, t: 0 }; },
+  tp(lx, lz, ry) { const [x, z] = L2W(lx, lz); avatar.position.x = x; avatar.position.z = z; if (ry !== undefined) avatar.rotation.y = ry; },
   npc: () => npc && { x: +npc.x.toFixed(2), z: +npc.z.toFixed(2), vis: npc.g.visible, glb: !!npc.glb, goal: npc.goal, wait: +npc.wait.toFixed(2) },
-  chore: () => chore && { kind: chore.kind, n: chore.n },
+  chore: () => chore && { kind: chore.kind, n: chore.n, world: chore.world, sweepW: +sweepW.toFixed(2), tip: chore.mesh.userData.tip && chore.mesh.userData.tip.toArray().map(v => +v.toFixed(2)), me: avatar.position.toArray().map(v => +v.toFixed(2)), sc: +chore.mesh.scale.x.toFixed(2), hands: glb && glb.B ? ['LeftHand', 'RightHand'].map(k => glb.B[k] && glb.B[k].getWorldPosition(new THREE.Vector3()).toArray().map(v => +v.toFixed(2))) : null, inScene: !!chore.mesh.parent && chore.mesh.parent.type },
   get glb() { return glb; },
   get cur() { return cur; },
   get statuesDone() { return statuesDone; },
