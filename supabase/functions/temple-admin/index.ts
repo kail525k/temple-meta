@@ -51,6 +51,65 @@ async function monksPublic() { // 누구나: 인증된 스님 명단(공개키 �
   return (data || []).map(m => { const live = !!m.last_seen && Date.now() - Date.parse(m.last_seen) < LIVE_MS; return { id: m.id, region: m.region, temple: m.temple, name: m.name, pubkey: m.pubkey, live, cur_region: live ? m.cur_region : null, cur_temple: live ? m.cur_temple : null }; });
 }
 
+/* ── 순위: 절 횟수 · 방석에 앉아 있던 시간 · 화면을 켜고 머문 시간 ──
+   기기마다 무작위 기록 번호 + 비밀 열쇠(해시만 저장) · 실제로 흐른 시간보다 많이 올릴 수 없게 잘라서 더함 */
+const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const statNick = (n: unknown) => clean(n, 24).replace(/https?:\/\/\S+|www\.\S+/gi, '').replace(/\d{4,}/g, '').replace(/\s*(큰\s*)?스\s*님|주지\s*(스님)?|🪷/g, '').replace(/\s+/g, ' ').trim().slice(0, 12) || '순례자';
+const int = (x: unknown) => Math.max(0, Math.floor(Number(x) || 0));
+async function statReport(b: Record<string, unknown>) {
+  const id = String(b.id || '').toLowerCase(), key = String(b.key || '');
+  if (!UUID.test(id) || key.length < 20 || key.length > 100) throw new Error('bad_stat');
+  const kh = await sha('k:' + key), now = Date.now(), day = kstDay();
+  const { data: row } = await SB.from('temple_stats').select('*').eq('id', id).maybeSingle();
+  if (row && row.key_hash !== kh) throw new Error('bad_stat');
+  const gap = row?.last_at ? (now - Date.parse(row.last_at)) / 1000 : 120;
+  if (gap < 20) return { skipped: true };
+  const cap = Math.min(gap + 15, 900); // 실제로 흐른 시간만큼만 (한 번에 최대 15분)
+  const a = (b.add || {}) as Record<string, unknown>;
+  const stay = Math.min(int(a.stay), cap), sit = Math.min(int(a.sit), stay), bows = Math.min(int(a.bows), Math.ceil(cap / 1.5));
+  let monk_id = row?.monk_id ?? null;
+  const mb = b.monk as Record<string, unknown> | undefined; // 인증된 스님 기기의 서명이 맞으면 스님 기록으로 표시
+  if (mb && UUID.test(String(mb.id)) && Math.abs(now - Number(mb.t)) < 10 * 60e3) {
+    const { data: m } = await SB.from('temple_monks').select('id,pubkey,revoked_at').eq('id', String(mb.id)).maybeSingle();
+    if (m?.pubkey && !m.revoked_at && await verifySig(m.pubkey, `p|stat:${id}|${mb.t}`, mb.sig)) monk_id = m.id;
+  }
+  const same = row?.day === day;
+  const rec = {
+    nick: statNick(b.nick), monk_id, day, last_at: new Date(now).toISOString(),
+    bows: (row?.bows || 0) + bows, sit_sec: (row?.sit_sec || 0) + sit, stay_sec: (row?.stay_sec || 0) + stay,
+    d_bows: (same ? row.d_bows : 0) + bows, d_sit: (same ? row.d_sit : 0) + sit, d_stay: (same ? row.d_stay : 0) + stay,
+  };
+  const { error } = row ? await SB.from('temple_stats').update(rec).eq('id', id).eq('key_hash', kh) : await SB.from('temple_stats').insert({ id, key_hash: kh, ...rec });
+  if (error) throw error;
+  return { ok: true, took: { bows, sit, stay } };
+}
+const METRIC: Record<string, [string, string]> = { bows: ['bows', 'd_bows'], sit: ['sit_sec', 'd_sit'], stay: ['stay_sec', 'd_stay'] };
+async function ranks(b: Record<string, unknown>) { // 누구나: 오늘·전체 순위 위 10명 (기록 번호는 내보내지 않음) + 내 순위
+  const day = kstDay(), id = String(b.id || '').toLowerCase(), key = String(b.key || '');
+  const { data: monks } = await SB.from('temple_monks').select('id,temple,name,revoked_at').not('redeemed_at', 'is', null).limit(500);
+  const MK = new Map((monks || []).filter(m => !m.revoked_at).map(m => [m.id as string, `${m.temple} ${m.name} 스님`]));
+  let me: Record<string, unknown> | null = null;
+  if (UUID.test(id) && key) { const { data } = await SB.from('temple_stats').select('*').eq('id', id).maybeSingle(); if (data && data.key_hash === await sha('k:' + key)) me = data; }
+  const out: Record<string, Record<string, unknown> | unknown> = { day, today: {}, all: {}, me: null };
+  const mine: Record<string, Record<string, unknown>> = { today: {}, all: {} };
+  await Promise.all(Object.entries(METRIC).flatMap(([k, [allCol, dayCol]]) => ['all', 'today'].map(async per => {
+    const col = per === 'all' ? allCol : dayCol;
+    let q = SB.from('temple_stats').select(`id,nick,monk_id,${col}`).gt(col, 0);
+    if (per === 'today') q = q.eq('day', day);
+    const { data, error } = await q.order(col, { ascending: false }).limit(10); if (error) throw error;
+    (out[per] as Record<string, unknown>)[k] = (data || []).map((r: Record<string, unknown>) => ({ nick: r.nick, v: r[col], monk: r.monk_id ? MK.get(r.monk_id as string) || null : null, me: !!me && r.id === me.id }));
+    if (me) {
+      const v = per === 'today' && me.day !== day ? 0 : Number(me[col]) || 0;
+      let rank: number | null = null;
+      if (v > 0) { let c = SB.from('temple_stats').select('id', { count: 'exact', head: true }).gt(col, v); if (per === 'today') c = c.eq('day', day); const { count } = await c; rank = (count || 0) + 1; }
+      mine[per][k] = { v, rank };
+    }
+  })));
+  if (me) out.me = { nick: me.nick, monk: me.monk_id ? MK.get(me.monk_id as string) || null : null, ...mine };
+  return out;
+}
+
 async function tg(method: string, body: Record<string, unknown>) {
   if (!TOKEN) throw new Error('no_token');
   const r = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -148,6 +207,8 @@ Deno.serve(async req => {
       case 'monk_redeem': return json({ monk: await monkRedeem(b) });
       case 'monk_ping': return json(await monkPing(b));
       case 'monks': return json({ monks: await monksPublic() });
+      case 'stat': return json(await statReport(b));
+      case 'ranks': return json(await ranks(b));
     }
     if (!(await authed(b.token))) return json({ error: 'auth' }, 401);
     switch (b.action) {

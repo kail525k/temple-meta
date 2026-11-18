@@ -98,6 +98,10 @@
   #todoPanel div.on{color:var(--jade);font-weight:600}#todoPanel i{font-style:normal;width:18px;height:18px;border-radius:50%;border:1.5px solid #cbbd9f;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none}
   #todoPanel div.on i{background:var(--jade);border-color:var(--jade);color:#fff}
   #peoplePanel div{padding:5px 0;border-top:1px dashed var(--line);color:#6d5f4b}#peoplePanel div.empty{color:#9a8b72}#peoplePanel .me{display:flex;align-items:center;gap:6px;color:var(--ink);font-weight:600}#peoplePanel .me input{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-family:inherit;font-size:13px;background:#fffdf8}#peoplePanel .me button{border:0;border-radius:99px;padding:6px 10px;background:var(--accent);color:#fff;font-weight:700;font-family:inherit;cursor:pointer}#peoplePanel div.monk{color:#7a4a00;font-weight:800;background:linear-gradient(90deg,#fff3c8,transparent);border-radius:8px;padding:6px 8px}#peoplePanel .monkme{font-size:13px;color:#7a5a2a}#peoplePanel .monkme a{color:#9a6a1a;font-weight:700;text-decoration:none}#peoplePanel .monkme span{display:flex;gap:6px;margin-top:4px}#peoplePanel .monkme span[hidden]{display:none}#peoplePanel .monkme input{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid #d8b878;font-family:inherit;font-size:13px;letter-spacing:.05em;text-transform:uppercase}#peoplePanel .monkme button{border:0;border-radius:99px;padding:6px 10px;background:#b07a1e;color:#fff;font-weight:700;font-family:inherit;cursor:pointer;margin-left:6px}#peoplePanel .monkme.on{color:#7a4a00;font-weight:700}
+  #rankPanel .rkTabs{display:flex;gap:4px;margin:6px 0 0}#rankPanel .rkTabs button{flex:1;border:0;border-radius:99px;padding:6px 4px;font-size:12px;font-weight:700;font-family:inherit;background:#efe6d4;color:var(--ink);cursor:pointer;white-space:nowrap}#rankPanel .rkTabs button.on{background:var(--accent);color:#fff}
+  #rankPanel ol{list-style:none;margin:8px 0 0;padding:0}#rankPanel li{display:flex;align-items:center;gap:8px;padding:6px 4px;border-top:1px dashed var(--line)}#rankPanel li em{font-style:normal;width:22px;text-align:center;font-weight:800;color:#9a8b72;flex:none}#rankPanel li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#rankPanel li b{flex:none;font-variant-numeric:tabular-nums;color:#5a3a22}
+  #rankPanel li.monk{background:linear-gradient(90deg,#fff3c8,transparent);border-radius:8px}#rankPanel li.monk span{color:#7a4a00;font-weight:800}#rankPanel li.me{box-shadow:inset 0 0 0 2px rgba(155,59,43,.35);border-radius:8px}
+  #rankPanel .rkMe{margin-top:8px;padding:7px 10px;border-radius:10px;background:#fff3df;font-size:12.5px}#rankPanel .rkEmpty{margin-top:10px;color:#9a8b72;font-size:12.5px}#rankPanel .rkNote{margin:8px 0 0;font-size:10.5px;line-height:1.45}
   #soundPanel label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line)}#soundPanel input[type=range]{width:130px}
   #ritual{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:25;background:rgba(40,30,20,.18);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
   #ritual.show{display:flex}#ritualStage{touch-action:none;user-select:none}#ritualStage svg{cursor:pointer;filter:drop-shadow(0 14px 18px rgba(60,30,10,.35))}
@@ -153,7 +157,7 @@
   body.touch #minimap{width:84px;height:84px;top:var(--st);right:10px;border-radius:12px}
   body.touch #topBtns{top:calc(var(--st) + 92px);right:10px;flex-direction:column;align-items:flex-end;gap:6px}
   body.touch #topBtns button{padding:6px 9px;font-size:12px;min-width:48px;box-shadow:0 2px 8px rgba(60,40,10,.12)}
-  body.touch #actions{top:calc(var(--st) + 210px);bottom:auto;right:10px;width:auto;align-items:flex-end;gap:6px}
+  body.touch #actions{top:calc(var(--st) + 248px);bottom:auto;right:10px;width:auto;align-items:flex-end;gap:6px}
   body.touch #actions button,body.touch #actions a{width:48px;height:46px;padding:0;flex-direction:column;justify-content:center;gap:2px;border-radius:13px;margin-top:0}
   body.touch #actions button span,body.touch #actions a span{display:none}
   body.touch #actions em{display:block;font-size:10px;font-weight:700;line-height:1}
@@ -210,9 +214,10 @@
   <button id="btnPhoto" title="사진 저장"><i>📸</i>사진</button>
 </div>
 <div id="ctxBar"></div>
-<div id="topBtns"><button id="btnPeople" title="함께 순례 중인 사람">👥 1</button><button id="btnTodo">📋 0/12</button><button id="btnSound">🔈</button></div>
+<div id="topBtns"><button id="btnPeople" title="함께 순례 중인 사람">👥 1</button><button id="btnTodo">📋 0/12</button><button id="btnRank" title="순위">🏆</button><button id="btnSound">🔈</button></div>
 <div id="todoPanel" class="panel card"></div>
 <div id="soundPanel" class="panel card"></div>
+<div id="rankPanel" class="panel card"></div>
 <div id="peoplePanel" class="panel card"></div>
 <div id="ritual"><div id="ritualStage"></div><div id="ritualInfo"></div><div id="ritualCtrl"></div><button id="ritualClose">닫기 ✕</button></div>
 <div id="wishModal"><div class="box card">
@@ -252,6 +257,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=74"></script>
+<script type="module" src="./app.js?v=75"></script>
 </body>
 </html>

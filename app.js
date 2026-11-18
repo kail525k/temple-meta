@@ -10,6 +10,7 @@ import { connectTogether, myIdentity, saveNick, offerError } from './together.js
 import { REGIONS } from './temples.js?v=9';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=8';
+import { initStats, addBow, initRanks, flushStats, statsDebug } from './ranks.js?v=1';
 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
@@ -998,7 +999,7 @@ function startSambae() {
 function tryBow() {
   if (sam) return;
   if (nearBowSpot(2.6)) startSambae();
-  else { pose = 'bow'; poseT = 0; toast('🙇 공손히 절을 올렸어요'); }
+  else { pose = 'bow'; poseT = 0; addBow(1); toast('🙇 공손히 절을 올렸어요'); }
 }
 function doHap() { if (sam) return; if (sit) standUp(); pose = 'hap'; poseT = 0; toast('🙏 마음을 모아 합장했어요'); done('hap'); }
 document.getElementById('btnHapjang').onclick = doHap;
@@ -1222,7 +1223,7 @@ function step() {
       hap = t < 1 ? (n > 0 ? 1 : ss(0, .4, t)) : t < 1.9 ? 1 - .75 * ss(1, 1.4, t) : .25 + .75 * ss(1.9, 2.5, t);
       const kneel = ss(.45, .95, t) * (1 - ss(2, 2.5, t)), bend = ss(1, 1.45, t) * (1 - ss(1.85, 2.3, t));
       body.position.y = -kneel * .2; body.rotation.x = bend * 1.0; headG.rotation.x = bend * .3;
-      if (t > 1.2 && sam.rung !== n) { sam.rung = n; bell(.18); toast(`🙇 ${n + 1}배`, 1200); }
+      if (t > 1.2 && sam.rung !== n) { sam.rung = n; addBow(1); bell(.18); toast(`🙇 ${n + 1}배`, 1200); }
     }
   } else if (pose) {
     poseT += poseHold ? 0 : dt; const dur = pose === 'hap' ? 2.2 : 2.0;
@@ -2109,6 +2110,7 @@ async function startTogether() {
   canvas.focus();
   loop();
   setTimeout(() => toast('🙏 수월하세요 · 오늘 하루도 수월하시길 바라요', 3200), 900); // 수월의 인사
+  initStats({ getNick: () => ME.nick, isSitting: () => !!sit, monkSig: c => monkBadge(c) }); initRanks(); // 🏆 순위: 절 · 좌선 · 머문 시간
   { let tq = QS.get('t'); if (!tq && OFFLINE) { try { tq = sessionStorage.getItem('jeollo.t'); sessionStorage.removeItem('jeollo.t'); } catch (e) { } } const T = tq && temples.find(t => t.name === tq); if (T) { goTemple(T); intro = -1; } } // 다른 지역 창에서 '○○사 가기'로 왔으면 그 절 앞으로
   if (!QS.get('r') && !REGIONS.some(r => r.id === HASH_R) && !QS.has('dbg')) setTimeout(openRegions, 4200); // 처음 오면 지역 고르기를 보여 줌
 })();
@@ -2144,6 +2146,7 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   npc: () => npc && { x: +npc.x.toFixed(2), z: +npc.z.toFixed(2), vis: npc.g.visible, glb: !!npc.glb, goal: npc.goal, wait: +npc.wait.toFixed(2) },
   chore: () => chore && { kind: chore.kind, n: chore.n, world: chore.world, sweepW: +sweepW.toFixed(2), tip: chore.mesh.userData.tip && chore.mesh.userData.tip.toArray().map(v => +v.toFixed(2)), me: avatar.position.toArray().map(v => +v.toFixed(2)), sc: +chore.mesh.scale.x.toFixed(2), hands: glb && glb.B ? ['LeftHand', 'RightHand'].map(k => glb.B[k] && glb.B[k].getWorldPosition(new THREE.Vector3()).toArray().map(v => +v.toFixed(2))) : null, inScene: !!chore.mesh.parent && chore.mesh.parent.type },
   get glb() { return glb; },
+  stats: () => statsDebug(), statFlush: () => flushStats(),
   get cur() { return cur; },
   get statuesDone() { return statuesDone; },
   // 점검: 절마다 법당 불상·바깥 불상이 모델로 다 들어왔는지
