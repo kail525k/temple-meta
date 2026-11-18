@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
 import { buildHall } from './hall.js?v=9';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=23';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=24';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
 import { REGIONS } from './temples.js?v=9';
@@ -2173,7 +2173,7 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   tp(lx, lz, ry) { const [x, z] = L2W(lx, lz); avatar.position.x = x; avatar.position.z = z; if (ry !== undefined) avatar.rotation.y = ry; },
   npc: () => npc && { x: +npc.x.toFixed(2), z: +npc.z.toFixed(2), vis: npc.g.visible, glb: !!npc.glb, goal: npc.goal, wait: +npc.wait.toFixed(2) },
   chore: () => chore && { kind: chore.kind, n: chore.n, world: chore.world, sweepW: +sweepW.toFixed(2), tip: chore.mesh.userData.tip && chore.mesh.userData.tip.toArray().map(v => +v.toFixed(2)), me: avatar.position.toArray().map(v => +v.toFixed(2)), sc: +chore.mesh.scale.x.toFixed(2), hands: glb && glb.B ? ['LeftHand', 'RightHand'].map(k => glb.B[k] && glb.B[k].getWorldPosition(new THREE.Vector3()).toArray().map(v => +v.toFixed(2))) : null, inScene: !!chore.mesh.parent && chore.mesh.parent.type },
-  get glb() { return glb; },
+  get glb() { return glb; }, get renderer() { return renderer; }, get scene() { return scene; },
   stats: () => statsDebug(), statFlush: () => flushStats(),
   get cur() { return cur; },
   get statuesDone() { return statuesDone; },
@@ -2185,5 +2185,6 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   outside() { fpv = false; },
   fishGo(where = 'at') { const F = cur && cur.fish; if (!F) return null; const P = where === 'stall' ? { lx: F.stall.lx, lz: F.stall.lz + 1.6 } : F.at; const [x, z] = L2W(P.lx, P.lz); avatar.position.set(x, avatar.position.y, z); faceTo({ x: F.feedTo.lx, z: F.feedTo.lz }); intro = -1; yaw = avatar.rotation.y + Math.PI; dist = 5; pitch = .35; return P; },
   acts: () => ctxActs.map(a => a[0]), act: i => ctxActs[i] && ctxActs[i][1](),
+  faceL(lx, lz) { faceTo({ x: lx, z: lz }); }, fishState: () => ({ food: fishFood, bucket }),
   go(i, lx, lz) { const T = temples[i]; goTemple(T); if (lz !== undefined) { const [x, z] = L2W(lx, lz); avatar.position.set(x, 0, z); } return T.name; },
 };

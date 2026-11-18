@@ -138,7 +138,7 @@ export function createSchool(site, { cx, cz, rx = 5.5, rz = 3.6, n = 650, extra 
         // 머리 쪽을 +z로: 머리 쪽 몸통이 꼬리자루보다 옆으로 두꺼움
         const p = g.attributes.position; let wH = 0, wT = 0; for (let i = 0; i < p.count; i++) { const z = p.getZ(i), ax = Math.abs(p.getX(i)); if (z > .15 && z < .35) wH = Math.max(wH, ax); else if (z < -.15 && z > -.35) wT = Math.max(wT, ax); } if (wT > wH) g.rotateY(Math.PI);
         g.computeBoundingBox(); const bb = g.boundingBox; g.translate(0, -(bb.max.y + bb.min.y) / 2, 0); g.computeVertexNormals();
-        const base = src.material.clone(); base.side = THREE.DoubleSide; base.metalness = Math.min(base.metalness ?? 0, kind === 'hwangeo' ? .35 : .1); base.roughness = Math.max(base.roughness ?? .5, .35);
+        const base = src.material.clone(); if (g.attributes.color) { base.vertexColors = true; base.map = null; } base.side = THREE.DoubleSide; base.metalness = Math.min(base.metalness ?? 0, kind === 'hwangeo' ? .35 : .1); base.roughness = Math.max(base.roughness ?? .5, .35);
         const target = kind === 'ureok' ? uMesh : mesh; target.geometry.dispose(); target.geometry = g; target.material = swimMat(base);
         return true;
       } catch (err) { return false; }
