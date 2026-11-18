@@ -880,37 +880,43 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'KeyS' || e.code === 'ArrowDown') bellPullEnd(); });
 let yaw = Math.PI, pitch = 0.24, dist = 6;
 let feetY = 0, vy = 0, grounded = true, jumpLatch = false, lastY = 0, jumpBtn = false, fpv = false; // 점프·1인칭
-const drag = { id: null, x: 0, y: 0 };
+const drag = { id: null, x: 0, y: 0 }; let lookT = 0; // lookT: 마지막으로 화면을 끌어 둘러본 때
 const ZMIN = 1.4, ZMAX = 110; // 확대·축소 범위 (얼굴 가까이 ~ 권역을 높이서 내려다보기)
 const PMIN = -0.85, PMAX = 1.48; // 보는 각도: 아래에서 올려다보기(-) ~ 거의 위에서 내려다보기
 const ptrs = new Map(); let pinchD = 0, pinchDist0 = 0, downInfo = null;
 canvas.addEventListener('pointerdown', e => {
   if (bellHold && e.button === 0 && (e.pointerType === 'mouse' || isLocked())) { bellPullStart(); return; }
+  if (e.pointerType !== 'mouse' && joy.id === null && inJoyZone(e.clientX, e.clientY)) { startJoy(e); return; } // 왼쪽 아래 = 이동 조이스틱
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinchD = Math.hypot(a.x - b.x, a.y - b.y); pinchDist0 = dist; drag.id = null; downInfo = null; return; }
   if (drag.id !== null) return; drag.id = e.pointerId; drag.x = e.clientX; drag.y = e.clientY; canvas.setPointerCapture(e.pointerId);
   downInfo = { x: e.clientX, y: e.clientY, t: performance.now() };
 });
 canvas.addEventListener('pointermove', e => {
+  if (e.pointerId === joy.id) { moveJoy(e); return; }
   if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinchD > 0) dist = clamp(pinchDist0 * pinchD / Math.max(20, d), ZMIN, ZMAX); return; }
-  if (e.pointerId !== drag.id || isLocked()) return; yaw -= (e.clientX - drag.x) * 0.005 * SENS(); pitch = clamp(pitch + (e.clientY - drag.y) * 0.005 * SENS(), PMIN, PMAX); drag.x = e.clientX; drag.y = e.clientY;
+  if (e.pointerId !== drag.id || isLocked()) return; lookT = performance.now(); yaw -= (e.clientX - drag.x) * 0.005 * SENS(); pitch = clamp(pitch + (e.clientY - drag.y) * 0.005 * SENS(), PMIN, PMAX); drag.x = e.clientX; drag.y = e.clientY;
 });
 const endDrag = e => {
+  if (e.pointerId === joy.id) { endJoy(e); return; }
   if (bellHold && bellHold.pulling && e.button === 0 && e.pointerType === 'mouse') { bellPullEnd(); ptrs.delete(e.pointerId); return; }
   ptrs.delete(e.pointerId); if (ptrs.size < 2) pinchD = 0;
   if (e.pointerId === drag.id) {
     drag.id = null;
     const tap = e.type === 'pointerup' && downInfo && Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y) < 7 && performance.now() - downInfo.t < 400;
-    let fed = false;
-    if (tap && fishAimPt) { // 휴휴암 연화대 끝에서 밥(또는 방생 양동이)을 들고 있으면: 누른 쪽 물로 던짐
-      const r = canvas.getBoundingClientRect(), pt = isLocked() ? fishAimPt : fishAimAt((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      if (pt) { if (fishFood > 0) throwFish(pt); else releaseFish(pt); fed = true; }
-    }
-    if (tap && !fed) { if (FINE && e.pointerType === 'mouse') lockMouse(e); else clickMove(e); } // PC: 화면을 누르면 3인칭 마우스 시점, 터치: 누른 곳으로 걷기
+    if (tap) tapAt(e);
     downInfo = null;
   }
 };
+// 화면을 톡 눌렀을 때: 휴휴암 연화대에서 밥·방생 양동이를 들고 있으면 누른 쪽 물로 던짐, 아니면 PC는 마우스 시점 · 터치는 누른 곳으로 걷기
+function tapAt(e) {
+  if (fishAimPt) {
+    const r = canvas.getBoundingClientRect(), pt = isLocked() ? fishAimPt : fishAimAt((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    if (pt) { if (fishFood > 0) throwFish(pt); else releaseFish(pt); return; }
+  }
+  if (FINE && e.pointerType === 'mouse') lockMouse(e); else clickMove(e);
+}
 // 마우스 감도 10단계 ([ ] 키 또는 왼쪽 아래 −/+), 기기에 저장
 const SENS_STEPS = [.35, .5, .65, .8, 1, 1.2, 1.45, 1.75, 2.1, 2.5];
 let sensLv = (() => { try { const v = +localStorage.getItem('templeMeta.sens'); return v >= 1 && v <= 10 ? v : 5; } catch (e) { return 5; } })();
@@ -966,15 +972,30 @@ if (document.body.classList.contains('touch')) { // 휴대폰: 사찰 이름 카
 }
 const joyEl = document.getElementById('joy'), knob = document.getElementById('knob');
 { const jb = document.getElementById('btnJump'); if (jb) { const on = e => { e.preventDefault(); jumpBtn = true; }, off = () => { jumpBtn = false; }; jb.addEventListener('pointerdown', on); jb.addEventListener('pointerup', off); jb.addEventListener('pointercancel', off); jb.addEventListener('pointerleave', off); } }
-const joy = { id: null, x: 0, y: 0 };
-joyEl.addEventListener('pointerdown', e => { joy.id = e.pointerId; joyEl.setPointerCapture(e.pointerId); moveJoy(e); });
-joyEl.addEventListener('pointermove', e => { if (e.pointerId === joy.id) moveJoy(e); });
-const endJoy = e => { if (e.pointerId === joy.id) { joy.id = null; joy.x = joy.y = 0; knob.style.transform = ''; } };
-joyEl.addEventListener('pointerup', endJoy); joyEl.addEventListener('pointercancel', endJoy);
+/* 휴대폰 이동 조이스틱: 왼쪽 아래 아무 곳이나 누르면 그 자리에 생김 (작은 원을 정확히 누를 필요 없음)
+   손가락이 원 밖으로 멀리 가면 원이 따라옴 · 살짝 밀면 천천히, 끝까지 밀면 서서히 빨라짐 · 짧게 톡 누르면 그곳으로 걸어감 */
+const joy = { id: null, x: 0, y: 0, ox: 0, oy: 0, t0: 0, far: 0 }, JOY_R = 52, JOY_DEAD = .14;
+const inJoyZone = (x, y) => document.body.classList.contains('touch') && x < innerWidth * .46 && y > innerHeight * .36;
+function startJoy(e) {
+  joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY; joy.t0 = performance.now(); joy.far = 0; joy.x = joy.y = 0;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
+  joyEl.classList.add('live'); placeJoy(); knob.style.transform = '';
+}
+function placeJoy() { const h = joyEl.offsetWidth / 2; joyEl.style.left = (joy.ox - h) + 'px'; joyEl.style.top = (joy.oy - h) + 'px'; joyEl.style.bottom = 'auto'; }
 function moveJoy(e) {
-  const r = joyEl.getBoundingClientRect(); let dx = (e.clientX - r.left - r.width / 2) / (r.width / 2), dy = (e.clientY - r.top - r.height / 2) / (r.height / 2);
-  const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; }
-  joy.x = dx; joy.y = dy; knob.style.transform = `translate(${dx * 34}px,${dy * 34}px)`;
+  let dx = e.clientX - joy.ox, dy = e.clientY - joy.oy, l = Math.hypot(dx, dy);
+  joy.far = Math.max(joy.far, Math.hypot(e.clientX - joy.ox, e.clientY - joy.oy));
+  if (l > JOY_R * 1.25) { const k = 1 - JOY_R * 1.25 / l; joy.ox += dx * k; joy.oy += dy * k; dx -= dx * k; dy -= dy * k; l = JOY_R * 1.25; placeJoy(); } // 원이 손가락을 따라옴
+  const v = Math.min(1, l / JOY_R), m = v < JOY_DEAD ? 0 : (v - JOY_DEAD) / (1 - JOY_DEAD); // 가운데 조금은 가만히
+  joy.x = l ? dx / l * m : 0; joy.y = l ? dy / l * m : 0;
+  const kl = Math.min(l, JOY_R) / (l || 1); knob.style.transform = `translate(${dx * kl}px,${dy * kl}px)`;
+}
+function endJoy(e) {
+  if (e.pointerId !== joy.id) return;
+  const tap = e.type === 'pointerup' && joy.far < 9 && performance.now() - joy.t0 < 380;
+  joy.id = null; joy.x = joy.y = 0; knob.style.transform = '';
+  joyEl.classList.remove('live'); joyEl.style.left = joyEl.style.top = joyEl.style.bottom = '';
+  if (tap) tapAt(e); // 톡 누르면 예전처럼 (그 자리로 걷기 · 휴휴암에선 물고기 밥 던지기)
 }
 
 /* ───────── 합장 · 절 · 삼배 ───────── */
@@ -1168,7 +1189,7 @@ function step() {
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   if (sam && il > .5) { sam = null; resetBody(); toast('삼배를 멈췄어요'); }
   if (il > .05) { moveTarget = null; if (sit) standUp(); if (tapdori) stopTapdori('탑돌이를 멈췄어요'); }
-  let speed = (keys.ShiftLeft || keys.ShiftRight || il > 0.95 && joy.id !== null ? 7 : 3.6);
+  let speed = keys.ShiftLeft || keys.ShiftRight ? 7 : joy.id !== null ? 3.6 + 2.6 * ss(.86, 1, il) : 3.6; // 조이스틱: 끝까지 밀면 서서히 빨라짐
   let mx = 0, mz = 0, moving = false;
   if (!sam && !sit && pose !== 'bow') {
     if (chore) speed = Math.min(speed, chore.kind === 'rag' ? 1.6 : chore.world ? 1.3 : 2.4); // 비·걸레를 들면 천천히
@@ -1186,9 +1207,14 @@ function step() {
       if (!ok && moveTarget) { moveTarget = null; markMove(null); } // 막혀서 못 가면 멈춤
       pushOut(p, 0.42); clampBound(p);
     }
+    // 카메라가 걷는 방향 뒤로 천천히 따라 돎 → 왼쪽으로 밀면 왼쪽으로 돌아 걸음 (마우스 시점·1인칭·화면 끌기·뒤로 걷기일 땐 안 함)
+    if (il > .05 && !tapdori && !moveTarget && !isLocked() && !fpv && drag.id === null && performance.now() - lookT > 1200 && iz <= .25 * il) {
+      const side = Math.abs(ix) / il; let dy = Math.atan2(mx, mz) + Math.PI - yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      yaw += Math.sign(dy) * Math.min(Math.abs(dy), dt * 1.15 * side * (speed > 4 ? 1.35 : 1));
+    }
     const face = (isLocked() || fpv) && !moveTarget && !tapdori && iz <= .05 ? yaw + Math.PI : Math.atan2(mx, mz); // 마우스 시점: 시선 방향을 보고 옆걸음
     let d = face - avatar.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); avatar.rotation.y += d * Math.min(1, dt * 10);
-    walkT += dt * speed * 2; body.position.y = Math.abs(Math.sin(walkT)) * 0.06; body.rotation.z = Math.sin(walkT) * 0.05;
+    walkT += dt * speed * 2 * (il > .05 ? Math.max(.45, Math.min(1, il)) : 1); body.position.y = Math.abs(Math.sin(walkT)) * 0.06; body.rotation.z = Math.sin(walkT) * 0.05;
     walkAmp = Math.min(1, walkAmp + dt * 6);
   } else if (!sam) { body.position.y *= 0.85; body.rotation.z *= 0.85; walkAmp = Math.max(0, walkAmp - dt * 6); }
   else walkAmp = 0;
@@ -1298,10 +1324,11 @@ const moveMark = new THREE.Mesh(new THREE.RingGeometry(.22, .34, 28), new THREE.
 moveMark.rotation.x = -Math.PI / 2; moveMark.visible = false; scene.add(moveMark);
 function markMove(p) { if (!p) { moveMark.visible = false; return; } moveMark.position.set(p.x, avatar.position.y + .05, p.z); moveMark.visible = true; moveMark.userData.t = 0; }
 function clickMove(e) {
-  if (sam || rituals.open || bellHold) return;
+  if (sam || rituals.open || bellHold) { DBG.tap = 'busy'; return; }
   const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -avatar.position.y), _p) || _p.distanceTo(avatar.position) > 70) return;
+  if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -avatar.position.y), _p) || _p.distanceTo(avatar.position) > 70) { DBG.tap = 'miss'; return; }
+  DBG.tap = 'go';
   if (sit) standUp(); if (tapdori) stopTapdori(); intro = -1;
   moveTarget = { x: _p.x, z: _p.z, t: 0 }; markMove(_p);
 }
@@ -2111,6 +2138,7 @@ async function startTogether() {
   loop();
   setTimeout(() => toast('🙏 수월하세요 · 오늘 하루도 수월하시길 바라요', 3200), 900); // 수월의 인사
   initStats({ getNick: () => ME.nick, isSitting: () => !!sit, monkSig: c => monkBadge(c) }); initRanks(); // 🏆 순위: 절 · 좌선 · 머문 시간
+  if (document.body.classList.contains('touch') && !store.d.joyTip) setTimeout(() => { store.d.joyTip = 1; store.save(); toast('👈 왼쪽 아래 아무 곳이나 눌러 끌면 걸어요 · 옆으로 밀면 그쪽으로 돌아요 · 땅을 톡 누르면 그곳으로 걸어가요', 5200); }, 4800);
   { let tq = QS.get('t'); if (!tq && OFFLINE) { try { tq = sessionStorage.getItem('jeollo.t'); sessionStorage.removeItem('jeollo.t'); } catch (e) { } } const T = tq && temples.find(t => t.name === tq); if (T) { goTemple(T); intro = -1; } } // 다른 지역 창에서 '○○사 가기'로 왔으면 그 절 앞으로
   if (!QS.get('r') && !REGIONS.some(r => r.id === HASH_R) && !QS.has('dbg')) setTimeout(openRegions, 4200); // 처음 오면 지역 고르기를 보여 줌
 })();
@@ -2129,6 +2157,7 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   others: () => [...peers.values()].map(P => ({ x: +P.g.position.x.toFixed(3), z: +P.g.position.z.toFixed(3), wob: +(P.wob || 0).toFixed(3) })),
   place(x, z, ry) { avatar.position.x = x; avatar.position.z = z; if (ry !== undefined) avatar.rotation.y = ry; intro = -1; },
   cam(y, d, p) { yaw = y; dist = d; pitch = p; intro = -1; },
+  view: () => ({ yaw: +yaw.toFixed(3), face: +avatar.rotation.y.toFixed(3), joy: { ...joy }, mv: !!moveTarget, tap: DBG.tap, sam: !!sam, bell: !!bellHold }),
   peers: () => [...peers.values()].map(P => ({ nick: P.nick, vis: P.g.visible, bell: P.bell || 0, glb: !!P.glb })),
   probe: (lx, lz, feet) => { const [x, z] = L2W(lx, lz); const f = feet ?? feetY; const near = solidsNear(x, z).map(i => SOLID.list[i]).filter(o => solidHit(o, x, z, BODY_R)).map(o => ({ t: o.t, y0: +o.y0.toFixed(2), y1: +o.y1.toFixed(2), r: o.r && +o.r.toFixed(2), hu: o.hu && +o.hu.toFixed(2), hv: o.hv && +o.hv.toFixed(2) })); return { hAt: hall && +hall.heightAt(lx, lz).toFixed(3), g: +groundAt(x, z, f).toFixed(3), blocked: blockedAt(x, z, f), near }; },
   front(d = 3, p = .15) { intro = -1; yaw = behind() + Math.PI; dist = d; pitch = p; },
