@@ -10,6 +10,10 @@ const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
 const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 // 눈 감은 얼굴: Meshy 'AI 텍스처 편집'으로 같은 모델 텍스처에 눈을 감겨 만든 그림(UV 동일) — 눈 감을 때 텍스처만 바꿔 끼움
+// 함께 쓰는 동작(예: 빗자루질): 같은 믹사모 뼈대라 한 번 불러와 모든 아기 스님(나·다른 분·동자승)에 끼움
+const SHARED = new Map();
+export function shareClip(name, clip) { if (clip) SHARED.set(name, clip); }
+export async function loadClip(url) { const l = new GLTFLoader(); l.setMeshoptDecoder(MeshoptDecoder); const g = await l.loadAsync(url); return g.animations[0] || null; }
 const closedCache = new Map();
 function loadClosedTex(url, like) {
   if (!closedCache.has(url)) closedCache.set(url, new THREE.TextureLoader().loadAsync(url).then(t => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; return t; }).catch(() => null));
@@ -134,6 +138,7 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress, closedUrl = 
   const hipsAnimated = !!hipsName && [walkClip, runClip].some(c => c && c.tracks.some(t => t.name.startsWith(THREE.PropertyBinding.sanitizeNodeName(hipsName) + '.position')));
   [walk, run].forEach(a => { if (a) { a.play(); a.setEffectiveWeight(0); } });
   let runMix = 0;
+  const extra = new Map(); // 함께 쓰는 동작 (shareClip)
 
   // ── 감은 눈 덧씌우기 ──
   const lids = [];
@@ -158,8 +163,11 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress, closedUrl = 
   function update(dt, st) {
     // 걷기·달리기 섞기
     const wantRun = st.speed > 5 && run ? 1 : 0; runMix += (wantRun - runMix) * Math.min(1, dt * 6);
-    if (walk) { walk.setEffectiveWeight(st.walkAmp * (1 - runMix)); walk.timeScale = Math.max(.6, st.speed / 3.6) * 1.15; }
-    if (run) { run.setEffectiveWeight(st.walkAmp * runMix); run.timeScale = Math.max(.6, st.speed / 7); }
+    for (const [n, c] of SHARED) if (!extra.has(n)) { const a = mixer.clipAction(stripRoot(c)); a.play(); a.setEffectiveWeight(0); extra.set(n, a); }
+    const sw = extra.has('sweep') ? (st.sweep || 0) : 0; if (extra.has('sweep')) extra.get('sweep').setEffectiveWeight(sw); // 빗자루질: 걸으면 다리만 조금 섞음
+    const legMix = 1 - .65 * sw;
+    if (walk) { walk.setEffectiveWeight(st.walkAmp * (1 - runMix) * legMix); walk.timeScale = Math.max(.6, st.speed / 3.6) * 1.15; }
+    if (run) { run.setEffectiveWeight(st.walkAmp * runMix * legMix); run.timeScale = Math.max(.6, st.speed / 7); }
     // 지난 프레임에 덧씌운 자세를 되돌린 뒤 애니메이션을 진행 (믹서는 값이 안 바뀌면 다시 쓰지 않아서 누적되지 않게)
     if (haveBase) for (const b of touched) { const v = base.get(b); b.quaternion.copy(v.q); b.position.copy(v.p); }
     mixer.update(dt);
@@ -188,7 +196,7 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress, closedUrl = 
     if (closedTex) { if (shut !== lastShut) { lastShut = shut; for (const m of skinMats) { const t = shut ? closedTex : m.userData.openMap; m.map = t; if (m.emissiveMap) m.emissiveMap = t; } } }
     else lids.forEach(m => { m.visible = shut; });
   }
-  return { root, scene, mixer, update, info, lids, B };
+  return { root, scene, mixer, update, info, lids, B, hasClip: n => extra.has(n) };
 }
 
 // 머리(Head 뼈 가중치가 큰) 앞쪽 삼각형을 촘촘히 샘플링해 텍스처가 아주 어두운 곳(눈동자)을 찾음

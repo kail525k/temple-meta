@@ -1,7 +1,7 @@
 // 온라인 사찰 참배 체험판 — 권역(서울·경남 등)마다 한 장면에 큰 사찰들을 축소해 모아 두고, 사찰마다 법당 하나를 실제 크기로 재현 (위레브)
 import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
-import { loadMonkGLB } from './monk-glb.js?v=3';
+import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=4';
 import { buildHall } from './hall.js?v=8';
 import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=21';
 import { loadStatue } from './statue.js?v=1';
@@ -351,6 +351,21 @@ function makeBroom() {
   m(new THREE.CylinderGeometry(.034, .15, .36, 10), BROOM_M.b, -.8).scale.z = .42; // 납작하게 퍼진 싸리 가지
   return g; // 손잡이 끝이 원점, 아래로 0.98m
 }
+// 빗자루질 동작 (Meshy 텍스트→모션 · 같은 믹사모 뼈대) — 불러오면 나·다른 분·동자승 모두 두 손으로 비를 잡고 좌우로 쓸어요
+let SWEEP_OK = false;
+loadClip('./assets/monk-sweep.glb').then(c => { shareClip('sweep', c); SWEEP_OK = !!c; dbg('sweepClip', c ? `${c.name} ${c.duration.toFixed(2)}s` : '없음'); }).catch(() => dbg('sweepClip', '아직 없음 (어깨에 맨 비로 대신)'));
+const _gh1 = new THREE.Vector3(), _gh2 = new THREE.Vector3(), _gd = new THREE.Vector3(), _DOWN = new THREE.Vector3(0, -1, 0);
+function gripBroom(br, m, groundY) { // 비 손잡이를 위쪽 손에서 아래쪽 손을 지나 땅까지 — 동작에 따라 매 프레임 맞춤
+  const L = m && m.B && m.B.LeftHand, R = m && m.B && m.B.RightHand; if (!L || !R) return null;
+  L.getWorldPosition(_gh1); R.getWorldPosition(_gh2);
+  const top = _gh1.y >= _gh2.y ? _gh1 : _gh2, low = top === _gh1 ? _gh2 : _gh1;
+  _gd.subVectors(low, top); const sep = _gd.length(); if (sep < .015) _gd.set(0, -1, .35); _gd.normalize();
+  if (_gd.y > -.45) { _gd.y = -.45; _gd.normalize(); } // 너무 눕지 않게
+  br.position.copy(top).addScaledVector(_gd, -.07);
+  const len = Math.max(.45, Math.min(1.25, (br.position.y - groundY - .015) / -_gd.y));
+  br.quaternion.setFromUnitVectors(_DOWN, _gd); br.scale.setScalar(len / .98);
+  return br.userData.tip = (br.userData.tip || new THREE.Vector3()).copy(br.position).addScaledVector(_gd, len);
+}
 function makeRag() { const g = new THREE.Group(), r = new THREE.Mesh(new THREE.BoxGeometry(.24, .035, .17), new THREE.MeshStandardMaterial({ color: '#e9e3d3', roughness: 1 })); r.castShadow = true; g.add(r); return g; }
 function holdTool(parent, kind) { // 모델 단위(키 1.11)로 손 앞에 쥐어 줌
   const m = kind === 'broom' ? makeBroom() : makeRag();
@@ -401,10 +416,11 @@ function dustOf(T) { // 법당 마루 먼지 자국
 }
 function setDust(T, D, i) { const P = D.list[i]; D.im.setMatrixAt(i, _cm.compose(_cp.set(P.x, T.hall.FY + .012, P.z), _cq.identity(), _cs.set(P.s * P.d + 1e-3, 1, P.s * P.d + 1e-3))); D.im.instanceMatrix.needsUpdate = true; }
 
-let chore = null, choreSwish = 0; // 들고 있는 도구 { kind:'broom'|'rag', mesh, phase, tick, n }
+let chore = null, choreSwish = 0, sweepW = 0; // 들고 있는 도구 { kind:'broom'|'rag', mesh, phase, tick, n }
 function pickTool(kind) {
   if (sit) standUp(); if (tapdori) stopTapdori(); dropTool(true);
-  chore = { kind, mesh: holdTool(glb ? glb.root : avatar, kind), phase: 0, tick: 0, n: 0 };
+  const world = !!(kind === 'broom' && SWEEP_OK && glb), mesh = world ? makeBroom() : holdTool(glb ? glb.root : avatar, kind); if (world) scene.add(mesh); // 빗자루질 동작이 있으면 두 손에 쥐는 비
+  chore = { kind, world, mesh, phase: 0, tick: 0, n: 0 };
   toast(kind === 'broom' ? '🧹 싸리비를 들었어요 · 마당을 걸어 다니면 앞의 낙엽이 쓸려요' : '🧽 걸레를 들었어요 · 마루의 먼지 자국 위로 다니면 깨끗이 닦여요', 3800);
   lastSent = ''; updateNear();
 }
@@ -424,13 +440,13 @@ function updateChore(dt, speed) {
   const [lx, lz] = W2L(avatar.position.x, avatar.position.z), inside = hall && hall.isInside(lx, lz), moving = speed > .35;
   if (chore.kind === 'broom' && inside) return dropTool(false, '🧹 싸리비는 법당 밖에 두고 들어가요');
   if (chore.kind === 'rag' && !inside) return dropTool(false, '🧽 걸레는 법당 안에 두고 나왔어요');
-  if (!sam && !pose && !sit) body.rotation.x += ((chore.kind === 'rag' ? .55 : .2) * (moving || chore.kind === 'rag' ? 1 : .5) - body.rotation.x) * Math.min(1, dt * 6); // 비질·걸레질 하느라 허리를 숙임
+  if (!sam && !pose && !sit) body.rotation.x += ((chore.kind === 'rag' ? .55 : chore.world ? 0 : .2) * (moving || chore.kind === 'rag' ? 1 : .5) - body.rotation.x) * Math.min(1, dt * 6); // 비질·걸레질 하느라 허리를 숙임 (빗자루질 동작이 있으면 동작대로)
   chore.phase += dt * (moving ? 3 + speed * 1.6 : 2.4); const sw = Math.sin(chore.phase); // 서 있어도 제자리에서 쓸고 닦음
-  if (chore.kind === 'broom') { chore.mesh.rotation.y = sw * (moving ? .55 : .4); chore.mesh.position.x = .13 + sw * .05; }
+  if (chore.kind === 'broom' && !chore.world) { chore.mesh.rotation.y = sw * (moving ? .55 : .4); chore.mesh.position.x = .13 + sw * .05; }
   else { chore.mesh.position.x = .06 + sw * .12; chore.mesh.position.z = .36 + Math.cos(chore.phase) * .05; }
   chore.tick += dt; if (chore.tick < (moving ? .1 : .28)) return; chore.tick = 0;
   const ry = avatar.rotation.y, fx = Math.sin(ry), fz = Math.cos(ry), sx = Math.cos(ry), sz = -Math.sin(ry);
-  const wx = avatar.position.x + fx * .55 + sx * sw * .28, wz = avatar.position.z + fz * .55 + sz * sw * .28;
+  const tip = chore.world && chore.mesh.userData.tip, wx = tip ? tip.x : avatar.position.x + fx * .55 + sx * sw * .28, wz = tip ? tip.z : avatar.position.z + fz * .55 + sz * sw * .28; // 비 끝이 닿는 곳
   const [cx, cz] = W2L(wx, wz), [dx1, dz1] = W2L(wx + fx, wz + fz), dx = dx1 - cx, dz = dz1 - cz;
   if (chore.kind === 'broom') {
     const n = sweepLeaves(cur, cx, cz, .55, dx, dz);
@@ -466,7 +482,7 @@ function ensureNpc(T) {
   npc.T = T; const p = T.leaves.spot(); npc.x = p ? p[0] : 0; npc.z = p ? p[1] : T.YARD.z1 - 3; npc.goal = null; npc.wait = 1;
 }
 function updateNpc(dt) {
-  if (!npc || !npc.T || npc.T !== cur) { if (npc) npc.g.visible = false; return; }
+  if (!npc || !npc.T || npc.T !== cur) { if (npc) { npc.g.visible = false; if (npc.wbroom) npc.wbroom.visible = false; } return; }
   const T = cur, LV = T.leaves; npc.g.visible = true;
   if (!npc.goal && npc.wait <= 0) { // 다음에 쓸 곳: 사람과 떨어진 낙엽 (탑·법당을 가로지르지 않게)
     const [ax, az] = W2L(avatar.position.x, avatar.position.z), pg = T.pagoda ? W2L(T.pagoda.x, T.pagoda.z) : null;
@@ -491,8 +507,11 @@ function updateNpc(dt) {
   npc.amp += ((moving ? 1 : 0) - npc.amp) * Math.min(1, dt * 5);
   const [wx, wz] = L2W(npc.x, npc.z);
   npc.g.position.set(wx, T.hall.heightAt ? T.hall.heightAt(npc.x, npc.z) : 0, wz); npc.g.rotation.y = npcYaw(npc.ry || 0);
-  npc.tick += dt; if (sweeping && npc.tick > .3) { npc.tick = 0; const fx = Math.sin(npc.ry || 0), fz = Math.cos(npc.ry || 0); if (sweepLeaves(T, npc.x + fx * .5, npc.z + fz * .5, .45, fx, fz)) { const [px, pz] = L2W(npc.x + fx * .5, npc.z + fz * .5); puff(px, npc.g.position.y + .05, pz); } }
-  const S = npc.st; S.walkAmp = npc.amp; S.speed = npc.amp * .8; S.bend = .22; if (npc.glb) npc.glb.update(dt, S);
+  npc.tick += dt; if (sweeping && npc.tick > .3) { npc.tick = 0; const fx = Math.sin(npc.ry || 0), fz = Math.cos(npc.ry || 0), tp = npc.wbroom && npc.wbroom.userData.tip, [tx, tz] = tp ? W2L(tp.x, tp.z) : [npc.x + fx * .5, npc.z + fz * .5]; if (sweepLeaves(T, tx, tz, .45, fx, fz)) { const [px, pz] = L2W(tx, tz); puff(px, npc.g.position.y + .05, pz); } }
+  const useClip = SWEEP_OK && npc.glb && npc.glb.hasClip('sweep');
+  if (useClip && !npc.wbroom) { if (npc.broom) npc.broom.removeFromParent(); npc.broom = null; npc.wbroom = makeBroom(); scene.add(npc.wbroom); } // 두 손으로 잡는 비로 바꿈
+  const S = npc.st; S.walkAmp = npc.amp; S.speed = npc.amp * .8; S.bend = useClip ? 0 : .22; S.sweep = useClip ? 1 : 0; if (npc.glb) npc.glb.update(dt, S);
+  if (npc.wbroom) { npc.g.updateMatrixWorld(true); npc.wbroom.visible = true; gripBroom(npc.wbroom, npc.glb, npc.g.position.y); }
 }
 function npcYaw(localYaw) { // 절 기준 방향 → 세상 방향
   const [ax, az] = L2W(0, 0), [bx, bz] = L2W(Math.sin(localYaw), Math.cos(localYaw)); return Math.atan2(bx - ax, bz - az);
@@ -1076,7 +1095,7 @@ function step() {
   let speed = (keys.ShiftLeft || keys.ShiftRight || il > 0.95 && joy.id !== null ? 7 : 3.6);
   let mx = 0, mz = 0, moving = false;
   if (!sam && !sit && pose !== 'bow') {
-    if (chore) speed = Math.min(speed, chore.kind === 'rag' ? 1.6 : 2.4); // 비·걸레를 들면 천천히
+    if (chore) speed = Math.min(speed, chore.kind === 'rag' ? 1.6 : chore.world ? 1.3 : 2.4); // 비·걸레를 들면 천천히
     if (il > 0.05) { const c = Math.cos(yaw), s = Math.sin(yaw); mx = ix * c + iz * s; mz = -ix * s + iz * c; moving = true; }
     else if (tapdori) { speed = 2.2; const v = tapdoriStep(dt); mx = v[0]; mz = v[1]; moving = true; }
     else if (moveTarget) {
@@ -1135,9 +1154,12 @@ function step() {
     if (poseT > dur) { pose = null; resetBody(); }
   }
   updateChore(dt, walkAmp > .3 ? speed : 0); updatePuffs(dt);
+  sweepW += ((chore && chore.world ? 1 : 0) - sweepW) * Math.min(1, dt * 5);
   if (tapdori) hap = Math.max(hap, .9);
   const ST = { sit: sitW, walkAmp, speed, hap, kneel: body.position.y < 0 ? Math.min(1, -body.position.y / .2) : 0, bend: body.rotation.x, headX: headG.rotation.x, headZ: headG.rotation.z, closed: hap > .5 || (sit && sitW > .6 && sit.inHall), blink: blinkT < .12 };
+  ST.sweep = sweepW;
   if (glb) glb.update(dt, ST);
+  if (chore && chore.world && glb) { glb.root.updateMatrixWorld(true); gripBroom(chore.mesh, glb, avatar.position.y); }
   netTick(dt, ST); updatePeers(dt);
   placeArms(hap, hap ? 0 : swing);
   const closed = hap > .5;
@@ -1719,7 +1741,7 @@ function ensurePeer(id, nick) {
   if (nick && nick !== P.nick) { P.nick = nick; refreshLabel(P); }
   return P;
 }
-function removePeer(id) { const P = peers.get(id); if (!P) return; P.g.removeFromParent(); peers.delete(id); }
+function removePeer(id) { const P = peers.get(id); if (!P) return; P.g.removeFromParent(); if (P.wbroom) P.wbroom.removeFromParent(); peers.delete(id); }
 function onPeers(state) {
   const keys = new Set(Object.keys(state).filter(k => k !== ME.id));
   for (const k of keys) {
@@ -1750,7 +1772,10 @@ function updatePeers(dt) {
     if (P.glb && P.goalSt) {
       const S = P.st, G = P.goalSt; for (const key of ['sit', 'walkAmp', 'speed', 'hap', 'kneel', 'bend', 'headX', 'headZ']) S[key] += (G[key] - S[key]) * k; S.closed = G.closed;
       P.blinkT -= dt; S.blink = P.blinkT < .12; if (P.blinkT < 0) P.blinkT = 2 + Math.random() * 3;
+      const pc = P.tl === 1 && SWEEP_OK && P.glb.hasClip('sweep'); S.sweep = pc ? 1 : 0; if (pc) S.bend = 0;
       P.glb.update(dt, S);
+      if (pc) { if (P.toolM) { P.toolM.removeFromParent(); P.toolM = null; } if (!P.wbroom) { P.wbroom = makeBroom(); scene.add(P.wbroom); } g.updateMatrixWorld(true); gripBroom(P.wbroom, P.glb, g.position.y); }
+      else if (P.wbroom) { P.wbroom.removeFromParent(); P.wbroom = null; if (P.tl === 1) P.toolM = holdTool(P.glb.root, 'broom'); }
       if (P.toolM && P.tl === 1) { P.ph = (P.ph || 0) + dt * (3 + S.speed * 1.6) * (S.walkAmp > .2 ? 1 : 0); P.toolM.rotation.y = Math.sin(P.ph) * .55 * S.walkAmp; }
     }
   }
@@ -1904,6 +1929,7 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   sam(t) { startSambae(); if (t !== undefined) { sam.t = t; sam.hold = true; } },
   release() { poseHold = false; if (sam) sam.hold = false; },
   walk(on, run) { keys.KeyW = !!on; keys.ShiftLeft = !!run; },
+  sweepOK(v = true) { SWEEP_OK = v; },
   goTo(lx, lz) { const [x, z] = L2W(lx, lz); moveTarget = { x, z, t: 0 }; },
   npc: () => npc && { x: +npc.x.toFixed(2), z: +npc.z.toFixed(2), vis: npc.g.visible, glb: !!npc.glb, goal: npc.goal, wait: +npc.wait.toFixed(2) },
   chore: () => chore && { kind: chore.kind, n: chore.n },
