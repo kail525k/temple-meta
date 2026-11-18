@@ -97,7 +97,7 @@ export function createSound(store) {
     // 범종: 낮은 울림 + 살짝 어긋난 두 음이 만드는 맥놀이(웅~웅~)
     bigBell(vol = 1) {
       if (!unlock()) return; const t = ctx.currentTime;
-      [[64, .55, 9], [64.6, .45, 9], [128.5, .3, 7], [176, .22, 5.5], [272, .12, 3.5], [410, .06, 2.2]].map(([f, p, d]) => [f, p * vol, d]).forEach(([f, p, d]) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; env(g, t, p, .02, d); o.connect(g).connect(sfx); o.start(t); o.stop(t + d + .1); });
+      [[64, .55, 9], [64.6, .45, 9], [128.5, .3, 7], [176, .22, 5.5], [272, .12, 3.5], [410, .06, 2.2]].map(([f, p, d]) => [f, p * vol, d * (.75 + .75 * Math.min(1, vol))]).forEach( /* 세게 칠수록 길게 (맥놀이: 64·64.6Hz 맴돌이) */([f, p, d]) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; env(g, t, p, .02, d); o.connect(g).connect(sfx); o.start(t); o.stop(t + d + .1); });
       const s = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noiseBuf(.4); lp.type = 'lowpass'; lp.frequency.value = 220; env(g, t, .7 * vol, .004, .3); s.connect(lp).connect(g).connect(sfx); s.start(t);
     },
   };

@@ -1,14 +1,14 @@
 // 온라인 사찰 참배 체험판 — 권역(서울·경남 등)마다 한 장면에 큰 사찰들을 축소해 모아 두고, 사찰마다 법당 하나를 실제 크기로 재현 (위레브)
 import * as THREE from 'three';
 import { createBabyMonk } from './avatar.js?v=4';
-import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=4';
+import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=5';
 import { buildHall } from './hall.js?v=8';
 import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=21';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=2';
 import { REGIONS } from './temples.js?v=9';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
-import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=4';
+import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=5';
 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
@@ -1165,6 +1165,8 @@ function step() {
   if (tapdori) hap = Math.max(hap, .9);
   const ST = { sit: sitW, walkAmp, speed, hap, kneel: body.position.y < 0 ? Math.min(1, -body.position.y / .2) : 0, bend: body.rotation.x, headX: headG.rotation.x, headZ: headG.rotation.z, closed: hap > .5 || (sit && sitW > .6 && sit.inHall), blink: blinkT < .12 };
   ST.sweep = sweepW;
+  if (bellHold) { ST.walkAmp = Math.max(ST.walkAmp, bellStep.amp); ST.speed = bellStep.speed; ST.back = bellStep.back; }
+  if (bellGrip.w > .02) ST.grip = bellGrip;
   if (glb) glb.update(dt, ST);
   if (chore && chore.world && glb) { glb.root.updateMatrixWorld(true); gripBroom(chore.mesh, glb, avatar.position.y); }
   netTick(dt, ST); updatePeers(dt);
@@ -1178,7 +1180,7 @@ function step() {
   let effD = dist, effP = pitch, inside = false, lxA = 0, lzA = 0;
   if (hall) { [lxA, lzA] = W2L(avatar.position.x, avatar.position.z); inside = hall.isInside(lxA, lzA); if (inside) { effD = Math.min(dist, 5.5); effP = Math.min(pitch, .55); } }
   const hd = Math.cos(effP) * effD;
-  camGoal.set(avatar.position.x + Math.sin(yaw) * hd, avatar.position.y + 1.2 + Math.sin(effP) * effD, avatar.position.z + Math.cos(yaw) * hd);
+  camGoal.set(avatar.position.x + bellFocus.x + Math.sin(yaw) * hd, avatar.position.y + 1.2 + bellFocus.y + Math.sin(effP) * effD, avatar.position.z + bellFocus.z + Math.cos(yaw) * hd);
   if (hall && (inside || hall.underRoof(lxA, lzA))) {
     let [cl, cz] = W2L(camGoal.x, camGoal.z); const I = hall.interior;
     if (inside) { cl = clamp(cl, I.ix0 + .3, I.ix1 - .3); cz = Math.max(cz, I.iz0 + .3); }
@@ -1192,7 +1194,8 @@ function step() {
   { let fy = 0; if (hall) { const [fl, fz] = W2L(camGoal.x, camGoal.z); fy = hall.heightAt(fl, fz); } camGoal.y = Math.max(camGoal.y, fy + .16); }
   camera.position.lerp(camGoal, Math.min(1, dt * (isLocked() || drag.id !== null ? 30 : 8))); // 마우스로 돌릴 땐 바로 따라가서 어지럽지 않게
   { const cd = Math.hypot(camera.position.x - avatar.position.x, camera.position.y - avatar.position.y - 1.1, camera.position.z - avatar.position.z); avatar.visible = cd > .8; } // 벽에 바짝 붙어 카메라가 머리까지 오면 몸을 숨겨 시야 확보
-  camera.lookAt(avatar.position.x + shX, avatar.position.y + 1.05 + Math.max(0, -effP) * Math.min(effD, 3) * .3, avatar.position.z + shZ);
+  if (camShake > .001) { camera.position.x += (Math.random() - .5) * camShake; camera.position.y += (Math.random() - .5) * camShake; camShake *= Math.exp(-dt * 7); } // 종 칠 때 살짝 떨림
+  camera.lookAt(avatar.position.x + shX + bellFocus.x, avatar.position.y + 1.05 + bellFocus.y + Math.max(0, -effP) * Math.min(effD, 3) * .3, avatar.position.z + shZ + bellFocus.z);
   if (fpv && !sit) { // F: 1인칭 (아기 스님 눈높이)
     const fx = -Math.sin(yaw), fz = -Math.cos(yaw), cp = Math.cos(pitch), hy = avatar.position.y + 1.02;
     camera.position.set(avatar.position.x + fx * .18, hy, avatar.position.z + fz * .18);
@@ -1297,10 +1300,11 @@ function buildBellAndRack(g, add) {
       const fr = new THREE.Mesh(new THREE.BoxGeometry(.36, .34, .025), bellD); fr.rotation.x = -.11; f.add(fr);
       for (let u = -1; u <= 1; u++) for (let v = -1; v <= 1; v++) { const n = new THREE.Mesh(new THREE.SphereGeometry(.03, 8, 6), bellM); n.position.set(u * .1, v * .095, .03 + v * .012); f.add(n); }
     }
+    const dangM = bellD.clone(); dangM.emissive = new THREE.Color('#ffc46b'); dangM.emissiveIntensity = 0; // 앞쪽 당좌: 치는 순간 잠깐 빛남
     for (const a of [0, Math.PI]) { // 당좌: 당목이 닿는 연꽃 자리 (앞뒤)
       const rr = .567 * S + .01, f = new THREE.Group(); f.position.set(Math.sin(a) * rr, HS, Math.cos(a) * rr); f.position.y -= PIV; f.rotation.y = a; bellG.add(f);
-      const d = new THREE.Mesh(new THREE.CylinderGeometry(.15, .15, .03, 20), bellD); d.rotation.x = Math.PI / 2 - .05; f.add(d);
-      for (let k = 0; k < 8; k++) { const pa = k / 8 * Math.PI * 2, pt = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 6), bellM); pt.scale.set(1, 1, .4); pt.position.set(Math.cos(pa) * .1, Math.sin(pa) * .1, .025); f.add(pt); }
+      const d = new THREE.Mesh(new THREE.CylinderGeometry(.15, .15, .03, 20), a === 0 ? dangM : bellD); d.rotation.x = Math.PI / 2 - .05; f.add(d);
+      for (let k = 0; k < 8; k++) { const pa = k / 8 * Math.PI * 2, pt = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 6), a === 0 ? dangM : bellM); pt.scale.set(1, 1, .4); pt.position.set(Math.cos(pa) * .1, Math.sin(pa) * .1, .025); f.add(pt); }
     }
     bm(new THREE.CylinderGeometry(.07 * S, .09 * S, .28 * S, 12), bellD, -.12 * S, BY + 1.36 * S, 0); // 음통
     { const dr = bm(new THREE.TorusGeometry(.12 * S, .045 * S, 8, 16, Math.PI * 1.15), bellD, .04 * S, BY + 1.3 * S, 0); dr.rotation.z = -.2; } // 용뉴 (고리 모양 용)
@@ -1312,9 +1316,14 @@ function buildBellAndRack(g, add) {
     const log = new THREE.Mesh(new THREE.CylinderGeometry(.12, .13, 1.7, 14), MAT.trunk); log.rotation.x = Math.PI / 2; log.position.set(0, -LR, 0); log.castShadow = true; logG.add(log);
     for (const zz of [-.85, .85]) { const cap = new THREE.Mesh(new THREE.CircleGeometry(.12, 14), new THREE.MeshStandardMaterial({ color: '#9a7350', roughness: .9 })); cap.position.set(0, -LR, zz + Math.sign(zz) * .002); cap.rotation.y = zz > 0 ? 0 : Math.PI; logG.add(cap); }
     const ropes = []; for (const zz of [-.55, .55]) { const rg = new THREE.Group(); rg.position.set(0, 0, zz); strG.add(rg); const r = new THREE.Mesh(new THREE.CylinderGeometry(.014, .014, LR, 5), MAT.line); r.position.set(0, -LR / 2, 0); rg.add(r); ropes.push(rg); }
-    const pullRope = new THREE.Mesh(new THREE.CylinderGeometry(.016, .016, 1, 5), MAT.line); grp.add(pullRope); // 길이·방향은 매 프레임 맞춤
+    const ropeGeo = new THREE.CylinderGeometry(.017, .017, 1, 5), ropeSegs = []; // 당기는 줄: 당목 뒤끝 → 두 손 → 손 아래로 늘어진 끝 (마디마다 매 프레임 맞춤)
+    for (let i = 0; i < 11; i++) { const m = new THREE.Mesh(ropeGeo, MAT.line); m.castShadow = true; grp.add(m); ropeSegs.push(m); }
+    const knot = new THREE.Mesh(new THREE.TorusGeometry(.13, .022, 5, 14), MAT.line); knot.position.set(0, -LR, .7); logG.add(knot); // 당목 뒤쪽에 감은 줄
+    const waveM = new THREE.MeshBasicMaterial({ color: '#ffd98c', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }), waves = [], waveGeo = new THREE.RingGeometry(.955, 1, 96);
+    for (let i = 0; i < 4; i++) { const w = new THREE.Mesh(waveGeo, waveM.clone()); w.visible = false; w.position.set(0, .4 + .62 * S, 0); w.renderOrder = 3; grp.add(w); waves.push({ m: w, t: -1, k: 0, delay: 0 }); } // 맥놀이처럼 종에서 퍼지는 울림 (늘 화면을 향함)
     obstacles.push({ cx: x, cz: z, c: 1, s: 0, hu: 1.05, hv: 1.05 });
-    BELL = { x, z, ux, uz, grp, bellG, strG, logG, ropes, LR, LOGZ, pullRope, theta: 0, omega: 0, sway: 0, swayV: 0, struck: false, stand: [ux * (R0 - 3.3), uz * (R0 - 3.3)] };
+    const GY = .47, HF = .13, Z0 = LOGZ + 1.65, Ay0 = PIV - LR, Az0 = LOGZ + .85, ropeLen = Math.hypot(Ay0 - GY, Z0 - HF - Az0) + .04; // 손 높이·손 앞거리·서는 자리 → 줄 길이
+    BELL = { x, z, ux, uz, grp, bellG, strG, logG, ropes, LR, LOGZ, PIV, ropeSegs, waves, dangM, glow: 0, GY, HF, Z0, ropeLen, theta: 0, omega: 0, sway: 0, swayV: 0, struck: false, stand: [ux * (R0 - 3.3), uz * (R0 - 3.3)] };
   }
   // 소원 연등대
   { const ux = Math.sin(aRack), uz = Math.cos(aRack), x = ux * R0, z = uz * R0, grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = Math.atan2(-ux, -uz); g.add(grp);
@@ -1383,49 +1392,90 @@ function hangTempleLantern(T, w, fresh = true) {
   const tag = new THREE.Mesh(new THREE.PlaneGeometry(.46, .23), new THREE.MeshStandardMaterial({ map: tex, roughness: .8, side: THREE.DoubleSide })); tag.position.set(0, -.42, 0); gL.add(tag);
   W.items.push(gL); if (fresh) { gL.userData.base = 1; gL.scale.setScalar(.01); gL.userData.grow = 0; GROW.push(gL); }
 }
-// 범종 치기: 당목 줄을 잡고(E) → 마우스 왼쪽·S·↓(또는 아래 버튼)를 꾹 누르면 뒤로 당겨지고 → 놓으면 당목이 흔들려 가서 종을 침
-let bellHold = null; // { pull: 0~1, pulling }
-const _bv = new THREE.Vector3(), _bv2 = new THREE.Vector3(), _bq = new THREE.Quaternion(), _UP = new THREE.Vector3(0, 1, 0);
+// 범종 치기: 당목 줄을 두 손으로 잡고(E) → 꾹 누르면 뒷걸음치며 당목을 뒤로 끌어올리고 → 놓으면 당목이 흔들려 가 당좌를 침
+//   흔들려 돌아올 때 다시 당기면 힘이 더해져 더 크게 울림(하나·둘·셋). 친 세기만큼 소리·빛·울림 물결·화면 떨림
+let bellHold = null; // { pull: 0~1, pulling, z: 종에서 선 자리(로컬), v }
+const bellStep = { amp: 0, back: false, speed: 0 }, bellGrip = { w: 0, L: new THREE.Vector3(), R: new THREE.Vector3() }, bellFocus = new THREE.Vector3(), _bf = new THREE.Vector3();
+let camShake = 0;
+const _bv = new THREE.Vector3(), _bv2 = new THREE.Vector3(), _bv3 = new THREE.Vector3(), _bq = new THREE.Quaternion(), _UP = new THREE.Vector3(0, 1, 0), _sd = new THREE.Vector3();
+const BELL_TMAX = .45, BELL_TLIM = .56; // 당겨 올리는 각 · 넘지 않는 각
+const bellA = (B, th, out) => out.set(0, B.PIV - B.LR * Math.cos(th), B.LOGZ + .85 - B.LR * Math.sin(th)); // 당목 뒤끝(줄 묶은 곳), 범종각 로컬
+function bellTaut(B, th) { const A = bellA(B, th, _bv3), dy = A.y - B.GY; return A.z + B.HF + Math.sqrt(Math.max(0, B.ropeLen * B.ropeLen - dy * dy)); } // 줄이 팽팽할 때 서는 자리
 function grabBell() {
   if (!BELL) return; if (sit) standUp(); if (tapdori) stopTapdori(); moveTarget = null; markMove(null); sam = null; resetBody();
-  bellHold = { pull: 0, pulling: false };
-  toast(document.body.classList.contains('touch') ? '🔔 당목 줄을 잡았어요 · 아래 [꾹 눌러 당기기]를 누르고 있다가 떼면 종을 쳐요' : '🔔 당목 줄을 잡았어요 · 마우스 왼쪽(또는 S)을 꾹 누르면 뒤로 당기고, 놓으면 종을 쳐요 · E 놓기', 4800);
+  const lp = BELL.grp.worldToLocal(_bv.copy(avatar.position));
+  bellHold = { pull: 0, pulling: false, z: Math.max(BELL.Z0 - .4, Math.min(BELL.Z0 + .4, Math.hypot(lp.x, lp.z) || BELL.Z0)), v: 0 };
+  const ry = Math.atan2(BELL.x - avatar.position.x, BELL.z - avatar.position.z), tall = innerHeight > innerWidth; yaw = ry + Math.PI + (tall ? .42 : .95); dist = tall ? 4.4 : 4.3; pitch = tall ? .3 : .13; intro = -1; // 종·당목·나를 한 화면에 (가로: 비스듬히 옆에서 · 세로: 등 뒤 조금 위에서)
+  toast(document.body.classList.contains('touch') ? '🔔 당목 줄을 잡았어요 · [꾹 눌러 당기기]로 뒤로 끌었다가 떼면 종을 쳐요 · 흔들려 돌아올 때 다시 당기면 더 크게' : '🔔 당목 줄을 잡았어요 · 마우스 왼쪽(또는 S)을 꾹 눌러 뒤로 끌었다가 놓으면 종을 쳐요 · 흔들려 돌아올 때 다시 당기면 더 크게 · E 놓기', 5200);
   updateNear();
 }
-function releaseBellRope() { if (!bellHold) return; bellHold = null; resetBody(); updateNear(); }
-function bellPullStart() { if (bellHold && !bellHold.pulling) { bellHold.pulling = true; BELL.omega = 0; } }
-function bellPullEnd() { if (bellHold && bellHold.pulling) { bellHold.pulling = false; bellHold.pull = 0; } } // 당긴 자리에서 놓으면 진자처럼 앞으로 흔들려 감
+function releaseBellRope() { if (!bellHold) return; bellHold = null; bellStep.amp = 0; resetBody(); updateNear(); }
+function bellPullStart() { if (bellHold && !bellHold.pulling) { bellHold.pulling = true; bellHold.pull = Math.max(0, Math.min(1, -BELL.theta / BELL_TMAX)); } } // 지금 당목이 있는 자리부터 이어서 당김
+function bellPullEnd() { if (bellHold && bellHold.pulling) bellHold.pulling = false; } // 놓으면 진자처럼 앞으로 흔들려 감
 function strikeBell() { grabBell(); }
 { const bp = document.getElementById('bellPull'); if (bp) { // 꾹 눌러 당기기 버튼 (휴대폰·마우스 모두)
   bp.addEventListener('pointerdown', e => { e.preventDefault(); bp.setPointerCapture(e.pointerId); bellPullStart(); });
   for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) bp.addEventListener(ev, () => bellPullEnd());
 } }
 function ringBell(k) { // k: 0~1 친 세기
-  sound.bigBell(.35 + .65 * k); BELL.swayV += .05 + .1 * k;
-  const n = store.count('bell'); toast(k > .6 ? `🔔 데엥— 크게 울렸어요 · 오늘 ${n}번` : `🔔 범종을 울렸어요 · 오늘 ${n}번`, 2200); done('bell');
+  const B = BELL; sound.bigBell(.3 + .7 * k); B.swayV += .02 + .05 * k; B.glow = Math.max(B.glow, .5 + 1.1 * k); camShake = Math.max(camShake, .02 + .05 * k);
+  B.waves.forEach((w, i) => { w.t = 0; w.delay = i * 1.65; w.k = k * [1, .7, .45, .28][i]; }); // 맥놀이 박자(약 0.6Hz)로 물결이 몇 번 더 퍼짐
+  try { if (document.body.classList.contains('touch') && navigator.vibrate) navigator.vibrate(k > .6 ? [40, 50, 25] : 25); } catch (e) {}
+  const n = store.count('bell'); toast(k > .65 ? `🔔 데에엥— 크게 울렸어요 · 오늘 ${n}번` : `🔔 범종을 울렸어요 · 오늘 ${n}번`, 2400); done('bell');
 }
+function bellRope(B, pts) { // 줄 마디 맞추기: pts는 범종각 로컬 점들
+  const S = B.ropeSegs; for (let i = 0; i < S.length; i++) { const m = S[i]; if (i >= pts.length - 1) { m.visible = false; continue; } m.visible = true; _sd.subVectors(pts[i + 1], pts[i]); const L = _sd.length(); m.position.copy(pts[i]).addScaledVector(_sd, .5); m.scale.set(1, Math.max(L, 1e-3), 1); if (L > 1e-5) m.quaternion.setFromUnitVectors(_UP, _sd.multiplyScalar(1 / L)); }
+}
+const _rp = Array.from({ length: 12 }, () => new THREE.Vector3()), _gL = new THREE.Vector3(), _gR = new THREE.Vector3();
 function updateBell(dt) {
-  const B = BELL; if (!B) return;
-  if (bellHold) {
-    if (bellHold.pulling) { bellHold.pull = Math.min(1, bellHold.pull + dt * .85); B.theta += (-.5 * bellHold.pull - B.theta) * Math.min(1, dt * 7); B.omega = 0; }
-    const pb = bellHold.pulling ? bellHold.pull : 0;
-    const ap = B.grp.localToWorld(_bv.set(0, 0, B.LOGZ + 1.3 + .55 * pb)); avatar.position.x = ap.x; avatar.position.z = ap.z;
-    const bp = B.grp.localToWorld(_bv2.set(0, 0, 0)); avatar.rotation.y = Math.atan2(bp.x - avatar.position.x, bp.z - avatar.position.z);
-    body.rotation.x = -.3 * pb; // 당길수록 몸을 뒤로 젖힘
-  }
-  if (!(bellHold && bellHold.pulling)) { // 진자: 줄 길이만큼 흔들리다 종(당좌)에 닿으면 울림
-    B.omega += (-(9.8 / B.LR) * Math.sin(B.theta) - .55 * B.omega) * dt; B.theta += B.omega * dt;
-    const HIT = .053;
-    if (B.theta > HIT && B.omega > 0) { const v = B.omega; B.theta = HIT; B.omega = -v * .35; if (v > .18) ringBell(Math.min(1, v / 1.0)); }
-  }
+  const B = BELL; if (!B) return; dt = Math.min(dt, .05);
+  const H = bellHold;
+  // 당목 진자 + 줄이 팽팽할 때만 끌어당기는 힘 (줄은 밀지 못함)
+  if (H && H.pulling) H.pull = Math.min(1, H.pull + dt * .8);
+  const tgt = -BELL_TMAX * (H ? H.pull : 0);
+  let acc = -(9.8 / B.LR) * Math.sin(B.theta) - .5 * B.omega;
+  if (H && H.pulling && B.theta > tgt) acc += 24 * (tgt - B.theta) - 5 * B.omega;
+  B.omega += acc * dt; B.theta += B.omega * dt;
+  if (B.theta < -BELL_TLIM) { B.theta = -BELL_TLIM; B.omega = Math.max(0, B.omega); }
+  const HIT = .053;
+  if (B.theta > HIT && B.omega > 0) { const v = B.omega; B.theta = HIT; B.omega = -v * .3; if (v > .2) ringBell(Math.min(1, v / .9)); else if (v > .06) { sound.bigBell(.12 + v); B.glow = Math.max(B.glow, .3); } }
   B.logG.position.set(0, B.LR * (1 - Math.cos(B.theta)), -B.LR * Math.sin(B.theta)); for (const r of B.ropes) r.rotation.x = B.theta;
-  { const bp = document.getElementById('bellPull'); if (bp) { const on = !!bellHold; if (bp._on !== on) { bp._on = on; bp.style.display = on ? 'block' : 'none'; } if (on) bp.style.setProperty('--p', Math.round((bellHold.pulling ? bellHold.pull : 0) * 100) + '%'); } }
+  // 종: 거의 안 흔들림 · 당좌 빛 · 울림 물결
   B.swayV += (-14 * B.sway - .8 * B.swayV) * dt; B.sway += B.swayV * dt; B.bellG.rotation.x = -B.sway;
-  // 당기는 줄: 당목 뒤끝 → 잡고 있으면 손, 아니면 아래로 늘어짐
-  const a = B.strG.localToWorld(_bv.set(0, -B.LR * Math.cos(B.theta), .85 - B.LR * Math.sin(B.theta)));
-  const b = bellHold ? _bv2.set(avatar.position.x + Math.sin(avatar.rotation.y) * .28, avatar.position.y + .78, avatar.position.z + Math.cos(avatar.rotation.y) * .28) : _bv2.copy(a).add(new THREE.Vector3(0, -.75, 0));
-  const R = B.pullRope, par = R.parent; par.worldToLocal(a); par.worldToLocal(b);
-  const d = b.clone().sub(a), len = Math.max(.05, d.length()); R.position.copy(a).addScaledVector(d, .5); R.scale.set(1, len, 1); R.quaternion.setFromUnitVectors(_UP, d.normalize());
+  B.glow = Math.max(0, B.glow - dt * 1.6); B.dangM.emissiveIntensity = B.glow;
+  if (B.waves.some(w => w.t >= 0)) B.grp.getWorldQuaternion(_bq).invert().multiply(camera.quaternion);
+  for (const w of B.waves) { if (w.t < 0) continue; w.t += dt; const u = (w.t - w.delay) / 2.4; if (u < 0) { w.m.visible = false; continue; } if (u >= 1) { w.t = -1; w.m.visible = false; continue; } w.m.visible = true; const e = 1 - (1 - u) * (1 - u), r = 1.15 + e * 2.6; w.m.scale.set(r, r, 1); w.m.quaternion.copy(_bq); w.m.material.opacity = .55 * w.k * (1 - u) * Math.min(1, u * 8); }
+  const A = bellA(B, B.theta, _bv.set(0, 0, 0)); // 줄 묶은 곳 (로컬)
+  if (H) {
+    // 서는 자리: 당길 땐 줄이 팽팽한 자리까지 뒷걸음, 놓으면 제자리로 걸어 나오며 따라감 (줄 길이보다 멀어질 순 없음)
+    const taut = bellTaut(B, B.theta), goal = H.pulling ? taut : B.Z0;
+    let nz = H.z + (goal - H.z) * Math.min(1, dt * (H.pulling ? 12 : 4));
+    const maxStep = (H.pulling ? 2.4 : 1.1) * dt; nz = H.z + Math.max(-maxStep, Math.min(maxStep, nz - H.z));
+    nz = Math.max(A.z + .3, Math.min(taut + .005, nz));
+    const v = (nz - H.z) / Math.max(dt, 1e-4); H.z = nz; H.v += (v - H.v) * Math.min(1, dt * 10);
+    const ap = B.grp.localToWorld(_bv2.set(0, 0, H.z)); avatar.position.x = ap.x; avatar.position.z = ap.z;
+    const cp = B.grp.localToWorld(_bf.set(0, 0, 0)); avatar.rotation.y = Math.atan2(cp.x - avatar.position.x, cp.z - avatar.position.z);
+    const sp = Math.abs(H.v); bellStep.amp += (Math.min(1, sp / .35) * .9 - bellStep.amp) * Math.min(1, dt * 8); bellStep.back = H.v > 0; bellStep.speed = 1.4 + sp * 4;
+    const lean = H.pulling ? -.34 * (.4 + .6 * H.pull) : H.v < -.25 ? .16 : 0; // 당길수록 뒤로 젖히고, 따라 나갈 땐 앞으로 밀듯이
+    body.rotation.x += (lean - body.rotation.x) * Math.min(1, dt * 6);
+  }
+  // 두 손 자리와 줄 (로컬 → 월드)
+  bellGrip.w += ((H ? 1 : 0) - bellGrip.w) * Math.min(1, dt * 7);
+  let n = 0;
+  if (H || bellGrip.w > .05) {
+    const lz = (H ? H.z : B.grp.worldToLocal(_bf.copy(avatar.position)).z), reachF = B.HF + (H && !H.pulling && H.v < -.2 ? .03 : 0) - (H && H.pulling ? .02 : 0) + (body.rotation.x * .12);
+    const G = _bv2.set(0, B.GY + (H && H.pulling ? .02 : 0), lz - reachF), u = _bf.subVectors(A, G); const dAG = u.length(); u.multiplyScalar(1 / Math.max(dAG, 1e-4));
+    const Rl = _gR.copy(G), Ll = _gL.copy(G).addScaledVector(u, .06); // 몸 쪽 손(오른손)·앞쪽 손(왼손)
+    const slack = Math.max(0, B.ropeLen - dAG), sag = Math.sqrt(slack * dAG) * .55;
+    for (let i = 0; i <= 7; i++) { const t = i / 7; _rp[n++].lerpVectors(A, Ll, t).y -= sag * 4 * t * (1 - t); }
+    _rp[n].copy(Rl); n++; _rp[n].copy(Rl).addScaledVector(u, -.05).y -= .1; n++; _rp[n].set(_rp[n - 1].x, _rp[n - 1].y - .16, _rp[n - 1].z + .02); n++; // 손 아래로 늘어진 줄 끝
+    B.grp.localToWorld(bellGrip.L.copy(Ll)); B.grp.localToWorld(bellGrip.R.copy(Rl)); // 아바타 손 목표(월드)
+  } else { _rp[0].copy(A); _rp[1].copy(A).add(_bf.set(0, -.45, .05)); _rp[2].copy(A).add(_bf.set(0, -.9, .08)); n = 3; } // 아무도 안 잡으면 당목에서 늘어짐
+  bellRope(B, _rp.slice(0, n));
+  { const bp = document.getElementById('bellPull'); if (bp) { const on = !!H; if (bp._on !== on) { bp._on = on; bp.style.display = on ? 'block' : 'none'; } if (on) bp.style.setProperty('--p', Math.round((H.pulling ? H.pull : 0) * 100) + '%'); } }
+  // 카메라 초점: 줄을 잡고 있으면 나와 당목 사이를 보게
+  if (H) { const lc = B.grp.localToWorld(_bf.set(0, 0, B.LOGZ * .8)), tall = innerHeight > innerWidth, f = tall ? .5 : .45; _bv2.set((lc.x - avatar.position.x) * f, tall ? -.62 : -.3, (lc.z - avatar.position.z) * f); } else _bv2.set(0, 0, 0);
+  bellFocus.lerp(_bv2, Math.min(1, dt * 3));
 }
 const WISH_COLORS = ['#f6a5b8', '#ffd86a', '#f48c7a', '#a8e0a0', '#ffffff', '#9fc8ff'];
 function hangWish(w, fresh = true) {
@@ -1938,6 +1988,7 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   walk(on, run) { keys.KeyW = !!on; keys.ShiftLeft = !!run; },
   sweepOK(v = true) { SWEEP_OK = v; },
   goTo(lx, lz) { const [x, z] = L2W(lx, lz); moveTarget = { x, z, t: 0 }; },
+  toBell() { if (!BELL) return false; avatar.position.set(BELL.stand[0], 0, BELL.stand[1]); avatar.rotation.y = Math.atan2(BELL.x - BELL.stand[0], BELL.z - BELL.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; intro = -1; return true; },
   tp(lx, lz, ry) { const [x, z] = L2W(lx, lz); avatar.position.x = x; avatar.position.z = z; if (ry !== undefined) avatar.rotation.y = ry; },
   npc: () => npc && { x: +npc.x.toFixed(2), z: +npc.z.toFixed(2), vis: npc.g.visible, glb: !!npc.glb, goal: npc.goal, wait: +npc.wait.toFixed(2) },
   chore: () => chore && { kind: chore.kind, n: chore.n, world: chore.world, sweepW: +sweepW.toFixed(2), tip: chore.mesh.userData.tip && chore.mesh.userData.tip.toArray().map(v => +v.toFixed(2)), me: avatar.position.toArray().map(v => +v.toFixed(2)), sc: +chore.mesh.scale.x.toFixed(2), hands: glb && glb.B ? ['LeftHand', 'RightHand'].map(k => glb.B[k] && glb.B[k].getWorldPosition(new THREE.Vector3()).toArray().map(v => +v.toFixed(2))) : null, inScene: !!chore.mesh.parent && chore.mesh.parent.type },

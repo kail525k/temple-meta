@@ -160,13 +160,35 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress, closedUrl = 
 
   const touched = [...new Set([...hapQ.keys(), ...lapQ.keys(), ...sitQ.keys(), ...kneelQ.keys(), ...spineBones.map(o => o.b), B.Head, B.Hips].filter(Boolean))];
   const base = new Map(touched.map(b => [b, { q: b.quaternion.clone(), p: b.position.clone() }])); let haveBase = false;
+  // ── 손으로 잡기(매 프레임 IK): 두 손을 월드 좌표의 목표(예: 당목 줄)에 맞춤 — 팔꿈치는 아래·바깥으로 ──
+  const _S = new THREE.Vector3(), _E = new THREE.Vector3(), _H = new THREE.Vector3(), _T = new THREE.Vector3(), _E2 = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _c = new THREE.Vector3();
+  const _q = new THREE.Quaternion(), _bw = new THREE.Quaternion(), _pw = new THREE.Quaternion(), _loc = new THREE.Quaternion();
+  function aimBone(bn, from, to, w) { // 뼈를 돌려 from 방향이 to 방향을 보게 (월드 기준) → 로컬로 바꿔 w만큼
+    bn.getWorldQuaternion(_bw); _q.setFromUnitVectors(from, to); _bw.premultiply(_q);
+    bn.parent.getWorldQuaternion(_pw); _loc.copy(_pw.invert()).multiply(_bw); bn.quaternion.slerp(_loc, w); bn.updateMatrixWorld(true);
+  }
+  function reach(side, target, w) {
+    const sh = B[side + 'Arm'], el = B[side + 'ForeArm'], hd = B[side + 'Hand']; if (!sh || !el || !hd || !target) return;
+    sh.getWorldPosition(_S); el.getWorldPosition(_E); hd.getWorldPosition(_H);
+    const a = _S.distanceTo(_E), b = _E.distanceTo(_H); if (a < 1e-5 || b < 1e-5) return;
+    _T.copy(target); let d = _S.distanceTo(_T); const maxd = (a + b) * .995, mind = Math.abs(a - b) + 1e-4;
+    if (d > maxd) { _T.sub(_S).setLength(maxd).add(_S); d = maxd; } else if (d < mind) { _T.sub(_S).setLength(mind).add(_S); d = mind; }
+    const ang = Math.acos(THREE.MathUtils.clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1));
+    _d.subVectors(_T, _S).normalize();
+    root.getWorldPosition(_c); _p.subVectors(_S, _c); _p.y = 0; if (_p.lengthSq() < 1e-8) _p.set(side === 'Left' ? 1 : -1, 0, 0); _p.normalize().multiplyScalar(.75); _p.y = -1; // 팔꿈치: 몸 바깥·아래
+    _p.addScaledVector(_d, -_p.dot(_d)).normalize();
+    _E2.copy(_S).addScaledVector(_d, Math.cos(ang) * a).addScaledVector(_p, Math.sin(ang) * a);
+    aimBone(sh, _E.sub(_S).normalize(), _E2.sub(_S).normalize(), w);
+    el.getWorldPosition(_E); hd.getWorldPosition(_H);
+    aimBone(el, _H.sub(_E).normalize(), _d.subVectors(_T, _E).normalize(), w);
+  }
   function update(dt, st) {
     // 걷기·달리기 섞기
     const wantRun = st.speed > 5 && run ? 1 : 0; runMix += (wantRun - runMix) * Math.min(1, dt * 6);
     for (const [n, c] of SHARED) if (!extra.has(n)) { const a = mixer.clipAction(stripRoot(c)); a.play(); a.setEffectiveWeight(0); extra.set(n, a); }
     const sw = extra.has('sweep') ? (st.sweep || 0) : 0; if (extra.has('sweep')) extra.get('sweep').setEffectiveWeight(sw); // 빗자루질: 걸으면 다리만 조금 섞음
     const legMix = 1 - .65 * sw;
-    if (walk) { walk.setEffectiveWeight(st.walkAmp * (1 - runMix) * legMix); walk.timeScale = Math.max(.6, st.speed / 3.6) * 1.15; }
+    if (walk) { walk.setEffectiveWeight(st.walkAmp * (1 - runMix) * legMix); walk.timeScale = Math.max(.6, st.speed / 3.6) * 1.15 * (st.back ? -1 : 1); } // back: 뒷걸음
     if (run) { run.setEffectiveWeight(st.walkAmp * runMix * legMix); run.timeScale = Math.max(.6, st.speed / 7); }
     // 지난 프레임에 덧씌운 자세를 되돌린 뒤 애니메이션을 진행 (믹서는 값이 안 바뀌면 다시 쓰지 않아서 누적되지 않게)
     if (haveBase) for (const b of touched) { const v = base.get(b); b.quaternion.copy(v.q); b.position.copy(v.p); }
@@ -191,6 +213,8 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress, closedUrl = 
     if (headAx && (st.headX || st.headZ)) {
       B.Head.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(headAx.x, st.headX || 0)).multiply(new THREE.Quaternion().setFromAxisAngle(headAx.z, st.headZ || 0));
     }
+    // 손으로 잡기 (당목 줄 등)
+    if (st.grip && st.grip.w > 0) { root.updateWorldMatrix(true, true); reach('Left', st.grip.L, st.grip.w); reach('Right', st.grip.R, st.grip.w); }
     // 눈: 감은 얼굴 텍스처가 있으면 텍스처를 바꾸고, 없으면 예전처럼 눈꺼풀을 덮음
     const shut = !!(st.closed || st.blink);
     if (closedTex) { if (shut !== lastShut) { lastShut = shut; for (const m of skinMats) { const t = shut ? closedTex : m.userData.openMap; m.map = t; if (m.emissiveMap) m.emissiveMap = t; } } }
