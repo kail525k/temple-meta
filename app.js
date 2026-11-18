@@ -786,7 +786,7 @@ scene.add(avatar, faceFill, faceFill.target);
 const MONK_URL = new URLSearchParams(location.search).get('monk') || './assets/baby-monk.glb'; // 이 사이트에서 직접 (외부 CDN이 큰 저장소를 막는 일이 있어서)
 const MONK_CLOSED = './assets/monk-eyes-closed.webp'; // 눈 감은 얼굴 (Meshy AI 텍스처 편집)
 let glb = null;
-const glbReady = loadMonkGLB(MONK_URL, { closedUrl: MONK_CLOSED, onProgress: f => { const m = document.getElementById('loadMsg'); if (m && !document.getElementById('loading').classList.contains('hide')) m.innerHTML = `아기 스님을 모시는 중… ${Math.round(f * 100)}%`; } })
+const glbReady = loadMonkGLB(MONK_URL, { closedUrl: MONK_CLOSED, onProgress: f => { const m = document.querySelector('#loadBar b'); if (m) m.style.width = Math.max(12, Math.round(f * 100)) + '%'; } })
   .then(m => { glb = m; avatar.add(m.root); body.visible = false; dbg('monk', m.info); if (monkGlbWait || myMonk()) addKasaya(m); return m; })
   .catch(e => { dbg('monkError', e.message); return null; });
 let blinkT = 2.5, idleT = 0;
@@ -2100,8 +2100,7 @@ async function startTogether() {
 
 /* ───────── 시작 ───────── */
 (async function start() {
-  const badge = document.getElementById('badge'), msg = document.getElementById('loadMsg');
-  msg.innerHTML = `${REGION.name}의 큰 사찰 ${REGION.temples.length}곳으로 가는 중…<br>브이월드에서 실제 법당 위치를 불러오고 있어요`;
+  const badge = document.getElementById('badge');
   document.querySelector('#title h1').innerHTML = `${REGION.name} 사찰 순례 <small>${REGION.temples.map(t => t.name).join(' · ')}</small>`;
   let ok = 0;
   const list = await Promise.all(REGION.temples.map(async t => {
