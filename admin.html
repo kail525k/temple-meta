@@ -116,6 +116,7 @@ function render() {
       <textarea placeholder="검토 메모 (나만 보여요)">${esc(i.admin_note || '')}</textarea>
       <div class="row" style="margin-top:8px">
         ${['new', 'review', 'done', 'reject'].filter(k => k !== i.status).map(k => `<button data-act="status" data-v="${k}">${L[k]}(으)로</button>`).join('')}
+        ${/ · 스님 등록 신청$/.test(i.temple_name) ? '<button data-act="monk" class="main">🪷 이 스님 초대 코드 만들기</button>' : ''}
         <button data-act="note">메모 저장</button>
         ${i.contact && (i.status === 'done' || i.status === 'reject') ? '<button data-act="clear">결과 안내 끝 · 연락처 지우기</button>' : ''}
       </div>
@@ -125,6 +126,13 @@ $('tabs').onclick = e => { const k = e.target.dataset.k; if (k) { tab = k; rende
 $('items').onclick = async e => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
   const art = b.closest('article'), id = +art.dataset.id, note = art.querySelector('textarea').value;
+  if (b.dataset.act === 'monk') { // 스님 등록 신청 → 아래 초대 코드 칸을 채워 줌 (코드 만들고 안내 문구를 연락처로 보내면 끝)
+    const it = items.find(x => x.id === id), tn = it.temple_name.replace(/ · 스님 등록 신청$/, ''), rg = RG.find(r => r.temples.some(t => t.name === tn));
+    if (rg) { $('mRegion').value = rg.id; fillTemples(); $('mTemple').value = tn; }
+    $('mName').value = String(it.reporter || '').replace(/\s*(스님|\(주지\)|\(종무소\))/g, '').trim();
+    $('monks').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('mMsg').textContent = rg ? `#${id} ${tn} 신청 · [초대 코드 만들기]를 누르고 안내 문구를 ${it.contact || '연락처'}로 보내 주세요` : '사찰을 목록에서 골라 주세요';
+    return;
+  }
   if (b.dataset.act === 'clear' && !confirmClear()) return;
   b.disabled = true;
   try {

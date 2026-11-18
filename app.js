@@ -322,10 +322,30 @@ function buildSite(info, T) {
     const bd = add(new THREE.PlaneGeometry(2.3, .62), new THREE.MeshStandardMaterial({ map: nameTex(T.name, '#3a2418', '#f2cf72', 46), roughness: .7 }), 0, 2.35, YZ1 + side * .2, false);
     if (side < 0) bd.rotation.y = Math.PI;
   }
+  // 일주문 오른쪽 팻말: "주지스님이신가요? 스님으로 등록해 드려요" — 팻말 앞에서 [스님 등록 신청]
+  { const sx = 2.75, sz = YZ1 + 1.7, b = gy(sx, sz), wood = MAT.trunk;
+    for (const px of [-.66, .66]) add(new THREE.CylinderGeometry(.05, .06, 1.78, 8), wood, sx + px, b + .89, sz);
+    const face = new THREE.MeshStandardMaterial({ map: monkSignTex(T.name), roughness: .85 }), edge = new THREE.MeshStandardMaterial({ color: '#6b4a2e', roughness: .9 });
+    const bd = new THREE.Mesh(new THREE.BoxGeometry(1.52, 1.02, .06), [edge, edge, edge, edge, face, edge]); bd.position.set(sx, b + 1.24, sz); bd.castShadow = true; site.add(bd);
+    add(new THREE.BoxGeometry(1.66, .07, .14), wood, sx, b + 1.78, sz); // 지붕턱
+    col(sx, sz, .85, .12); T.sign = { lx: sx, lz: sz }; }
   startL = [0, YZ1 - 3];
   T.hall = hall; T.YARD = YARD; T.startL = startL; T.L = L; T.D = D;
   const [ycx, ycz] = L2W(0, (YZ0 + YZ1) / 2); T.cx = ycx; T.cz = ycz;
   return { L, D };
+}
+// 스님 등록 팻말 글판
+function monkSignTex(name) {
+  const cv = document.createElement('canvas'); cv.width = 768; cv.height = 512; const c = cv.getContext('2d');
+  c.fillStyle = '#f4e7c9'; c.fillRect(0, 0, 768, 512); c.strokeStyle = '#7a5232'; c.lineWidth = 12; c.strokeRect(14, 14, 740, 484);
+  c.strokeStyle = '#c99a4a'; c.lineWidth = 3; c.strokeRect(32, 32, 704, 448);
+  c.textAlign = 'center'; c.textBaseline = 'middle'; const F = '"Noto Sans KR","Apple SD Gothic Neo",sans-serif', fit = (t, px, w, wt) => { c.font = `${wt} ${px}px ${F}`; let p = px; while (c.measureText(t).width > w && p > 20) { p -= 2; c.font = `${wt} ${p}px ${F}`; } };
+  c.fillStyle = '#9b3b2b'; fit('주지스님이신가요?', 74, 660, 800); c.fillText('주지스님이신가요?', 384, 128);
+  c.fillStyle = '#3a2418'; fit(`${name} 스님으로 절로에 등록해 드려요`, 40, 660, 700); c.fillText(`${name} 스님으로 절로에 등록해 드려요`, 384, 236);
+  fit('금빛 이름표와 가사로 순례객을 맞으실 수 있어요', 32, 660, 500); c.fillStyle = '#6d5232'; c.fillText('금빛 이름표와 가사로 순례객을 맞으실 수 있어요', 384, 298);
+  c.fillStyle = '#9b3b2b'; c.beginPath(); if (c.roundRect) c.roundRect(164, 356, 440, 84, 42); else c.rect(164, 356, 440, 84); c.fill();
+  c.fillStyle = '#fff'; fit('팻말 앞에서 스님 등록 신청', 36, 400, 700); c.fillText('팻말 앞에서 스님 등록 신청', 384, 399);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 // 글자판 텍스처 (현판·표지석)
 function nameTex(text, bg, fg, px = 44, sub = '', cw = 512) {
@@ -1287,6 +1307,7 @@ function updateCtx(inside, dBow, lx, lz) {
     if (!inside && cur && cur.pagoda && Math.hypot(avatar.position.x - cur.pagoda.x, avatar.position.z - cur.pagoda.z) < (cur.pagodaR || 2.7) + 1.9) acts.push(['🪷 탑돌이 시작', () => startTapdori(cur)]);
     if (bellHold) acts.push(['✋ 당목 줄 놓기', releaseBellRope]);
     else if (BELL && Math.hypot(avatar.position.x - BELL.x, avatar.position.z - BELL.z) < 4.2) acts.push(['🔔 당목 줄 잡기', grabBell]);
+    if (!inside && cur && cur.sign && Math.hypot(lx - cur.sign.lx, lz - cur.sign.lz) < 2.5) acts.push(['🪷 스님 등록 신청', () => openMonkReq(), 'plain']); // 팻말 앞에 다가간 분께만, 눈에 띄는 빨간 버튼은 아님
     if (RACK && Math.hypot(avatar.position.x - RACK.x, avatar.position.z - RACK.z) < 3.8) acts.push(['🏮 소원 연등 걸기', () => openWish('lantern')]);
     if (TILE && Math.hypot(avatar.position.x - TILE.x, avatar.position.z - TILE.z) < 4.2) acts.push(['✍️ 기와 올리기', () => openWish('tile')]);
     if (!inside && cur && cur.fish) { // 휴휴암: 판매대에서 물고기 밥·방생 물고기를 받아 연화대 끝에서 던지거나 놓아 줌
@@ -1305,7 +1326,7 @@ function updateCtx(inside, dBow, lx, lz) {
   if (tapdori) acts.push(['⏹ 탑돌이 멈추기', () => stopTapdori('탑돌이를 멈췄어요')]);
   const key = acts.map(a => a[0]).join('|'); ctxActs = acts;
   if (key === ctxKey) return; ctxKey = key; ctxBar.innerHTML = '';
-  acts.forEach(([t, fn], i) => { const b = document.createElement('button'); b.textContent = t; if (i === 0) b.className = 'main'; b.onclick = () => fn(); ctxBar.appendChild(b); });
+  acts.forEach(([t, fn, kind], i) => { const b = document.createElement('button'); b.textContent = t; if (i === 0 && kind !== 'plain') b.className = 'main'; b.onclick = () => fn(); ctxBar.appendChild(b); });
 }
 function useContext() { if (ctxActs[0]) ctxActs[0][1](); else if (sit) standUp(); }
 // 휴휴암 물고기 밥·방생
@@ -1443,7 +1464,7 @@ function openRegions() {
   const rp = document.createElement('div'); rp.className = 'rg report';
   rp.innerHTML = `<b>🙏 우리 절도 넣어 주세요</b><span>지도에 없는 작은 절을 알려 주시면 검토해서 실제 모습대로 순례길에 넣어요 · 스님·종무소·신도 누구나</span><div class="go"><button>사찰 제보하기</button></div>`;
   if (OFFLINE) rp.innerHTML = `<b>🙏 우리 절도 넣어 주세요</b><span>사찰 제보는 사이트에서 받아요 · temple-meta.vercel.app</span><div class="go"><a href="${SITE}" target="_blank" rel="noopener" style="display:inline-block;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;text-decoration:none">사이트에서 제보하기</a></div>`;
-  else rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=2').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
+  else rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=3').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
   regionList.appendChild(rp);
   regionModal.classList.add('show');
   if (!OFFLINE) monkRoster(true).then(list => { // 지금 접속해 계신 인증 스님의 절에 🪷 표시
@@ -1581,7 +1602,7 @@ function renderPeople() {
   const ps = [...peers.values()].sort((a, b) => !!b.monk - !!a.monk);
   const list = ps.map(P => P.monk ? `<div class="monk">${esc(monkLabel(P.monk))}</div>` : `<div>🙏 ${esc(plainNick(P.nick) || '순례자')}</div>`).join('') || '<div class="empty">아직 다른 분이 없어요. 주소를 보내 함께 걸어 보세요</div>';
   const mm = myMonk();
-  const monkBox = OFFLINE ? '' : mm ? `<div class="monkme on">${esc(monkLabel(mm))} · 인증된 기기예요<button id="monkOff">인증 풀기</button></div>` : `<div class="monkme"><a href="#" id="monkOpen">🪷 스님이신가요? 인증 코드 넣기</a><span id="monkForm" hidden><input id="monkCode" maxlength="11" placeholder="초대 코드 (예: ABCD-EFGH)" autocomplete="off" autocapitalize="characters"><button id="monkGo">인증</button></span></div>`;
+  const monkBox = OFFLINE ? '' : mm ? `<div class="monkme on">${esc(monkLabel(mm))} · 인증된 기기예요<button id="monkOff">인증 풀기</button></div>` : `<div class="monkme"><a href="#" id="monkOpen">🪷 스님이신가요? 인증 코드 넣기</a> <a href="#" id="monkReq" style="font-weight:500;color:#8a7a62">· 코드 신청</a><span id="monkForm" hidden><input id="monkCode" maxlength="11" placeholder="초대 코드 (예: ABCD-EFGH)" autocomplete="off" autocapitalize="characters"><button id="monkGo">인증</button></span></div>`;
   const st = NET && NET.joined ? '' : ' (연결 중…)';
   peoplePanel.innerHTML = `<b>함께 순례 중 · ${n}명</b><small>${REGION.name} 권역에 지금 접속한 분들이에요${st}</small><div class="me">내 법명 <input id="nickIn" maxlength="12" value="${esc(ME.nick)}"><button id="nickSave">바꾸기</button></div>${monkBox}${list}`;
   wireMonkBox();
@@ -1592,8 +1613,13 @@ function renderPeople() {
     ME.nick = v; saveNick(v); if (NET) NET.retrack(); lastSent = ''; toast(`🙏 이제 '${v}'(으)로 보여요`); renderPeople();
   };
 }
+function openMonkReq(T = cur) { // 주지스님 등록 신청 (일주문 옆 팻말·👥 창)
+  if (!T) return; if (OFFLINE) { window.open(SITE, '_blank', 'noopener'); return; }
+  import('./report.js?v=3').then(m => m.openMonkRequest({ temple: T.name, region: REGION.name, where: T.where || '', sido: REGION.name.split('·')[0] }));
+}
 function wireMonkBox() {
   const $ = id => document.getElementById(id);
+  if ($('monkReq')) $('monkReq').onclick = e => { e.preventDefault(); openMonkReq(); };
   if ($('monkOpen')) $('monkOpen').onclick = e => { e.preventDefault(); $('monkOpen').hidden = true; $('monkForm').hidden = false; $('monkCode').focus(); };
   const go = async () => {
     const b = $('monkGo'), v = $('monkCode').value; if (!v.trim()) return; b.disabled = true;

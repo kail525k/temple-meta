@@ -101,3 +101,61 @@ export function openReport({ sido = '', toast = null } = {}) {
   if (sido && !form.sido.value) form.sido.value = sido;
   el.classList.add('show'); setTimeout(() => form.temple_name.focus(), 50);
 }
+
+// 스님 등록 신청: 각 절 일주문 옆 팻말에서 → 운영자 텔레그램 알림 → 확인 후 연락처로 등록 코드를 보내 드림
+const MONK_HTML = `
+<div class="box card">
+  <header><div><b>🪷 스님 등록 신청</b><small>주지스님이시면 이 절 스님으로 절로에 등록해 드려요 · 확인되면 남겨 주신 연락처로 등록 코드를 보내 드려요</small></div><button type="button" data-close>닫기</button></header>
+  <form id="monkForm" autocomplete="on">
+    <label><span>사찰</span><input name="temple" readonly></label>
+    <div class="row">
+      <label><span>법명 <i>*</i></span><input name="name" maxlength="12" placeholder="예: 법운" required></label>
+      <label><span>직함</span><select name="title"><option>주지스님</option><option>스님</option><option>종무소</option></select></label>
+    </div>
+    <label><span>연락처 <i>*</i> <small>전화번호나 이메일 · 등록 코드를 보내 드리는 데에만 써요 (공개되지 않아요)</small></span><input name="contact" maxlength="100" placeholder="010-…  또는  name@…" required></label>
+    <label><span>하고 싶은 말 <small>함께 등록할 스님이 계시면 법명을 적어 주세요</small></span><textarea name="note" maxlength="600"></textarea></label>
+    <label class="agree"><input type="checkbox" name="agree"> <span>연락처를 스님 등록 확인과 코드 안내에만 쓰고, 등록이 끝나면 지우는 데 동의해요.</span></label>
+    <div class="msg" aria-live="polite"></div>
+    <button class="send" type="submit">신청 보내기</button>
+  </form>
+  <div id="monkDone" style="display:none;padding:28px 18px;text-align:center;line-height:1.6;color:#4a3a28"><b style="font-size:17px;display:block;margin-bottom:6px">🪷 신청이 접수되었어요</b>확인되면 남겨 주신 연락처로 등록 코드를 보내 드려요.<br>코드는 절로 오른쪽 위 👥 → <b>"스님이신가요? 인증 코드 넣기"</b>에 넣으시면<br>금빛 이름표와 가사를 두른 모습으로 순례객을 맞으실 수 있어요.<br><button type="button" data-close style="margin-top:14px;border:0;border-radius:99px;padding:9px 18px;font-weight:600;background:#efe6d4;cursor:pointer;font-family:inherit">닫기</button></div>
+</div>`;
+let mel = null;
+export function openMonkRequest({ temple = '', region = '', where = '', sido = '' } = {}) {
+  if (!mel) {
+    if (!document.getElementById('reportCss')) { const st = document.createElement('style'); st.id = 'reportCss'; st.textContent = CSS + '#monkForm{overflow:auto;padding:12px 16px 16px;display:grid;gap:10px}' + CSS.split('\n').filter(l => l.startsWith('#reportForm')).map(l => l.replace(/#reportForm/g, '#monkForm')).join('\n'); document.head.appendChild(st); }
+    mel = document.createElement('div'); mel.id = 'monkReqModal'; mel.className = ''; mel.innerHTML = MONK_HTML; mel.style.cssText = 'position:fixed;inset:0;background:rgba(30,25,15,.5);display:none;align-items:center;justify-content:center;z-index:32;padding:12px';
+    mel.querySelector('.box').style.cssText = 'width:min(520px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden';
+    const hd = mel.querySelector('header'); hd.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 12px 10px 16px;border-bottom:1px solid #e6dcc8';
+    hd.querySelector('div').style.flex = '1'; hd.querySelector('small').style.cssText = 'display:block;font-size:12px;color:#8a7a62;margin-top:2px;line-height:1.45'; hd.querySelector('b').style.fontSize = '16px';
+    hd.querySelector('button').style.cssText = 'border:0;border-radius:99px;padding:8px 14px;font-weight:600;background:#efe6d4;cursor:pointer;font-family:inherit';
+    document.body.appendChild(mel);
+    const form = mel.querySelector('#monkForm'), msg = form.querySelector('.msg'), send = form.querySelector('.send'), done = mel.querySelector('#monkDone');
+    mel.addEventListener('click', e => { if (e.target === mel || e.target.hasAttribute('data-close')) mel.style.display = 'none'; });
+    mel.addEventListener('keydown', e => e.stopPropagation());
+    form.addEventListener('submit', async e => {
+      e.preventDefault(); msg.textContent = '';
+      const f = Object.fromEntries(new FormData(form)), name = f.name.trim().replace(/\s*스님$/, '');
+      if (!name) return (msg.textContent = '법명을 적어 주세요');
+      if (!f.contact.trim()) return (msg.textContent = '등록 코드를 보내 드릴 연락처를 적어 주세요');
+      if (!form.agree.checked) return (msg.textContent = '연락처 이용에 동의해 주세요');
+      send.disabled = true; send.textContent = '보내는 중…';
+      try {
+        const d = mel.dataset;
+        const r = await fetch(`${SB_URL}/rest/v1/rpc/temple_report_submit`, {
+          method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_temple_name: `${d.temple} · 스님 등록 신청`, p_sido: d.sido || '', p_address: d.addr, p_map_url: '', p_reporter: `${name} ${f.title === '종무소' ? '(종무소)' : f.title === '주지스님' ? '스님 (주지)' : '스님'}`, p_role: f.title === '종무소' ? '종무소' : '스님', p_contact: f.contact, p_halls: '', p_photos: '', p_note: `【스님 등록 신청】 ${d.temple} ${f.title} ${name}${f.note.trim() ? ' · ' + f.note.trim() : ''}`, p_agree: true, p_client: clientId() }),
+        });
+        const body = await r.json().catch(() => null);
+        if (!r.ok) { const m = String(body && (body.message || body.hint) || ''); throw new Error(Object.keys(ERR).find(k => m.includes(k)) || m || r.status); }
+        form.style.display = 'none'; done.style.display = 'block'; form.reset();
+      } catch (err) { msg.textContent = ERR[err.message] || '지금은 보내지 못했어요. 잠시 뒤에 다시 해 주세요'; }
+      finally { send.disabled = false; send.textContent = '신청 보내기'; }
+    });
+  }
+  const form = mel.querySelector('#monkForm'); form.style.display = ''; mel.querySelector('#monkDone').style.display = 'none'; form.querySelector('.msg').textContent = '';
+  Object.assign(mel.dataset, { temple, sido, addr: `${region} ${where}`.trim() || temple });
+  form.temple.value = `${temple}${where ? ' · ' + where : ''}`;
+  mel.style.display = 'flex'; setTimeout(() => form.name.focus(), 50);
+}
+
