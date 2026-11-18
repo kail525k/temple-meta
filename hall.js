@@ -46,7 +46,21 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
   box(IW, .05, FZ1 - iz0, MAT.floor, 0, P + .025, (iz0 + FZ1) / 2);
 
   // 벽: 뒤·양옆, 앞은 문을 들어 올려 활짝 열어 둠
-  box(IW + 2 * T, H, T, MAT.wall, 0, FY + H / 2, iz0 - T / 2);
+  const JEOK = !(buddhas > 0) && !(altar && altar.length); // 적멸보궁(통도사 대웅전): 불상 없이 불단 뒤 창으로 금강계단의 진신사리를 바라봄
+  const WT = IW + 2 * T, winW = Math.min(Math.min(IW - 2.2, 9.5) * .5, 3.6), winY0 = FY + 1.05 + .32, winH = Math.min(H - 1.05 - .32 - .45, 2.1);
+  if (!JEOK) box(WT, H, T, MAT.wall, 0, FY + H / 2, iz0 - T / 2);
+  else {
+    const side = (WT - winW) / 2;
+    for (const sx of [-1, 1]) box(side, H, T, MAT.wall, sx * (winW / 2 + side / 2), FY + H / 2, iz0 - T / 2);
+    box(winW, winY0 - FY, T, MAT.wall, 0, FY + (winY0 - FY) / 2, iz0 - T / 2);
+    const topY = winY0 + winH; box(winW, FY + H - topY, T, MAT.wall, 0, (topY + FY + H) / 2, iz0 - T / 2);
+    // 창틀(금빛 테 + 붉은 나무) · 가는 창살 둘
+    const fr = .13, fd = T + .08;
+    box(winW + 2 * fr, fr, fd, MAT.col, 0, winY0 - fr / 2, iz0 - T / 2); box(winW + 2 * fr, fr, fd, MAT.col, 0, topY + fr / 2, iz0 - T / 2);
+    for (const sx of [-1, 1]) box(fr, winH + 2 * fr, fd, MAT.col, sx * (winW / 2 + fr / 2), winY0 + winH / 2, iz0 - T / 2);
+    for (const sx of [-1, 1]) box(.04, winH, .05, MAT.col, sx * winW / 6, winY0 + winH / 2, iz0 - T / 2);
+    box(winW + 2 * fr + .1, .06, .06, MAT.trim, 0, topY + fr + .03, iz0 + .02); box(winW + 2 * fr + .1, .06, .06, MAT.trim, 0, winY0 - fr - .03, iz0 + .02);
+  }
   col(0, iz0 - T / 2, IW / 2 + T, T / 2 + .05);
   for (const sx of [-1, 1]) {
     box(T, H, ID, MAT.wall, sx * (IW / 2 + T / 2), FY + H / 2, (iz0 + iz1) / 2);
@@ -118,9 +132,11 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
   col(0, AZ, AW / 2 + .1, AD / 2 + .15);
   // 뒤 벽 탱화 자리 (실제 탱화를 옮기지 않고 붉은 바탕 + 금색 테두리만)
   const PH = H - AH - .35, PY = FY + AH + .15 + PH / 2;
-  box(AW + .6, PH, .05, MAT.panel, 0, PY, iz0 + .04);
-  box(AW + .8, .1, .07, MAT.trim, 0, PY + PH / 2, iz0 + .05); box(AW + .8, .1, .07, MAT.trim, 0, PY - PH / 2, iz0 + .05);
-  for (const sx of [-1, 1]) box(.1, PH, .07, MAT.trim, sx * (AW / 2 + .35), PY, iz0 + .05);
+  if (!JEOK) {
+    box(AW + .6, PH, .05, MAT.panel, 0, PY, iz0 + .04);
+    box(AW + .8, .1, .07, MAT.trim, 0, PY + PH / 2, iz0 + .05); box(AW + .8, .1, .07, MAT.trim, 0, PY - PH / 2, iz0 + .05);
+    for (const sx of [-1, 1]) box(.1, PH, .07, MAT.trim, sx * (AW / 2 + .35), PY, iz0 + .05);
+  }
   // 부처님 (삼존불 또는 한 분)
   const BY = FY + AH + .1;
   const STAND = k => ['bosalS', 'disciple', 'chunsu', 'buddhaS'].includes(k), WID = k => k === 'wabul' ? 6.0 : STAND(k) ? (k === 'chunsu' ? 1.2 : .8) : 1.45;
@@ -134,11 +150,14 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
     slots.push({ x, y: BY, z: AZ - .15, s, k: it.k, stand: STAND(it.k), obj: b });
   }
   const seats = list;
-  if (!seats.length) { // 적멸보궁: 불상 대신 진신사리를 모신 종 모양 사리탑
-    add(new THREE.CylinderGeometry(.55, .62, .22, 16), MAT.bronze, 0, BY + .11, AZ - .15);
-    const bell = add(new THREE.SphereGeometry(.42, 20, 14), MAT.gold, 0, BY + .62, AZ - .15); bell.scale.y = 1.25;
-    add(new THREE.CylinderGeometry(.06, .1, .5, 10), MAT.gold, 0, BY + 1.33, AZ - .15);
-    add(new THREE.SphereGeometry(.1, 12, 10), MAT.gold, 0, BY + 1.62, AZ - .15);
+  if (!seats.length) { // 적멸보궁: 불상을 모시지 않음 — 불단엔 공양물만, 예불은 창 너머 금강계단의 진신사리를 향해
+    box(1.5, .05, .5, MAT.trim, 0, BY - .02, AZ + .1); // 공양 상
+    for (const dx of [-.36, 0, .36]) { add(new THREE.CylinderGeometry(.09, .07, .1, 14), MAT.bronze, dx, BY + .05, AZ + .1); add(new THREE.CylinderGeometry(.075, .075, .02, 14), MAT.candle, dx, BY + .1, AZ + .1); } // 다기(맑은 물 세 잔)
+    for (const sx of [-1, 1]) { // 연꽃을 꽂은 화병
+      const vx = sx * AW * .3; add(new THREE.CylinderGeometry(.09, .13, .42, 12), MAT.bronze, vx, BY + .21, AZ - .1);
+      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2, f = add(new THREE.IcosahedronGeometry(.1, 0), MAT.lotus[i % MAT.lotus.length], vx + Math.sin(a) * .1, BY + .55 + (i % 2) * .08, AZ - .1 + Math.cos(a) * .1); f.scale.y = .8; }
+    }
+    const lamp = add(new THREE.SphereGeometry(.12, 12, 10), MAT.glow, 0, BY + .35, AZ - .3); lamp.castShadow = false; // 작은 등불
   }
   // 촛대 둘과 향로
   for (const sx of [-1, 1]) {

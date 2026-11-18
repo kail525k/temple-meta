@@ -115,13 +115,29 @@ export function initRituals({ sound, store, toast, done, onUse }) {
   // 목탁: 두드리면 소리 + 살짝 눌리는 모양, 자동재생은 염불 박자(0.62초)
   function openMoktak() {
     close(); mode = 'moktak'; ov.classList.add('show'); onUse && onUse('moktak');
-    stage.innerHTML = `<svg id="mok" viewBox="0 0 240 200" width="250" height="210" role="button" aria-label="목탁 두드리기">
-      <defs><radialGradient id="mg" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#e3a061"/><stop offset=".55" stop-color="#b8692f"/><stop offset="1" stop-color="#7a3d17"/></radialGradient></defs>
-      <path d="M150 52 q22 -34 52 -8 q10 12 -6 20" fill="none" stroke="#8a4a1f" stroke-width="13" stroke-linecap="round"/>
-      <ellipse cx="112" cy="112" rx="92" ry="74" fill="url(#mg)"/>
-      <path d="M38 118 q74 34 150 0" fill="none" stroke="#4a230b" stroke-width="9" stroke-linecap="round"/>
-      <ellipse cx="82" cy="82" rx="26" ry="14" fill="#fff" opacity=".18"/>
-      <g id="mallet"><rect x="150" y="150" width="78" height="10" rx="5" fill="#9a5a2a" transform="rotate(-28 150 150)"/><circle cx="150" cy="150" r="15" fill="#c0793d"/></g>
+    stage.innerHTML = `<svg id="mok" viewBox="0 0 260 220" width="270" height="228" role="button" aria-label="목탁 두드리기">
+      <defs>
+        <radialGradient id="mkB" cx="36%" cy="28%" r="78%"><stop offset="0" stop-color="#ffdca2"/><stop offset=".45" stop-color="#eb9d52"/><stop offset="1" stop-color="#a5541f"/></radialGradient>
+        <radialGradient id="mkM" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#fff4dc"/><stop offset="1" stop-color="#efbf83"/></radialGradient>
+      </defs>
+      <ellipse cx="124" cy="206" rx="82" ry="9" fill="rgba(60,30,10,.18)"/>
+      <g id="mkbody">
+        <path d="M150 70 C160 28 214 20 222 50 C229 74 207 88 195 72" fill="none" stroke="#a85e25" stroke-width="17" stroke-linecap="round"/>
+        <path d="M152 66 C162 32 210 26 216 52" fill="none" stroke="#dd9550" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+        <ellipse cx="120" cy="128" rx="96" ry="76" fill="url(#mkB)"/>
+        <ellipse cx="120" cy="128" rx="95" ry="75" fill="none" stroke="#8a4416" stroke-width="3" opacity=".3"/>
+        <path d="M46 100 Q120 68 194 100" fill="none" stroke="rgba(140,70,25,.16)" stroke-width="3"/>
+        <path d="M40 166 Q120 196 200 166" fill="none" stroke="rgba(140,70,25,.16)" stroke-width="3"/>
+        <g fill="#ffe7bf" opacity=".75"><ellipse cx="120" cy="72" rx="5" ry="10"/><ellipse cx="111" cy="76" rx="4" ry="8" transform="rotate(-35 111 76)"/><ellipse cx="129" cy="76" rx="4" ry="8" transform="rotate(35 129 76)"/></g>
+        <g id="en" fill="none" stroke="#4a2410" stroke-width="5" stroke-linecap="round"><path d="M80 114 q10 -11 20 0"/><path d="M140 114 q10 -11 20 0"/></g>
+        <g id="eh" fill="none" stroke="#4a2410" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity="0"><path d="M82 105 l13 7 l-13 7"/><path d="M158 105 l-13 7 l13 7"/></g>
+        <ellipse cx="72" cy="130" rx="13" ry="8" fill="#ff8f86" opacity=".45"/><ellipse cx="168" cy="130" rx="13" ry="8" fill="#ff8f86" opacity=".45"/>
+        <path d="M60 142 C84 151 156 151 180 142 C168 175 72 175 60 142 Z" fill="#5b2a0c"/>
+        <path d="M76 152 Q120 170 164 152" fill="none" stroke="#2e1305" stroke-width="3" opacity=".45"/>
+        <ellipse cx="76" cy="84" rx="28" ry="13" fill="#fff" opacity=".35" transform="rotate(-22 76 84)"/><circle cx="104" cy="68" r="5" fill="#fff" opacity=".55"/>
+      </g>
+      <text id="ttok" x="34" y="52" font-size="24" font-weight="800" fill="#c2561c" opacity="0">똑!</text>
+      <g id="mallet"><path d="M190 154 L250 196" stroke="#a8642c" stroke-width="11" stroke-linecap="round"/><circle cx="184" cy="149" r="18" fill="url(#mkM)"/><path d="M172 140 q12 -8 24 0" fill="none" stroke="#e0a86a" stroke-width="3" opacity=".8"/><circle cx="178" cy="142" r="4" fill="#fff" opacity=".7"/></g>
     </svg>`;
     const svg = document.getElementById('mok');
     const hit = () => { sound.moktak(); const n = store.count('moktak'); info.innerHTML = `<b>${n}</b><span>오늘 두드린 목탁</span>`; svg.classList.remove('hit'); void svg.getBBox(); svg.classList.add('hit'); if (n >= 21) done('moktak'); };

@@ -197,7 +197,7 @@ export async function loadMonkGLB(url, { height = 1.11, onProgress, closedUrl = 
     // 앉기 (가부좌 + 무릎 위 선정인)
     if (st.sit > 0) {
       for (const [b, q] of sitQ) b.quaternion.slerp(q, st.sit);
-      for (const [b, q] of lapQ) b.quaternion.slerp(q, st.sit);
+      for (const [b, q] of hapQ) b.quaternion.slerp(q, st.sit); // 앉으면 합장 (예전: 무릎 위 선정인 lapQ)
       if (B.Hips) B.Hips.position.addScaledVector(sitVec, st.sit);
     }
     // 합장

@@ -642,33 +642,88 @@ export function yonggungFrame(h) {
   };
   return { TY, ZC0, ZC1, ZB, ZS1, ZT1, HXc, HZc, HR, HY, HS1, ground, PZ: D / 2 + 4.3, gap: [YX - 4.8, YX - 1.4, 5.6] };
 }
-// 십이지신상 하나: 받침돌 + 도포 + 띠 동물 머리 (화강암)
+// 십이지신상 하나: 받침돌(띠 이름 새김) + 도포 입고 두 손으로 무기를 든 몸 + 띠 동물 머리 (화강암)
+const ZODIAC = [['子', '쥐'], ['丑', '소'], ['寅', '호랑이'], ['卯', '토끼'], ['辰', '용'], ['巳', '뱀'], ['午', '말'], ['未', '양'], ['申', '원숭이'], ['酉', '닭'], ['戌', '개'], ['亥', '돼지']];
+let ZEYE = null;
 function zodiac(h, x, y, z, ry, i) {
-  const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; h.site.add(g);
-  const S = R.granite, S2 = R.granite2;
+  const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; g.scale.setScalar(1.2); h.site.add(g);
+  const S = R.granite, S2 = R.granite2, EYE = ZEYE || (ZEYE = new THREE.MeshStandardMaterial({ color: '#34322d', roughness: .5 }));
   const mk = (geo, mat, px, py, pz, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.scale.set(sx, sy, sz); m.castShadow = true; g.add(m); return m; };
-  mk(new THREE.BoxGeometry(.56, .22, .5), S2, 0, .11, 0);
-  mk(new THREE.LatheGeometry([[0, 0], [.2, 0], [.19, .05], [.15, .45], [.17, .58], [.1, .66], [0, .68]].map(([r, yy]) => new THREE.Vector2(r, yy)), 12), S, 0, .22, 0);
-  for (const sx of [-1, 1]) mk(new THREE.SphereGeometry(.06, 8, 6), S, sx * .07, .62, .12, 1, 1, 1.2); // 모은 두 손
-  const hy = 1.0, head = (sx, sy, sz) => mk(new THREE.SphereGeometry(.13, 12, 10), S, 0, hy, 0, sx, sy, sz);
-  const ear = (px, py, r = .05, sx = 1, sy = 1) => { for (const s of [-1, 1]) mk(new THREE.SphereGeometry(r, 8, 6), S, s * px, py, -.01, sx, sy, .5); };
-  const horn = (px, py, len = .14, tilt = .5) => { for (const s of [-1, 1]) { const c = mk(new THREE.ConeGeometry(.03, len, 6), S2, s * px, py, 0); c.rotation.z = -s * tilt; } };
-  const snout = (len, r = .06, py = hy - .02) => { const c = mk(new THREE.CylinderGeometry(r * .8, r, len, 8), S, 0, py, .11 + len / 2 - .04); c.rotation.x = Math.PI / 2; };
+  const _a = new THREE.Vector3(), _b = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+  const seg = (mat, p, q, r0, r1 = r0) => { _a.set(...p); _b.set(...q); const L = _a.distanceTo(_b), m = mk(new THREE.CylinderGeometry(r1, r0, L, 10), mat, (_a.x + _b.x) / 2, (_a.y + _b.y) / 2, (_a.z + _b.z) / 2); m.quaternion.setFromUnitVectors(UP, _b.clone().sub(_a).normalize()); return m; };
+  // 받침돌 + 띠 이름
+  mk(new THREE.BoxGeometry(.6, .24, .54), S2, 0, .12, 0);
+  const [hj, nm] = ZODIAC[i], plate = mk(new THREE.PlaneGeometry(.44, .15), new THREE.MeshStandardMaterial({ map: h.nameTex(`${hj} ${nm}`, '#55524b', '#efe7d6', 46), roughness: .8 }), 0, .12, .272); plate.castShadow = false;
+  // 도포: 아래로 퍼진 옷자락 · 띠 · 맞깃 · 넓은 소매 · 모은 두 손
+  const B = .24;
+  mk(new THREE.LatheGeometry([[0, 0], [.27, 0], [.26, .05], [.2, .36], [.17, .6], [.2, .72], [.15, .8], [.07, .85], [0, .86]].map(([r, yy]) => new THREE.Vector2(r, yy)), 16), S, 0, B, 0);
+  mk(new THREE.TorusGeometry(.183, .022, 6, 20), S2, 0, B + .42, 0).rotation.x = Math.PI / 2;
+  for (const sx of [-1, 1]) { const c = mk(new THREE.BoxGeometry(.035, .2, .02), S2, sx * .045, B + .7, .155); c.rotation.z = sx * .55; c.rotation.x = -.25; }
+  for (const sx of [-1, 1]) { seg(S, [sx * .19, B + .72, 0], [sx * .07, B + .46, .17], .07, .095); mk(new THREE.SphereGeometry(.045, 8, 6), S, sx * .035, B + .47, .22); }
+  // 두 손에 든 것: 칼 · 지팡이(고리) · 창 · 홀
+  const w = i % 4, gx = 0, gz = .24;
+  if (w === 0) { mk(new THREE.BoxGeometry(.035, .5, .012), S2, gx, B + .78, gz); mk(new THREE.BoxGeometry(.13, .025, .04), S2, gx, B + .52, gz); mk(new THREE.SphereGeometry(.025, 8, 6), S2, gx, B + .4, gz); }
+  else if (w === 1) { seg(S2, [gx, .26, gz], [gx, B + 1.05, gz], .016); mk(new THREE.TorusGeometry(.06, .012, 6, 16), S2, gx, B + 1.1, gz); }
+  else if (w === 2) { seg(S2, [gx, .26, gz], [gx, B + 1.1, gz], .015); mk(new THREE.ConeGeometry(.035, .14, 8), S2, gx, B + 1.17, gz); }
+  else { const t = mk(new THREE.BoxGeometry(.07, .3, .015), S2, gx, B + .62, gz + .01); t.rotation.x = -.2; }
+  // 머리
+  const hy = B + .86 + .12, head = (sx, sy, sz, dy = 0, dz = 0) => mk(new THREE.SphereGeometry(.14, 16, 12), S, 0, hy + dy, dz, sx, sy, sz);
+  const eyes = (ex, ey, ez, r = .022) => { for (const s of [-1, 1]) mk(new THREE.SphereGeometry(r, 8, 6), EYE, s * ex, hy + ey, ez); };
+  const nose = (py, pz, r = .02) => mk(new THREE.SphereGeometry(r, 8, 6), EYE, 0, hy + py, pz);
   switch (i) {
-    case 0: head(1, 1, 1.05); ear(.1, hy + .1, .06); snout(.08, .04); break;                    // 쥐
-    case 1: head(1.15, 1, 1.1); horn(.13, hy + .1, .16, 1.0); snout(.08, .08); break;           // 소
-    case 2: head(1.15, 1.05, 1.05); ear(.1, hy + .11, .045); snout(.06, .07); break;            // 범
-    case 3: head(1, 1, 1); for (const s of [-1, 1]) { const e = mk(new THREE.CylinderGeometry(.025, .035, .22, 6), S, s * .05, hy + .2, -.02); e.rotation.z = -s * .15; } break; // 토끼
-    case 4: head(1.05, 1, 1.15); horn(.07, hy + .14, .2, .35); snout(.14, .06); break;          // 용
-    case 5: head(.85, .9, 1.2); snout(.1, .05); break;                                          // 뱀
-    case 6: head(.9, 1.1, 1.05); ear(.06, hy + .15, .04, .6, 1.6); snout(.18, .065, hy - .05); break; // 말
-    case 7: head(1, 1, 1); for (const s of [-1, 1]) { const t = mk(new THREE.TorusGeometry(.06, .022, 6, 12), S2, s * .12, hy + .04, 0); t.rotation.y = Math.PI / 2; } snout(.07, .06); break; // 양
-    case 8: head(1, 1, .95); ear(.14, hy, .05, .6, 1); mk(new THREE.SphereGeometry(.08, 8, 6), S2, 0, hy - .03, .09, 1, .8, .6); break; // 원숭이
-    case 9: head(.9, 1, 1); mk(new THREE.BoxGeometry(.03, .1, .14), R.redCol, 0, hy + .15, 0); mk(new THREE.ConeGeometry(.035, .1, 6), S2, 0, hy, .15).rotation.x = Math.PI / 2; break; // 닭
-    case 10: head(1, 1, 1.05); ear(.12, hy + .02, .05, .6, 1.5); snout(.1, .06); break;          // 개
-    default: head(1.15, 1.05, 1); ear(.11, hy + .1, .05, 1.2, .7); snout(.05, .07); break;      // 돼지
+    case 0: // 쥐: 뾰족한 주둥이, 크고 둥근 귀, 수염
+      head(1, .95, 1.05); { const sn = mk(new THREE.ConeGeometry(.065, .15, 12), S, 0, hy - .03, .19); sn.rotation.x = Math.PI / 2; } nose(-.03, .265, .018);
+      for (const s of [-1, 1]) { const e = mk(new THREE.CylinderGeometry(.075, .075, .02, 16), S, s * .11, hy + .11, -.01); e.rotation.x = Math.PI / 2; e.rotation.z = s * .3; for (const k of [-1, 1]) seg(S2, [s * .04, hy - .03 + k * .01, .2], [s * .16, hy - .02 + k * .03, .19], .004); }
+      eyes(.055, .04, .12); break;
+    case 1: // 소: 넓은 주둥이·콧구멍, 옆으로 휜 뿔, 옆 귀
+      head(1.15, 1, 1.05); mk(new THREE.SphereGeometry(.1, 12, 10), S, 0, hy - .06, .13, 1.15, .8, .75); for (const s of [-1, 1]) mk(new THREE.SphereGeometry(.018, 6, 6), EYE, s * .04, hy - .06, .205);
+      for (const s of [-1, 1]) { const hn = mk(new THREE.TorusGeometry(.1, .024, 6, 12, Math.PI * .65), S2, s * .2, hy + .1, -.01); hn.rotation.z = s > 0 ? -.2 : Math.PI + .2; mk(new THREE.SphereGeometry(.05, 8, 6), S, s * .18, hy + .02, -.02, 1.2, .6, .5); }
+      eyes(.07, .05, .12); break;
+    case 2: // 호랑이: 넓은 얼굴, 볼록한 볼, 둥근 귀, 이마 줄무늬
+      head(1.12, 1.02, 1.02); for (const s of [-1, 1]) mk(new THREE.SphereGeometry(.055, 10, 8), S, s * .045, hy - .05, .115); nose(-.025, .16, .022);
+      for (const s of [-1, 1]) mk(new THREE.SphereGeometry(.05, 10, 8), S, s * .11, hy + .12, -.01, 1, 1, .55);
+      for (const k of [-1, 0, 1]) mk(new THREE.BoxGeometry(.018, .06, .02), S2, k * .035, hy + .1, .11).rotation.z = k * .3;
+      eyes(.06, .04, .125); break;
+    case 3: // 토끼: 길게 선 두 귀, 동그란 볼
+      head(1, 1, 1); for (const s of [-1, 1]) { const e = mk(new THREE.SphereGeometry(.04, 10, 8), S, s * .05, hy + .26, -.02, 1, 4, .6); e.rotation.z = -s * .12; mk(new THREE.SphereGeometry(.04, 8, 6), S, s * .035, hy - .05, .115); }
+      nose(-.02, .15, .015); eyes(.06, .04, .12); break;
+    case 4: // 용: 긴 주둥이, 뒤로 뻗은 뿔, 갈기, 늘어진 수염, 굵은 눈썹
+      head(1, .95, 1.05); mk(new THREE.BoxGeometry(.15, .1, .2), S, 0, hy - .04, .17); for (const s of [-1, 1]) mk(new THREE.SphereGeometry(.015, 6, 6), EYE, s * .04, hy - .01, .27);
+      for (const s of [-1, 1]) { const hn = mk(new THREE.ConeGeometry(.025, .24, 6), S2, s * .06, hy + .17, -.08); hn.rotation.x = -.7; hn.rotation.z = -s * .2; mk(new THREE.BoxGeometry(.07, .025, .04), S2, s * .055, hy + .08, .115).rotation.z = s * .3; const wh = mk(new THREE.TorusGeometry(.12, .008, 4, 12, Math.PI * .6), S2, s * .1, hy - .12, .22); wh.rotation.y = s * Math.PI / 2; }
+      for (let k = 0; k < 4; k++) mk(new THREE.ConeGeometry(.03, .1, 5), S2, 0, hy + .12 - k * .07, -.12 - k * .02).rotation.x = -1.2;
+      eyes(.06, .05, .12, .026); break;
+    case 5: // 뱀: 납작한 머리, 뒤로 펼친 목 덮개
+      mk(new THREE.SphereGeometry(.14, 16, 12), S2, 0, hy - .02, -.07, 1.5, 1.3, .35); head(.85, .7, 1.35, -.02, .04);
+      eyes(.07, .02, .14, .02); for (const s of [-1, 1]) mk(new THREE.SphereGeometry(.008, 6, 6), EYE, s * .02, hy - .03, .23); break;
+    case 6: // 말: 앞아래로 긴 얼굴, 선 귀, 목 뒤 갈기
+      head(.85, 1, 1); seg(S, [0, hy - .02, .06], [0, hy - .12, .26], .075, .07); for (const s of [-1, 1]) mk(new THREE.SphereGeometry(.016, 6, 6), EYE, s * .035, hy - .13, .3);
+      for (const s of [-1, 1]) mk(new THREE.ConeGeometry(.03, .11, 6), S, s * .06, hy + .17, -.02);
+      for (let k = 0; k < 5; k++) mk(new THREE.BoxGeometry(.03, .06, .05), S2, 0, hy + .14 - k * .06, -.1 - k * .02);
+      eyes(.08, .04, .09); break;
+    case 7: // 양: 옆으로 말린 뿔, 작은 주둥이, 턱수염
+      head(1, 1, 1); for (const s of [-1, 1]) { const hn = mk(new THREE.TorusGeometry(.065, .028, 6, 14, Math.PI * 1.6), S2, s * .13, hy + .03, -.01); hn.rotation.y = Math.PI / 2; }
+      mk(new THREE.SphereGeometry(.07, 10, 8), S, 0, hy - .06, .12, 1, .8, .8); nose(-.04, .18, .015);
+      mk(new THREE.ConeGeometry(.03, .1, 6), S2, 0, hy - .16, .09).rotation.x = Math.PI;
+      eyes(.06, .04, .12); break;
+    case 8: // 원숭이: 납작한 얼굴판, 양옆 둥근 귀, 눈두덩
+      head(1, 1, .95); mk(new THREE.SphereGeometry(.14, 14, 10), S2, 0, hy - .02, .07, .7, .7, .45);
+      for (const s of [-1, 1]) { const e = mk(new THREE.CylinderGeometry(.05, .05, .02, 14), S, s * .15, hy, -.01); e.rotation.z = Math.PI / 2; }
+      mk(new THREE.BoxGeometry(.13, .025, .03), S, 0, hy + .05, .12); nose(-.03, .14, .014);
+      eyes(.045, .02, .135); break;
+    case 9: // 닭: 볏, 부리, 턱 아래 늘어진 살
+      head(.85, .95, .95); for (let k = 0; k < 3; k++) mk(new THREE.SphereGeometry(.04, 8, 6), S2, 0, hy + .13 + (k === 1 ? .03 : 0), -.04 + k * .05, .5, 1, 1);
+      { const bk = mk(new THREE.ConeGeometry(.035, .1, 8), S2, 0, hy - .01, .17); bk.rotation.x = Math.PI / 2; } mk(new THREE.SphereGeometry(.03, 8, 6), S2, 0, hy - .09, .12, .7, 1.5, .7);
+      eyes(.07, .03, .1); break;
+    case 10: // 개: 주둥이·코, 양옆으로 처진 귀
+      head(1, 1, 1.02); seg(S, [0, hy - .04, .08], [0, hy - .05, .22], .065, .058); nose(-.03, .23, .022);
+      for (const s of [-1, 1]) { const e = mk(new THREE.SphereGeometry(.05, 10, 8), S, s * .14, hy - .01, -.01, .5, 1.4, .8); e.rotation.z = s * .25; }
+      eyes(.06, .045, .12); break;
+    default: // 돼지: 납작한 코판·콧구멍, 앞으로 접힌 세모 귀
+      head(1.12, 1.02, 1); { const sn = mk(new THREE.CylinderGeometry(.065, .07, .07, 14), S, 0, hy - .03, .15); sn.rotation.x = Math.PI / 2; } for (const s of [-1, 1]) mk(new THREE.SphereGeometry(.014, 6, 6), EYE, s * .025, hy - .03, .186);
+      for (const s of [-1, 1]) { const e = mk(new THREE.ConeGeometry(.05, .1, 4), S, s * .09, hy + .12, .03); e.rotation.x = .9; e.rotation.z = -s * .2; }
+      eyes(.07, .04, .12); break;
   }
-  h.col(x, z, .3, .3);
+  h.col(x, z, .34, .34);
 }
 export function buildYonggung(h, T, F) {
   const { add, box, col, L, D, YX, YZ0, YZ1, MAT } = h, { TY, ZC0, ZC1, ZB, ZS1, ZT1, HXc, HZc, HR, HY, HS1 } = F, fig = h.fig || (h.fig = []);

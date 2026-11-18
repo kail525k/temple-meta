@@ -98,8 +98,8 @@
   #soundPanel label{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line)}#soundPanel input[type=range]{width:130px}
   #ritual{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:25;background:rgba(40,30,20,.18);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
   #ritual.show{display:flex}#ritualStage{touch-action:none;user-select:none}#ritualStage svg{cursor:pointer;filter:drop-shadow(0 14px 18px rgba(60,30,10,.35))}
-  #ritualStage svg.hit{animation:mokhit .16s ease-out}#ritualStage svg.hit #mallet{animation:mallet .16s ease-out;transform-origin:150px 150px}
-  @keyframes mokhit{40%{transform:scale(.95)}}@keyframes mallet{40%{transform:rotate(-14deg)}}
+  #mok #mkbody{transform-origin:120px 204px}#mok #mallet{transform-origin:250px 196px}#mok.hit #mkbody{animation:mokbody .22s ease-out}#mok.hit #mallet{animation:mallet .22s ease-out}#mok.hit #eh{animation:mokeye .3s ease-out}#mok.hit #en{animation:mokeye2 .3s ease-out}#mok.hit #ttok{animation:moktok .45s ease-out}
+  @keyframes mokbody{35%{transform:scale(1.05,.92)}70%{transform:scale(.98,1.03)}}@keyframes mallet{0%{transform:rotate(-16deg)}35%{transform:rotate(3deg)}100%{transform:rotate(0)}}@keyframes mokeye{0%,80%{opacity:1}100%{opacity:0}}@keyframes mokeye2{0%,80%{opacity:0}100%{opacity:1}}@keyframes moktok{0%{opacity:0;transform:translateY(6px) scale(.7)}30%{opacity:1;transform:translateY(-4px) scale(1.1)}100%{opacity:0;transform:translateY(-14px)}}
   #ritualStage canvas{cursor:grab;touch-action:none}
   #ritualInfo{text-align:center;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.45)}#ritualInfo b{font-size:40px;display:block;line-height:1}#ritualInfo span{font-size:13px}
   #ritualCtrl{display:flex;gap:8px}#ritualCtrl button,#ritualClose{border:0;border-radius:99px;padding:9px 16px;font-weight:700;background:var(--paper);cursor:pointer;font-family:inherit;color:var(--ink)}
@@ -249,6 +249,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=69"></script>
+<script type="module" src="./app.js?v=70"></script>
 </body>
 </html>

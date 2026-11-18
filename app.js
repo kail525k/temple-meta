@@ -1,14 +1,15 @@
 // 온라인 사찰 참배 체험판 — 권역(서울·경남 등)마다 한 장면에 큰 사찰들을 축소해 모아 두고, 사찰마다 법당 하나를 실제 크기로 재현 (위레브)
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBabyMonk } from './avatar.js?v=4';
-import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=5';
-import { buildHall } from './hall.js?v=8';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=21';
+import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
+import { buildHall } from './hall.js?v=9';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=22';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
 import { REGIONS } from './temples.js?v=9';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
-import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=6';
+import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=7';
 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
@@ -1112,7 +1113,7 @@ function updateNear() {
   { const Y = YARD; if (lx > Y.x0 && lx < Y.x1 && lz > Y.z0 && lz < Y.z1) { visited.add(cur.name); if (visited.size >= 2) done('visit'); } }
   let html = '';
   if (Math.hypot(avatar.position.x, avatar.position.z) < 9.5) html = `<b>${REGION.name} 순례 마당</b><span>길 입구마다 표지석이 있어요 · 가고 싶은 절 쪽 길로 걸어가 보세요 (사찰 ${temples.length}곳)</span>`;
-  else if (inside) html = `<b>${CFG.temple.name} ${CFG.hall.name} 안</b><span>가운데 빛나는 방석에서 삼배를 올릴 수 있어요${bowCount ? ` · 오늘 ${bowCount}번 올렸어요` : ''}</span>`;
+  else if (inside) html = `<b>${CFG.temple.name} ${CFG.hall.name} 안</b><span>${CFG.hall.buddhas === 0 ? '불상 대신 불단 뒤 창 너머 금강계단(부처님 진신사리)을 향해 삼배를 올려요' : '가운데 빛나는 방석에서 삼배를 올릴 수 있어요'}${bowCount ? ` · 오늘 ${bowCount}번 올렸어요` : ''}</span>`;
   else if (Math.abs(lx) < hall.L / 2 + 3 && lz > -hall.D / 2 && lz < hall.D / 2 + 8) html = `<b>${CFG.temple.name} ${CFG.hall.name}</b><span>가운데 계단으로 올라가 안으로 들어가 보세요</span>`;
   nearEl.style.display = html ? 'block' : 'none'; if (html && nearEl.innerHTML !== html) nearEl.innerHTML = html;
 }
@@ -1392,9 +1393,9 @@ function buildBellAndRack(g, add) {
   // 소원 연등대
   { const ux = Math.sin(aRack), uz = Math.cos(aRack), x = ux * R0, z = uz * R0, grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = Math.atan2(-ux, -uz); g.add(grp);
     const ad = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = true; m.receiveShadow = true; grp.add(m); return m; };
-    for (const sx of [-1, 1]) ad(new THREE.CylinderGeometry(.09, .1, 2.9, 8), MAT.trunk, sx * 2.5, 1.45, 0);
-    for (const y of [2.75, 2.05]) { const bar = ad(new THREE.CylinderGeometry(.05, .05, 5.1, 8), MAT.trunk, 0, y, 0); bar.rotation.z = Math.PI / 2; }
-    const sign = ad(new THREE.PlaneGeometry(1.5, .42), new THREE.MeshStandardMaterial({ map: nameTex('소원 연등', '#3a2418', '#f2cf72', 46), roughness: .7 }), 0, 3.15, .06); sign.castShadow = false;
+    for (const sx of [-1, 1]) ad(new THREE.CylinderGeometry(.09, .1, 3.2, 8), MAT.trunk, sx * 2.5, 1.6, 0);
+    for (const y of RACK_BARS) { const bar = ad(new THREE.CylinderGeometry(.05, .05, 5.1, 8), MAT.trunk, 0, y, 0); bar.rotation.z = Math.PI / 2; } // 윗줄 연등 이름표가 아래 가로대보다 위에 오게 간격을 넓힘
+    const sign = ad(new THREE.PlaneGeometry(1.5, .42), new THREE.MeshStandardMaterial({ map: nameTex('소원 연등', '#3a2418', '#f2cf72', 46), roughness: .7 }), 0, 3.45, .06); sign.castShadow = false;
     obstacles.push({ cx: x, cz: z, c: Math.cos(grp.rotation.y), s: -Math.sin(grp.rotation.y), hu: 2.7, hv: .3 });
     RACK = { x, z, ux, uz, grp, items: [], stand: [ux * (R0 - 2.2), uz * (R0 - 2.2)] };
   }
@@ -1448,12 +1449,9 @@ function hangTempleLantern(T, w, fresh = true) {
   if (W.items.length >= n) { const old = W.items.shift(); old.removeFromParent(); }
   const i = W.k++ % n, lx = W.x0 + .9 + W.step / 2 + i * W.step;
   const gL = new THREE.Group(); gL.position.set(lx, 2.7, W.z); T.site.add(gL);
-  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(.25, 1), new THREE.MeshStandardMaterial({ color: w.c, emissive: w.c, emissiveIntensity: .45, roughness: .6, flatShading: true })); m.scale.y = .85; gL.add(m);
-  const str = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, .4, 4), MAT.line); str.position.y = .38; gL.add(str);
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const c = cv.getContext('2d'); c.fillStyle = '#fffaf0'; c.fillRect(0, 0, 256, 128); c.fillStyle = '#5a3a22'; c.font = '600 26px sans-serif'; c.textAlign = 'center';
-  const t = w.t || ''; c.fillText(t.slice(0, 10), 128, 52); if (t.length > 10) c.fillText(t.slice(10, 20) + (t.length > 20 ? '…' : ''), 128, 90);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-  const tag = new THREE.Mesh(new THREE.PlaneGeometry(.46, .23), new THREE.MeshStandardMaterial({ map: tex, roughness: .8, side: THREE.DoubleSide })); tag.position.set(0, -.42, 0); gL.add(tag);
+  gL.add(makeLantern(w.c, .23, .45));
+  const str = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, .32, 4), MAT.line); str.position.y = .38; gL.add(str);
+  const tag = wishTag(w.t, .48); tag.position.set(0, -.23 * 1.55 - .13, 0); gL.add(tag);
   W.items.push(gL); if (fresh) { gL.userData.base = 1; gL.scale.setScalar(.01); gL.userData.grow = 0; GROW.push(gL); }
 }
 // 범종 치기: 당목 줄을 두 손으로 잡고(E) → 꾹 누르면 뒷걸음치며 당목을 뒤로 끌어올리고 → 놓으면 당목이 흔들려 가 당좌를 침
@@ -1566,16 +1564,52 @@ function updateBell(dt) {
   bellFocus.lerp(_bv2, Math.min(1, dt * 3));
 }
 const WISH_COLORS = ['#f6a5b8', '#ffd86a', '#f48c7a', '#a8e0a0', '#ffffff', '#9fc8ff'];
+// 연등: 연꽃잎이 감싼 둥근 등 + 위 뚜껑 + 아래 금빛 술 · 이름표는 종이 꼬리표 (소원 연등대·절 마당 연등 줄 같이 씀)
+const RACK_BARS = [3.05, 2.05], LANTERN_PETALS = new Map(), _lc = new THREE.Color();
+function petalRing(r) { // 꽃잎 두 줄(엇갈려 8장씩)을 한 덩어리로 — 연등 하나에 메시 몇 개만
+  if (LANTERN_PETALS.has(r)) return LANTERN_PETALS.get(r);
+  const parts = [];
+  for (const [row, n, y, tilt, sc] of [[0, 8, -.42, .55, 1], [1, 8, .05, .35, .9]]) for (let i = 0; i < n; i++) {
+    const a = (i + row * .5) / n * Math.PI * 2, gm = new THREE.SphereGeometry(1, 8, 6);
+    gm.translate(0, 1, 0); gm.scale(.34 * r * sc, .62 * r * sc, .13 * r); // 아래가 붙고 끝이 뾰족한 꽃잎
+    gm.rotateX(-tilt); gm.translate(0, 0, .82 * r); gm.rotateY(a); gm.translate(0, y * r, 0);
+    parts.push(gm);
+  }
+  const g = mergeGeometries(parts); parts.forEach(p => p.dispose()); LANTERN_PETALS.set(r, g); return g;
+}
+function makeLantern(color, r = .17, glow = .35) {
+  const g = new THREE.Group(), c = new THREE.Color(color);
+  const prof = [[0, -1], [.42, -.94], [.78, -.68], [.97, -.26], [.98, .16], [.85, .55], [.56, .85], [.22, .99], [0, 1]].map(([x, y]) => new THREE.Vector2(x * r, y * r * .92));
+  const body = new THREE.Mesh(new THREE.LatheGeometry(prof, 22), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: glow, roughness: .55 })); body.castShadow = true; g.add(body);
+  const pc = _lc.copy(c).lerp(new THREE.Color('#ffffff'), .35).clone();
+  g.add(new THREE.Mesh(petalRing(r), new THREE.MeshStandardMaterial({ color: pc, emissive: pc, emissiveIntensity: glow * .8, roughness: .6, side: THREE.DoubleSide })));
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(.16 * r, .3 * r, .16 * r, 12), new THREE.MeshStandardMaterial({ color: '#8c2f22', roughness: .6 })); cap.position.y = .95 * r; g.add(cap);
+  const gold = new THREE.MeshStandardMaterial({ color: '#d9b04e', roughness: .45, metalness: .3 });
+  const bead = new THREE.Mesh(new THREE.SphereGeometry(.13 * r, 8, 6), gold); bead.position.y = -.98 * r; g.add(bead);
+  const tas = new THREE.Mesh(new THREE.ConeGeometry(.12 * r, .5 * r, 8, 1, true), gold); tas.position.y = -1.32 * r; tas.rotation.x = Math.PI; g.add(tas); // 금빛 술
+  return g;
+}
+function wishTag(text, w = .44) { // 종이 꼬리표: 위에 끈 구멍, 붉은 테, 굵은 글씨 두 줄
+  const cv = document.createElement('canvas'); cv.width = 384; cv.height = 192; const c = cv.getContext('2d');
+  const rr = (x, y, w2, h, k) => { c.beginPath(); c.moveTo(x + k, y); c.arcTo(x + w2, y, x + w2, y + h, k); c.arcTo(x + w2, y + h, x, y + h, k); c.arcTo(x, y + h, x, y, k); c.arcTo(x, y, x + w2, y, k); c.closePath(); }; // 둥근 네모 (오래된 사파리도 되게)
+  c.fillStyle = '#fff8ea'; rr(6, 6, 372, 180, 18); c.fill();
+  c.strokeStyle = '#b8432f'; c.lineWidth = 7; rr(14, 14, 356, 164, 12); c.stroke();
+  c.fillStyle = '#d9b04e'; c.beginPath(); c.arc(192, 30, 9, 0, 7); c.fill();
+  const t = String(text || '').trim().replace(/\s+/g, ' '), lines = []; // 띄어쓰기 기준으로 한 줄 9자 안쪽, 두 줄까지
+  for (const wd of t.split(' ')) { let w2 = wd; while (w2.length > 9) { lines.push(w2.slice(0, 9)); w2 = w2.slice(9); } const last = lines[lines.length - 1]; if (last !== undefined && (last + ' ' + w2).length <= 9 && !last.endsWith('\u2026')) lines[lines.length - 1] = last + ' ' + w2; else lines.push(w2); }
+  if (lines.length > 2) { lines.length = 2; lines[1] = lines[1].slice(0, 8) + '…'; } if (!lines.length) lines.push('');
+  c.fillStyle = '#3e2414'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = `700 ${lines.length > 1 ? 40 : 46}px "Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif`;
+  lines.forEach((ln, i) => c.fillText(ln, 192, 108 + (i - (lines.length - 1) / 2) * 50));
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w / 2), new THREE.MeshStandardMaterial({ map: tex, roughness: .85, side: THREE.DoubleSide })); return m;
+}
 function hangWish(w, fresh = true) {
-  if (!RACK) return; const k = RACK.items.length % 16, row = k < 8 ? 0 : 1, col = k % 8, lx = -2.1 + col * .6, ly = row ? 1.62 : 2.32;
+  if (!RACK) return; const k = RACK.items.length % 16, row = k < 8 ? 0 : 1, col = k % 8, lx = -2.1 + col * .6, r = .17, ly = RACK_BARS[row] - .43; // 위 가로대에 윗줄, 아래 가로대에 아랫줄
   if (RACK.items.length >= 16) { const old = RACK.items.shift(); old.removeFromParent(); }
   const gL = new THREE.Group(); gL.position.set(lx, ly, .02); RACK.grp.add(gL);
-  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(.17, 1), new THREE.MeshStandardMaterial({ color: w.c, emissive: w.c, emissiveIntensity: .35, roughness: .6, flatShading: true })); m.scale.y = .85; gL.add(m);
-  const str = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, .3, 4), MAT.line); str.position.y = .27; gL.add(str);
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const c = cv.getContext('2d'); c.fillStyle = '#fffaf0'; c.fillRect(0, 0, 256, 128); c.fillStyle = '#5a3a22'; c.font = '600 26px sans-serif'; c.textAlign = 'center';
-  const t = w.t || ''; c.fillText(t.slice(0, 10), 128, 52); if (t.length > 10) c.fillText(t.slice(10, 20) + (t.length > 20 ? '…' : ''), 128, 90);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-  const tag = new THREE.Mesh(new THREE.PlaneGeometry(.42, .21), new THREE.MeshStandardMaterial({ map: tex, roughness: .8, side: THREE.DoubleSide })); tag.position.set(0, -.33, .02); gL.add(tag);
+  gL.add(makeLantern(w.c, r, .35));
+  const top = r * 1.03, L = RACK_BARS[row] - .04 - ly - top, str = new THREE.Mesh(new THREE.CylinderGeometry(.006, .006, L, 4), MAT.line); str.position.y = top + L / 2; gL.add(str);
+  const tag = wishTag(w.t, .44); tag.position.set(0, -r * 1.55 - .12, .01); gL.add(tag); // 술 아래 꼬리표 (윗줄도 아래 가로대보다 위)
   RACK.items.push(gL); if (fresh) { gL.scale.setScalar(.01); gL.userData.grow = 0; }
 }
 const wishModal = document.getElementById('wishModal');
@@ -2073,6 +2107,8 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   bell: () => BELL && { th: +BELL.theta.toFixed(3), om: +BELL.omega.toFixed(3), hold: bellHold && { ...bellHold }, sway: +BELL.sway.toFixed(3), glow: +BELL.glow.toFixed(2), remote: bellRemoteOn() ? { mode: bellRemote.mode, nick: bellRemote.nick } : null, peerGrip: [...peers.values()].map(P => P.grip ? +P.grip.w.toFixed(2) : null) },
   get net() { return NET && NET.joined; },
   bellAt: () => BELL && { x: BELL.x, z: BELL.z, ux: BELL.ux, uz: BELL.uz },
+  wishTest(n = 12) { const tx = ['우리가족 건강 행복 사랑', '합격 기원', '부모님 오래오래 건강하세요', '주원 채원 무럭무럭', '평화', '마음의 평안을 얻게 해 주세요', '사업 번창', '건강']; for (let i = 0; i < n; i++) hangWish({ t: tx[i % tx.length], c: WISH_COLORS[i % WISH_COLORS.length] }, false); if (RACK) { avatar.position.set(RACK.stand[0], 0, RACK.stand[1]); avatar.rotation.y = Math.atan2(RACK.x - RACK.stand[0], RACK.z - RACK.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 4.5; pitch = .12; intro = -1; } },
+  yardTest(n = 4) { const T = cur; if (!T) return; for (let i = 0; i < n; i++) hangTempleLantern(T, { t: ['우리가족 건강 행복 사랑', '합격 기원', '평화', '사업 번창'][i % 4], c: WISH_COLORS[(i + 2) % WISH_COLORS.length] }, false); },
   me: () => ({ x: +avatar.position.x.toFixed(3), z: +avatar.position.z.toFixed(3), wob: +myWob.toFixed(3) }),
   walkTo(x, z) { moveTarget = { x, z, t: 0 }; },
   others: () => [...peers.values()].map(P => ({ x: +P.g.position.x.toFixed(3), z: +P.g.position.z.toFixed(3), wob: +(P.wob || 0).toFixed(3) })),
