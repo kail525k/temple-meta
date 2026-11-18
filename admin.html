@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>사찰 제보 관리 · 절로</title>
+<title>사찰 제보 관리 · 수월</title>
 <style>
   :root{--ink:#2b1d14;--sub:#8a7a62;--line:#e6dcc8;--bg:#f6efe2;--card:#fffaf0;--accent:#8c3a2a}
   *{box-sizing:border-box}
@@ -39,7 +39,7 @@
 </style>
 </head>
 <body>
-<header><div style="flex:1"><b>🙏 절로 · 운영 관리</b><small>작은 절 제보 검토 · 스님 인증 초대</small></div><button id="btnTest" hidden>테스트 알림</button><button id="btnOut" hidden>로그아웃</button></header>
+<header><div style="flex:1"><b>🙏 수월 · 운영 관리</b><small>작은 절 제보 검토 · 스님 인증 초대</small></div><button id="btnTest" hidden>테스트 알림</button><button id="btnOut" hidden>로그아웃</button></header>
 <main>
   <section id="setup" class="card" hidden>
     <h2>① 텔레그램 알림 연결 (처음 한 번만)</h2>
@@ -63,7 +63,7 @@
 
   <section id="monks" class="card" hidden>
     <h2>🪷 스님 인증 · 초대 코드</h2>
-    <p style="margin:0 0 10px;font-size:14px;color:var(--sub)">스님께 드릴 코드를 만들어요. 스님이 절로에서 <b>👥 함께 순례 → "스님이신가요? 인증 코드 넣기"</b>에 넣으면 그 기기가 금빛 이름표 <b>"🪷 ○○사 ○○ 스님"</b>과 가사를 두른 모습으로 보여요. 코드는 14일 안에 한 번만 쓸 수 있고, 이름에 '스님'을 적은 다른 사람은 스님으로 보이지 않아요.</p>
+    <p style="margin:0 0 10px;font-size:14px;color:var(--sub)">스님께 드릴 코드를 만들어요. 스님이 수월에서 <b>👥 함께 순례 → "스님이신가요? 인증 코드 넣기"</b>에 넣으면 그 기기가 금빛 이름표 <b>"🪷 ○○사 ○○ 스님"</b>과 가사를 두른 모습으로 보여요. 코드는 14일 안에 한 번만 쓸 수 있고, 이름에 '스님'을 적은 다른 사람은 스님으로 보이지 않아요.</p>
     <div class="row"><select id="mRegion"></select><select id="mTemple"></select><input id="mName" maxlength="12" placeholder="법명 (예: 법운)" style="width:140px"><button class="main" id="mMake">초대 코드 만들기</button></div>
     <div class="msg" id="mMsg"></div>
     <div id="mOut"></div>
@@ -165,7 +165,7 @@ $('mMake').onclick = async () => {
   $('mMake').disabled = true;
   try {
     const j = await call('monk_invite', { region: $('mRegion').value, temple: $('mTemple').value, name });
-    const txt = `🪷 절로 스님 인증 초대 코드: ${j.code}\n1) https://temple-meta.vercel.app 에 들어가세요\n2) 오른쪽 위 👥 버튼 → "스님이신가요? 인증 코드 넣기"\n3) 코드 ${j.code} 를 넣고 [인증] (14일 안에 한 번만)\n인증한 기기에서 "🪷 ${$('mTemple').value} ${name} 스님"으로 보여요.`;
+    const txt = `🪷 수월 스님 인증 초대 코드: ${j.code}\n1) https://temple-meta.vercel.app 에 들어가세요\n2) 오른쪽 위 👥 버튼 → "스님이신가요? 인증 코드 넣기"\n3) 코드 ${j.code} 를 넣고 [인증] (14일 안에 한 번만)\n인증한 기기에서 "🪷 ${$('mTemple').value} ${name} 스님"으로 보여요.`;
     $('mOut').innerHTML = `<div class="code">${esc(j.code)}</div><textarea readonly>${esc(txt)}</textarea><div class="row"><button id="mCopy">안내 문구 복사</button></div>`;
     $('mCopy').onclick = () => { navigator.clipboard.writeText(txt).then(() => alertMsg('복사했어요. 스님께 문자·카톡으로 보내 드리세요'), () => alertMsg('복사가 안 되면 위 글을 길게 눌러 복사해 주세요')); };
     $('mName').value = ''; await loadMonks();

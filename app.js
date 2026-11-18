@@ -242,7 +242,7 @@ function useTemple(T) {
   const h1 = document.querySelector('#title h1'), p = document.querySelector('#title p');
   if (h1) h1.innerHTML = `${T.name} ${T.hallName} <small>${REGION.name} · ${T.where}</small>`;
   if (p) p.textContent = (T.note ? T.note : `${REGION.name}의 큰 사찰 ${temples.length}곳을 걸어서 돌아볼 수 있어요`) + (ENV.note ? ` · ${ENV.note}` : '');
-  document.title = `${T.name} · 절로`;
+  document.title = `${T.name} · 수월`;
   leavesOf(T); dustOf(T); ensureNpc(T); // 운력: 마당 낙엽 · 법당 마루 먼지 · 비질하는 동자승
   if (myMonk()) try { monkPing(); } catch (e) { } // 스님이 다른 절로 옮기면 '계신 절'도 바로 바뀜
 }
@@ -545,7 +545,7 @@ function monkSignTex(name) {
   c.strokeStyle = '#c99a4a'; c.lineWidth = 3; c.strokeRect(32, 32, 704, 448);
   c.textAlign = 'center'; c.textBaseline = 'middle'; const F = '"Noto Sans KR","Apple SD Gothic Neo",sans-serif', fit = (t, px, w, wt) => { c.font = `${wt} ${px}px ${F}`; let p = px; while (c.measureText(t).width > w && p > 20) { p -= 2; c.font = `${wt} ${p}px ${F}`; } };
   c.fillStyle = '#9b3b2b'; fit('주지스님이신가요?', 74, 660, 800); c.fillText('주지스님이신가요?', 384, 128);
-  c.fillStyle = '#3a2418'; fit(`${name} 스님으로 절로에 등록해 드려요`, 40, 660, 700); c.fillText(`${name} 스님으로 절로에 등록해 드려요`, 384, 236);
+  c.fillStyle = '#3a2418'; fit(`${name} 스님으로 수월에 등록해 드려요`, 40, 660, 700); c.fillText(`${name} 스님으로 수월에 등록해 드려요`, 384, 236);
   fit('금빛 이름표와 가사로 순례객을 맞으실 수 있어요', 32, 660, 500); c.fillStyle = '#6d5232'; c.fillText('금빛 이름표와 가사로 순례객을 맞으실 수 있어요', 384, 298);
   c.fillStyle = '#9b3b2b'; c.beginPath(); if (c.roundRect) c.roundRect(164, 356, 440, 84, 42); else c.rect(164, 356, 440, 84); c.fill();
   c.fillStyle = '#fff'; fit('팻말 앞에서 스님 등록 신청', 36, 400, 700); c.fillText('팻말 앞에서 스님 등록 신청', 384, 399);
@@ -1798,7 +1798,7 @@ document.getElementById('btnPhoto').onclick = () => {
   try {
     renderer.render(scene, camera); const url = renderer.domElement.toDataURL('image/png');
     const a = document.createElement('a'); const ts = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).replace(/[: ]/g, '-');
-    a.href = url; a.download = `절로-${cur ? cur.name : REGION.name}-${ts}.png`; a.click();
+    a.href = url; a.download = `수월-${cur ? cur.name : REGION.name}-${ts}.png`; a.click();
     document.body.classList.add('flash'); setTimeout(() => document.body.classList.remove('flash'), 180); toast('📸 사진을 저장했어요');
   } catch (e) { toast('사진을 저장하지 못했어요'); }
 };
@@ -1847,7 +1847,7 @@ function openRegions() {
   const rp = document.createElement('div'); rp.className = 'rg report';
   rp.innerHTML = `<b>🙏 우리 절도 넣어 주세요</b><span>지도에 없는 작은 절을 알려 주시면 검토해서 실제 모습대로 순례길에 넣어요 · 스님·종무소·신도 누구나</span><div class="go"><button>사찰 제보하기</button></div>`;
   if (OFFLINE) rp.innerHTML = `<b>🙏 우리 절도 넣어 주세요</b><span>사찰 제보는 사이트에서 받아요 · temple-meta.vercel.app</span><div class="go"><a href="${SITE}" target="_blank" rel="noopener" style="display:inline-block;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;text-decoration:none">사이트에서 제보하기</a></div>`;
-  else rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=3').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
+  else rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=4').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
   regionList.appendChild(rp);
   regionModal.classList.add('show');
   if (!OFFLINE) monkRoster(true).then(list => { // 지금 접속해 계신 인증 스님의 절에 🪷 표시
@@ -2009,7 +2009,7 @@ function renderPeople() {
 }
 function openMonkReq(T = cur) { // 주지스님 등록 신청 (일주문 옆 팻말·👥 창)
   if (!T) return; if (OFFLINE) { window.open(SITE, '_blank', 'noopener'); return; }
-  import('./report.js?v=3').then(m => m.openMonkRequest({ temple: T.name, region: REGION.name, where: T.where || '', sido: REGION.name.split('·')[0] }));
+  import('./report.js?v=4').then(m => m.openMonkRequest({ temple: T.name, region: REGION.name, where: T.where || '', sido: REGION.name.split('·')[0] }));
 }
 function wireMonkBox() {
   const $ = id => document.getElementById(id);
@@ -2108,6 +2108,7 @@ async function startTogether() {
   document.getElementById('loading').classList.add('hide');
   canvas.focus();
   loop();
+  setTimeout(() => toast('🙏 수월하세요 · 오늘 하루도 수월하시길 바라요', 3200), 900); // 수월의 인사
   { let tq = QS.get('t'); if (!tq && OFFLINE) { try { tq = sessionStorage.getItem('jeollo.t'); sessionStorage.removeItem('jeollo.t'); } catch (e) { } } const T = tq && temples.find(t => t.name === tq); if (T) { goTemple(T); intro = -1; } } // 다른 지역 창에서 '○○사 가기'로 왔으면 그 절 앞으로
   if (!QS.get('r') && !REGIONS.some(r => r.id === HASH_R) && !QS.has('dbg')) setTimeout(openRegions, 4200); // 처음 오면 지역 고르기를 보여 줌
 })();

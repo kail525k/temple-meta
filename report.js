@@ -105,7 +105,7 @@ export function openReport({ sido = '', toast = null } = {}) {
 // 스님 등록 신청: 각 절 일주문 옆 팻말에서 → 운영자 텔레그램 알림 → 확인 후 연락처로 등록 코드를 보내 드림
 const MONK_HTML = `
 <div class="box card">
-  <header><div><b>🪷 스님 등록 신청</b><small>주지스님이시면 이 절 스님으로 절로에 등록해 드려요 · 확인되면 남겨 주신 연락처로 등록 코드를 보내 드려요</small></div><button type="button" data-close>닫기</button></header>
+  <header><div><b>🪷 스님 등록 신청</b><small>주지스님이시면 이 절 스님으로 수월에 등록해 드려요 · 확인되면 남겨 주신 연락처로 등록 코드를 보내 드려요</small></div><button type="button" data-close>닫기</button></header>
   <form id="monkForm" autocomplete="on">
     <label><span>사찰</span><input name="temple" readonly></label>
     <div class="row">
@@ -118,7 +118,7 @@ const MONK_HTML = `
     <div class="msg" aria-live="polite"></div>
     <button class="send" type="submit">신청 보내기</button>
   </form>
-  <div id="monkDone" style="display:none;padding:28px 18px;text-align:center;line-height:1.6;color:#4a3a28"><b style="font-size:17px;display:block;margin-bottom:6px">🪷 신청이 접수되었어요</b>확인되면 남겨 주신 연락처로 등록 코드를 보내 드려요.<br>코드는 절로 오른쪽 위 👥 → <b>"스님이신가요? 인증 코드 넣기"</b>에 넣으시면<br>금빛 이름표와 가사를 두른 모습으로 순례객을 맞으실 수 있어요.<br><button type="button" data-close style="margin-top:14px;border:0;border-radius:99px;padding:9px 18px;font-weight:600;background:#efe6d4;cursor:pointer;font-family:inherit">닫기</button></div>
+  <div id="monkDone" style="display:none;padding:28px 18px;text-align:center;line-height:1.6;color:#4a3a28"><b style="font-size:17px;display:block;margin-bottom:6px">🪷 신청이 접수되었어요</b>확인되면 남겨 주신 연락처로 등록 코드를 보내 드려요.<br>코드는 수월 화면 오른쪽 위 👥 → <b>"스님이신가요? 인증 코드 넣기"</b>에 넣으시면<br>금빛 이름표와 가사를 두른 모습으로 순례객을 맞으실 수 있어요.<br><button type="button" data-close style="margin-top:14px;border:0;border-radius:99px;padding:9px 18px;font-weight:600;background:#efe6d4;cursor:pointer;font-family:inherit">닫기</button></div>
 </div>`;
 let mel = null;
 export function openMonkRequest({ temple = '', region = '', where = '', sido = '' } = {}) {
