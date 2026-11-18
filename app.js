@@ -8,7 +8,7 @@ import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
 import { REGIONS } from './temples.js?v=9';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
-import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=5';
+import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=6';
 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
@@ -506,14 +506,27 @@ function updateNpc(dt) {
   else if (npc.goal) {
     const vx = npc.goal[0] - npc.x, vz = npc.goal[1] - npc.z, d = Math.hypot(vx, vz);
     if (d < .45) { npc.goal = null; npc.wait = 1.5 + Math.random() * 2.5; }
-    else { const sp = .7; npc.x += vx / d * sp * dt; npc.z += vz / d * sp * dt; moving = true; npc.ry = Math.atan2(vx, vz); }
+    else {
+      const sp = .7; let ux = vx / d, uz = vz / d;
+      const busy = (lx, lz) => { const [wx, wz] = L2W(lx, lz); return Math.hypot(avatar.position.x - wx, avatar.position.z - wz) < .62 || othersNear(wx, wz, .62, true).length > 0; };
+      if (busy(npc.goal[0], npc.goal[1])) { npc.goal = null; npc.wait = 1; } // 쓸 곳에 사람이 서 있으면 다른 곳으로
+      else if (busy(npc.x + ux * .35, npc.z + uz * .35)) { // 앞에 사람이 있으면 옆으로 비켜 감 · 막히면 잠깐 기다림
+        let ok = false; for (const a of [.9, -.9, 1.6, -1.6]) { const c = Math.cos(a), sn = Math.sin(a), rx = ux * c + uz * sn, rz = -ux * sn + uz * c; if (!busy(npc.x + rx * .35, npc.z + rz * .35)) { ux = rx; uz = rz; ok = true; break; } }
+        if (!ok) npc.wait = .6;
+      }
+      if (npc.goal && npc.wait <= 0) { npc.x += ux * sp * dt; npc.z += uz * sp * dt; moving = true; npc.ry = Math.atan2(ux, uz); }
+    }
+  }
+  { // 다른 분이 동자승 자리로 들어오면 동자승이 슬쩍 물러남 (내 아바타는 내 쪽에서 막힘)
+    const [wx, wz] = L2W(npc.x, npc.z);
+    for (const o of othersNear(wx, wz, MONK_R * 2, true)) { const dx = wx - o.x, dz = wz - o.z, dd = Math.hypot(dx, dz) || 1, push = (MONK_R * 2 - dd) * Math.min(1, dt * 4), [ax, az] = W2L(wx + dx / dd * push, wz + dz / dd * push); npc.x = ax; npc.z = az; }
   }
   // 걷거나 서서 쓸 때 비를 좌우로 · 앞의 낙엽을 쓸어 냄
   const sweeping = moving || npc.wait > 0; npc.phase += dt * (sweeping ? 4.2 : 0); const sw = Math.sin(npc.phase);
   if (npc.broom) { npc.broom.rotation.y = sw * .5; npc.broom.position.x = .13 + sw * .05; }
   npc.amp += ((moving ? 1 : 0) - npc.amp) * Math.min(1, dt * 5);
   const [wx, wz] = L2W(npc.x, npc.z);
-  npc.g.position.set(wx, T.hall.heightAt ? T.hall.heightAt(npc.x, npc.z) : 0, wz); npc.g.rotation.y = npcYaw(npc.ry || 0);
+  npc.g.position.set(wx, T.hall.heightAt ? T.hall.heightAt(npc.x, npc.z) : 0, wz); npc.g.rotation.y = npcYaw(npc.ry || 0); applyWob(npc.glb && npc.glb.root, dt, npc);
   npc.tick += dt; if (sweeping && npc.tick > .3) { npc.tick = 0; const fx = Math.sin(npc.ry || 0), fz = Math.cos(npc.ry || 0), tp = npc.wbroom && npc.wbroom.userData.tip, [tx, tz] = tp ? W2L(tp.x, tp.z) : [npc.x + fx * .5, npc.z + fz * .5]; if (sweepLeaves(T, tx, tz, .45, fx, fz)) { const [px, pz] = L2W(tx, tz); puff(px, npc.g.position.y + .05, pz); } }
   const useClip = SWEEP_OK && npc.glb && npc.glb.hasClip('sweep');
   if (useClip && !npc.wbroom) { if (npc.broom) npc.broom.removeFromParent(); npc.broom = null; npc.wbroom = makeBroom(); scene.add(npc.wbroom); } // 두 손으로 잡는 비로 바꿈
@@ -646,6 +659,53 @@ function pushOut(p, r) {
       p.x = ob.cx + du * ob.c - dv * ob.s; p.z = ob.cz + du * ob.s + dv * ob.c;
     }
   }
+}
+/* ───────── 아기 스님끼리 부딪힘: 나·다른 분·동자승이 서로 겹치지 않게 ─────────
+   각자 자기 아바타만 비켜남(다가간 쪽이 막힘). 같은 자리에 겹쳐 생기면 서로 반대쪽으로 서서히 벌어짐.
+   앉기·삼배·종 치기·탑돌이 중인 사람은 밀리지 않음. 세게 부딪히면 둘 다 살짝 휘청 */
+const MONK_R = .27; // 아기 스님 한 명이 차지하는 반지름 (둘이면 0.54m)
+let myWob = 0, myWobPh = 0, bumpT = 0;
+function sepAngle(otherId) { // 정확히 같은 자리일 때 벌어질 방향: 두 사람이 같은 각을 계산하고 서로 반대로
+  const a = ME.id < otherId ? ME.id + otherId : otherId + ME.id; let h = 7; for (let i = 0; i < a.length; i++) h = (h * 31 + a.charCodeAt(i)) | 0;
+  return (h >>> 0) / 4294967296 * Math.PI * 2 + (ME.id < otherId ? 0 : Math.PI);
+}
+function othersNear(x, z, r, skipNpc) { // (x,z) 반지름 r 안의 다른 아기 스님들 (월드)
+  const out = [];
+  for (const P of peers.values()) if (P.g.visible && P.last) { const d = Math.hypot(P.g.position.x - x, P.g.position.z - z); if (d < r) out.push({ x: P.g.position.x, z: P.g.position.z, y: P.g.position.y, d, P }); }
+  if (!skipNpc && npc && npc.g.visible) { const d = Math.hypot(npc.g.position.x - x, npc.g.position.z - z); if (d < r) out.push({ x: npc.g.position.x, z: npc.g.position.z, y: npc.g.position.y, d, P: null, npc: true }); }
+  return out;
+}
+function wobble(k) { myWob = Math.max(myWob, k); myWobPh = 0; }
+function peerBlock(dt, moving, mx, mz) {
+  if (sit || sam || bellHold || tapdori || pose === 'bow') return; // 이럴 땐 내가 비켜나지 않음 (다가온 쪽이 막힘)
+  const p = avatar.position, minD = MONK_R * 2;
+  for (const o of othersNear(p.x, p.z, minD)) {
+    if (Math.abs(o.y - p.y) > .9) continue; // 단 위·아래로 높이가 다르면 지나감
+    let dx = p.x - o.x, dz = p.z - o.z, d = o.d;
+    if (d < 1e-3) { const a = o.P ? sepAngle(o.P.id) : Math.random() * 6.283; dx = Math.sin(a); dz = Math.cos(a); d = 1e-3; } else { dx /= d; dz /= d; }
+    const over = minD - d, k = moving ? 1 : Math.min(1, dt * 3), nx = p.x + dx * over * k, nz = p.z + dz * over * k; // 걷다 닿으면 바로 막고, 서 있다 겹치면 서서히 벌어짐
+    if (!blockedAt(nx, nz, feetY)) { p.x = nx; p.z = nz; } else if (!blockedAt(nx, p.z, feetY)) p.x = nx; else if (!blockedAt(p.x, nz, feetY)) p.z = nz;
+    // 걸어가다 정면으로 부딪힘: 살짝 휘청 + 퉁 (상대에게도 알림)
+    const into = moving ? -(mx * dx + mz * dz) : 0, key = o.P ? o.P.id : 'npc', was = o.P ? o.P.touch : npc.touch;
+    if (into > .55 && !was && performance.now() - bumpT > 700) {
+      bumpT = performance.now(); wobble(.2); sound.bump();
+      if (o.P) { o.P.wob = .2; o.P.wobPh = 0; if (NET) NET.emit('bump', { to: o.P.id }); } else { npc.wob = .2; npc.wobPh = 0; }
+    }
+    if (o.P) o.P.touchT = performance.now(); else npc.touchT = performance.now();
+  }
+  for (const P of peers.values()) P.touch = performance.now() - (P.touchT || 0) < 150;
+  if (npc) npc.touch = performance.now() - (npc.touchT || 0) < 150;
+  pushOut(p, 0.42); clampBound(p);
+}
+function onBumped(p) { // 다른 분이 나에게 부딪힘: 나도 살짝 휘청하고 한 뼘 밀림
+  if (p.to !== ME.id) return; wobble(.18);
+  const P = peers.get(p.id); if (!P || sit || sam || bellHold || tapdori || pose === 'bow') return;
+  const a = avatar.position, dx = a.x - P.g.position.x, dz = a.z - P.g.position.z, d = Math.hypot(dx, dz) || 1, nx = a.x + dx / d * .12, nz = a.z + dz / d * .12;
+  if (!blockedAt(nx, nz, feetY)) { a.x = nx; a.z = nz; }
+}
+function applyWob(root, dt, o) { // 휘청: 발을 축으로 좌우로 두어 번 흔들리다 멈춤
+  if (!root) return; if ((o.wob || 0) < .004) { if (root.rotation.z) root.rotation.z = 0; return; }
+  o.wobPh = (o.wobPh || 0) + dt * 14; o.wob *= Math.exp(-dt * 4); root.rotation.z = Math.sin(o.wobPh) * o.wob;
 }
 /* ───────── 부딪힘·밟고 서기: 화면의 모든 물체를 하나의 덩어리(바닥 모양 + 높이)로 봄 ─────────
    낮은 것(계단·받침·광장 단·바위)은 걸어 오르고, 조금 높은 것은 Space로 뛰어 올라가고, 높은 것은 못 지나감 (스노클링 메타버스와 같은 방식) */
@@ -927,7 +987,8 @@ function nearBowSpot(maxD) {
   return hall.isInside(lx, lz) && Math.hypot(lx - hall.bowSpot.lx, lz - hall.bowSpot.lz) < maxD;
 }
 function startSambae() {
-  const [x, z] = L2W(hall.bowSpot.lx, hall.bowSpot.lz);
+  let [x, z] = L2W(hall.bowSpot.lx, hall.bowSpot.lz);
+  for (const ox of [0, .85, -.85, 1.7, -1.7]) { const [tx, tz] = L2W(hall.bowSpot.lx + ox, hall.bowSpot.lz); if (!othersNear(tx, tz, MONK_R * 1.8, true).length && !blockedAt(tx, tz, hall.FY + .02)) { x = tx; z = tz; break; } } // 다른 분이 절하는 자리면 옆에 나란히
   avatar.position.set(x, hall.FY, z); avatar.rotation.y = faceHall();
   yaw = behind(); dist = 3.6; pitch = .3; intro = -1; pose = null;
   sam = { t: 0, rung: -1 };
@@ -1123,6 +1184,8 @@ function step() {
     walkAmp = Math.min(1, walkAmp + dt * 6);
   } else if (!sam) { body.position.y *= 0.85; body.rotation.z *= 0.85; walkAmp = Math.max(0, walkAmp - dt * 6); }
   else walkAmp = 0;
+  peerBlock(dt, moving && !tapdori, mx, mz); // 다른 아기 스님·동자승과 겹치지 않게
+  { const o = { wob: myWob, wobPh: myWobPh }; applyWob(glb && glb.root, dt, o); myWob = o.wob; myWobPh = o.wobPh; }
   sitW += ((sit ? 1 : 0) - sitW) * Math.min(1, dt * 5); if (sit) { sit.t += dt; if (sit.t > 30 && sit.inHall && !sit.noted) { sit.noted = true; done('sit'); } }
   updateWorld(dt);
   pickCurrent();
@@ -1241,10 +1304,11 @@ function toggleSit() {
   if (sam) return; pose = null; moveTarget = null; markMove(null); if (tapdori) stopTapdori();
   const [lx, lz] = W2L(avatar.position.x, avatar.position.z);
   if (hall && hall.isInside(lx, lz)) {
-    let best = hall.cushions[0], bd = 1e9; for (const c of hall.cushions) { const d = Math.hypot(c.lx - lx, c.lz - lz); if (d < bd) { bd = d; best = c; } }
-    const [x, z] = L2W(best.lx, best.lz); avatar.position.x = x; avatar.position.z = z; avatar.rotation.y = faceHall();
+    let best = null, bd = 1e9; for (const c of hall.cushions) { const [cx, cz] = L2W(c.lx, c.lz); if (othersNear(cx, cz, MONK_R * 1.7, true).length) continue; const d = Math.hypot(c.lx - lx, c.lz - lz); if (d < bd) { bd = d; best = c; } } // 다른 분이 앉은 방석은 건너뜀
+    if (best) { const [x, z] = L2W(best.lx, best.lz); avatar.position.x = x; avatar.position.z = z; }
+    avatar.rotation.y = faceHall();
     sit = { t: 0, seatY: 0, inHall: true }; yaw = behind() + .5; dist = Math.max(dist, 3.2); pitch = .32;
-    toast('🧘 방석에 앉아 마음을 고요히… (움직이면 일어나요)', 3200);
+    toast(best ? '🧘 방석에 앉아 마음을 고요히… (움직이면 일어나요)' : '🧘 방석이 모두 차서 이 자리에 앉았어요 · 마음을 고요히… (움직이면 일어나요)', 3200);
   } else { sit = { t: 0, seatY: 0, inHall: false }; toast('🌿 잠깐 앉아 쉬어요 (움직이면 일어나요)'); }
   updateNear();
 }
@@ -1436,7 +1500,7 @@ function onBellEvent(p) { // 다른 분이 범종을 울림: 멀리 있을수록
   bellFx(k, Math.max(.22, Math.min(1, 1.15 - d / 90)), d < 10 ? .6 : 0);
   if (performance.now() - bellToastT > 3500) { bellToastT = performance.now(); toast(`🔔 ${plainNick(p.n) || '다른 분'}님이 범종을 울렸어요`, 2400); }
 }
-function onNetEvent(p) { if (p.k === 'bell') onBellEvent(p); }
+function onNetEvent(p) { if (p.k === 'bell') onBellEvent(p); else if (p.k === 'bump') onBumped(p); }
 function bellRope(B, pts) { // 줄 마디 맞추기: pts는 범종각 로컬 점들
   const S = B.ropeSegs; for (let i = 0; i < S.length; i++) { const m = S[i]; if (i >= pts.length - 1) { m.visible = false; continue; } m.visible = true; _sd.subVectors(pts[i + 1], pts[i]); const L = _sd.length(); m.position.copy(pts[i]).addScaledVector(_sd, .5); m.scale.set(1, Math.max(L, 1e-3), 1); if (L > 1e-5) m.quaternion.setFromUnitVectors(_UP, _sd.multiplyScalar(1 / L)); }
 }
@@ -1859,7 +1923,7 @@ function updatePeers(dt) {
       const pc = P.tl === 1 && SWEEP_OK && P.glb.hasClip('sweep'); S.sweep = pc ? 1 : 0; if (pc) S.bend = 0;
       if (P.grip && !(P.bell > 0 && bellRemoteOn() && bellRemote.id === P.id)) P.grip.w = Math.max(0, P.grip.w - dt * 5); // 당목 줄을 놓으면 손을 내림
       S.grip = P.grip && P.grip.w > .02 ? P.grip : null; S.back = P.bell > 0 && P.back;
-      P.glb.update(dt, S);
+      P.glb.update(dt, S); applyWob(P.glb.root, dt, P);
       if (pc) { if (P.toolM) { P.toolM.removeFromParent(); P.toolM = null; } if (!P.wbroom) { P.wbroom = makeBroom(); scene.add(P.wbroom); } g.updateMatrixWorld(true); gripBroom(P.wbroom, P.glb, g.position.y); }
       else if (P.wbroom) { P.wbroom.removeFromParent(); P.wbroom = null; if (P.tl === 1) P.toolM = holdTool(P.glb.root, 'broom'); }
       if (P.toolM && P.tl === 1) { P.ph = (P.ph || 0) + dt * (3 + S.speed * 1.6) * (S.walkAmp > .2 ? 1 : 0); P.toolM.rotation.y = Math.sin(P.ph) * .55 * S.walkAmp; }
@@ -2009,6 +2073,9 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   bell: () => BELL && { th: +BELL.theta.toFixed(3), om: +BELL.omega.toFixed(3), hold: bellHold && { ...bellHold }, sway: +BELL.sway.toFixed(3), glow: +BELL.glow.toFixed(2), remote: bellRemoteOn() ? { mode: bellRemote.mode, nick: bellRemote.nick } : null, peerGrip: [...peers.values()].map(P => P.grip ? +P.grip.w.toFixed(2) : null) },
   get net() { return NET && NET.joined; },
   bellAt: () => BELL && { x: BELL.x, z: BELL.z, ux: BELL.ux, uz: BELL.uz },
+  me: () => ({ x: +avatar.position.x.toFixed(3), z: +avatar.position.z.toFixed(3), wob: +myWob.toFixed(3) }),
+  walkTo(x, z) { moveTarget = { x, z, t: 0 }; },
+  others: () => [...peers.values()].map(P => ({ x: +P.g.position.x.toFixed(3), z: +P.g.position.z.toFixed(3), wob: +(P.wob || 0).toFixed(3) })),
   place(x, z, ry) { avatar.position.x = x; avatar.position.z = z; if (ry !== undefined) avatar.rotation.y = ry; intro = -1; },
   cam(y, d, p) { yaw = y; dist = d; pitch = p; intro = -1; },
   peers: () => [...peers.values()].map(P => ({ nick: P.nick, vis: P.g.visible, bell: P.bell || 0, glb: !!P.glb })),

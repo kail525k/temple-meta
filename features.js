@@ -90,6 +90,7 @@ export function createSound(store) {
     setAmb(on) { V.ambOn = on; store.save(); if (!unlock()) return; amb.gain.value = on ? V.amb : 0; on ? startAmb() : stopAmb(); },
     moktak() { if (!unlock()) return; tone(640, .9, .002, .16, 'sine', 430); tone(1290, .18, .002, .05, 'triangle'); burst(1900, 1.4, .5, .045); },
     bead() { if (!unlock()) return; burst(3200, 5, .25, .03); tone(2300, .06, .001, .05); },
+    bump() { if (!unlock()) return; tone(230, .32, .003, .11, 'sine', 150); burst(520, .7, .1, .05); }, // 아기 스님끼리 퉁
     sweep() { if (!unlock()) return; burst(1900 + Math.random() * 500, .8, .07, .26); }, // 싸리비 쓱
     wipe() { if (!unlock()) return; burst(700, .6, .05, .2); },
     chime() { if (!unlock()) return; [[1046, .14], [1568, .09], [2093, .05]].forEach(([f, p], i) => setTimeout(() => tone(f, p, .005, 1.4), i * 90)); },
