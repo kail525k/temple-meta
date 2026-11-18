@@ -644,6 +644,69 @@ export function yonggungFrame(h) {
 }
 // 십이지신상 하나: 받침돌(띠 이름 새김) + 도포 입고 두 손으로 무기를 든 몸 + 띠 동물 머리 (화강암)
 const ZODIAC = [['子', '쥐'], ['丑', '소'], ['寅', '호랑이'], ['卯', '토끼'], ['辰', '용'], ['巳', '뱀'], ['午', '말'], ['未', '양'], ['申', '원숭이'], ['酉', '닭'], ['戌', '개'], ['亥', '돼지']];
+/* 석상 몸은 Gemini로 그린 실제 화강암 석상 그림(assets/zodiac-atlas.webp)으로 만듦:
+   위 두 줄 = 열두 석상 앞모습(256x640 칸), 맨 아래 줄 = 같은 실루엣의 흐린 뒷모습(128x320 칸).
+   그림의 실루엣(투명도)을 따라 앞뒤로 둥글게 부풀린 입체라서 돌아가며 봐도 두께가 있음 */
+const ZA = { cw: 256, ch: 640, bw: 128, bh: 320, W: 1536, H: 1600, gx: 32, gy: 80, w: .5, h: 1.24, zf: .17, zb: .15 };
+let ZA_P = null;
+function zodiacAtlas() {
+  return ZA_P || (ZA_P = new Promise((ok, no) => {
+    new THREE.TextureLoader().load('./assets/zodiac-atlas.webp?v=1', tex => {
+      try {
+        tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+        const cv = document.createElement('canvas'); cv.width = ZA.W; cv.height = ZA.ch * 2;
+        const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(tex.image, 0, 0);
+        const px = cx.getImageData(0, 0, ZA.W, ZA.ch * 2).data, geos = [];
+        const mat = new THREE.MeshStandardMaterial({ map: tex, alphaTest: .5, side: THREE.DoubleSide, roughness: .92, color: '#ffffff', emissive: '#69655c', emissiveMap: tex });
+        ok({ mat, geo: i => geos[i] || (geos[i] = zodiacGeo(i, px)) });
+      } catch (e) { no(e); }
+    }, undefined, no);
+  }));
+}
+function zodiacGeo(i, px) {
+  const { gx, gy, cw, ch } = ZA, nx = gx + 1, ny = gy + 1, N = nx * ny, x0 = (i % 6) * cw, y0 = Math.floor(i / 6) * ch;
+  const al = (fx, fy) => { const X = Math.round(fx), Y = Math.round(fy); return (X < 0 || Y < 0 || X >= cw || Y >= ch) ? 0 : px[((y0 + Y) * ZA.W + x0 + X) * 4 + 3]; };
+  const sx = (cw - 1) / gx, sy = (ch - 1) / gy, ins = new Uint8Array(N), D = new Float32Array(N), VX = new Float32Array(N), VY = new Float32Array(N);
+  for (let r = 0; r < ny; r++) for (let c = 0; c < nx; c++) {
+    const k = r * nx + c, X = c * sx, Y = r * sy; VX[k] = X; VY[k] = Y;
+    let s = 0, n = 0; for (let dy = -2; dy <= 2; dy += 2) for (let dx = -2; dx <= 2; dx += 2) { s += al(X + dx, Y + dy); n++; }
+    ins[k] = s / n > 127 ? 1 : 0;
+  }
+  // 바깥까지의 거리 (모따기 거리 두 번 훑기) → 가장자리는 둥글게 깎고 가운데일수록 두껍게
+  for (let k = 0; k < N; k++) D[k] = ins[k] ? 1e6 : 0;
+  const at = (r, c) => (r < 0 || c < 0 || r >= ny || c >= nx) ? 0 : D[r * nx + c];
+  for (let r = 0; r < ny; r++) for (let c = 0; c < nx; c++) { const k = r * nx + c; if (!ins[k]) continue; D[k] = Math.min(D[k], at(r - 1, c) + 1, at(r, c - 1) + 1, at(r - 1, c - 1) + 1.414, at(r - 1, c + 1) + 1.414); }
+  for (let r = ny - 1; r >= 0; r--) for (let c = nx - 1; c >= 0; c--) { const k = r * nx + c; if (!ins[k]) continue; D[k] = Math.min(D[k], at(r + 1, c) + 1, at(r, c + 1) + 1, at(r + 1, c + 1) + 1.414, at(r + 1, c - 1) + 1.414); }
+  let Dm = 1; for (let k = 0; k < N; k++) Dm = Math.max(Dm, D[k]);
+  let T = new Float32Array(N);
+  for (let k = 0; k < N; k++) if (ins[k]) { const dd = D[k] - .5, q = Math.min(1, dd / 3); T[k] = .42 * Math.sqrt(q * (2 - q)) + .58 * Math.sqrt(dd / Dm); }
+  for (let it = 0; it < 2; it++) { const U = T.slice(); for (let r = 1; r < gy; r++) for (let c = 1; c < gx; c++) { const k = r * nx + c; if (ins[k]) U[k] = (2 * T[k] + T[k - 1] + T[k + 1] + T[k - nx] + T[k + nx]) / 6; } T = U; }
+  // 실루엣 한 칸 바깥 점까지 그물을 두고, 그 점들은 그림의 윤곽선 위로 옮겨 앞뒤 면이 윤곽에서 딱 만나게 함
+  const keep = new Uint8Array(N);
+  for (let r = 0; r < ny; r++) for (let c = 0; c < nx; c++) if (ins[r * nx + c]) for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr, cc = c + dc; if (rr >= 0 && cc >= 0 && rr < ny && cc < nx) keep[rr * nx + cc] = 1; }
+  for (let r = 0; r < ny; r++) for (let c = 0; c < nx; c++) {
+    const k = r * nx + c; if (!keep[k] || ins[k]) continue;
+    let ux = 0, uy = 0; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const rr = r + dr, cc = c + dc; if ((dr || dc) && rr >= 0 && cc >= 0 && rr < ny && cc < nx && ins[rr * nx + cc]) { const l = Math.hypot(dc, dr); ux += dc / l; uy += dr / l; } }
+    const l = Math.hypot(ux, uy); if (l < 1e-6) continue; ux /= l; uy /= l;
+    for (let s = 0; s <= 1.5 * sx; s += .5) if (al(VX[k] + ux * s, VY[k] + uy * s) > 127) { VX[k] += ux * s; VY[k] += uy * s; break; }
+  }
+  const pos = [], uv = [], idx = [], fi = new Int32Array(N).fill(-1), bi = new Int32Array(N).fill(-1);
+  for (let k = 0; k < N; k++) {
+    if (!keep[k]) continue;
+    const x = (VX[k] / (cw - 1) - .5) * ZA.w, y = (1 - VY[k] / (ch - 1)) * ZA.h, t = ins[k] ? T[k] : 0;
+    fi[k] = pos.length / 3; pos.push(x, y, ZA.zf * t); uv.push((x0 + VX[k] + .5) / ZA.W, 1 - (y0 + VY[k] + .5) / ZA.H);
+    bi[k] = pos.length / 3; pos.push(x, y, -ZA.zb * t); uv.push((i * ZA.bw + VX[k] / (cw - 1) * (ZA.bw - 1) + .5) / ZA.W, 1 - (ch * 2 + VY[k] / (ch - 1) * (ZA.bh - 1) + .5) / ZA.H);
+  }
+  for (let r = 0; r < gy; r++) for (let c = 0; c < gx; c++) {
+    const a = r * nx + c, b = a + 1, d = a + nx, e = d + 1;
+    if (fi[a] < 0 || fi[b] < 0 || fi[d] < 0 || fi[e] < 0) continue;
+    idx.push(fi[a], fi[d], fi[b], fi[b], fi[d], fi[e]); idx.push(bi[a], bi[b], bi[d], bi[b], bi[e], bi[d]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+  g.computeVertexNormals(); g.computeBoundingSphere();
+  return g;
+}
 let ZEYE = null;
 function zodiac(h, x, y, z, ry, i) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; g.scale.setScalar(1.2); h.site.add(g);
@@ -654,8 +717,12 @@ function zodiac(h, x, y, z, ry, i) {
   // 받침돌 + 띠 이름
   mk(new THREE.BoxGeometry(.6, .24, .54), S2, 0, .12, 0);
   const [hj, nm] = ZODIAC[i], plate = mk(new THREE.PlaneGeometry(.44, .15), new THREE.MeshStandardMaterial({ map: h.nameTex(`${hj} ${nm}`, '#55524b', '#efe7d6', 46), roughness: .8 }), 0, .12, .272); plate.castShadow = false;
-  // 도포: 아래로 퍼진 옷자락 · 띠 · 맞깃 · 넓은 소매 · 모은 두 손
+  h.col(x, z, .34, .34);
   const B = .24;
+  // 석상 몸: 그림으로 만든 입체 (그림을 못 불러오면 아래의 도형 석상으로 대신함)
+  zodiacAtlas().then(A => { const m = new THREE.Mesh(A.geo(i), A.mat); m.position.y = B; m.castShadow = true; m.receiveShadow = true; m.name = 'zodiac' + i; g.add(m); }).catch(() => proc());
+  function proc() {
+  // 도포: 아래로 퍼진 옷자락 · 띠 · 맞깃 · 넓은 소매 · 모은 두 손
   mk(new THREE.LatheGeometry([[0, 0], [.27, 0], [.26, .05], [.2, .36], [.17, .6], [.2, .72], [.15, .8], [.07, .85], [0, .86]].map(([r, yy]) => new THREE.Vector2(r, yy)), 16), S, 0, B, 0);
   mk(new THREE.TorusGeometry(.183, .022, 6, 20), S2, 0, B + .42, 0).rotation.x = Math.PI / 2;
   for (const sx of [-1, 1]) { const c = mk(new THREE.BoxGeometry(.035, .2, .02), S2, sx * .045, B + .7, .155); c.rotation.z = sx * .55; c.rotation.x = -.25; }
@@ -723,7 +790,7 @@ function zodiac(h, x, y, z, ry, i) {
       for (const s of [-1, 1]) { const e = mk(new THREE.ConeGeometry(.05, .1, 4), S, s * .09, hy + .12, .03); e.rotation.x = .9; e.rotation.z = -s * .2; }
       eyes(.07, .04, .12); break;
   }
-  h.col(x, z, .34, .34);
+  }
 }
 export function buildYonggung(h, T, F) {
   const { add, box, col, L, D, YX, YZ0, YZ1, MAT } = h, { TY, ZC0, ZC1, ZB, ZS1, ZT1, HXc, HZc, HR, HY, HS1 } = F, fig = h.fig || (h.fig = []);
