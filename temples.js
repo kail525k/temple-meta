@@ -11,6 +11,7 @@ export const REGIONS = [
     { name: '용주사', hall: '대웅보전', altar: 'amita sakya yaksa', buddhas: 3, lat: 37.212441, lng: 127.005010, where: '화성' },
     { name: '봉선사', hall: '큰법당', altar: 'bosal sakya bosal', buddhas: 3, lat: 37.7370, lng: 127.1800, where: '남양주', style: { signHangul: true } },
     { name: '와우정사', hall: '열반전', altar: 'wabul', buddhas: 1, lat: 37.1939, lng: 127.2780, where: '용인 연화산', note: '입구의 8m 황금 불두 → 뒤편 열반전의 12m 목조 와불(누운 부처) · 통일의 돌탑', style: { pagoda: 'none', extras: ['buldu', 'cairns'], wabulTint: 'wood' } },
+    { name: '봉녕사', hall: '대웅전', altar: 'bosal sakya bosal', buddhas: 3, lat: 37.2900, lng: 127.0330, where: '수원 광교산', q: '수원 봉녕사', addr: '경기도 수원시 팔달구 창룡대로 236-54', note: '수원에서 가장 오래된 절 · 비구니 스님들의 수행도량(승가대학) · 대웅전 앞뜰 800년 향나무', style: { extras: ['oldTree'] } }, // 조계종 제2교구 용주사 말사 · 고려 석조 삼존불
   ] },
   { id: 'gangwon', name: '강원', env: { trees: { fir: .6, maple: .2, pine: .2 }, mtn: { h: 100, rock: true, snow: true }, grass: '#9cb07c', note: '높은 산 · 전나무 숲' }, temples: [
     { name: '월정사', hall: '적광전', altar: 'sakya', buddhas: 1, lat: 37.7318, lng: 128.5926, where: '평창 오대산', style: { pagoda: 'octa9' } },
