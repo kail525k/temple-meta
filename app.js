@@ -1805,7 +1805,7 @@ function releaseFish(pt) {
 document.getElementById('btnSit').onclick = toggleSit;
 
 // 용호사 소원돌: 소원 빌기 전에 한 번 들어 보고(가볍게 들림) → 마음속으로 소원을 빌고(합장) → 다시 들어 보면 꿈쩍하지 않음
-// 결과를 점치지 않음(늘 같은 흐름) · 소원은 어디에도 적거나 보내지 않음
+// 소원돌은 늘 소원을 들어줌(빈 뒤엔 언제나 꿈쩍 않음) · 소원은 어디에도 적거나 보내지 않음
 let wsStep = 0, wsAnim = null;
 const wsEase = t => t * t * (3 - 2 * t);
 function wsNear() { const W = cur && cur.wishStone; if (!W) return false; const [x, z] = L2W(W.lx, W.lz); return Math.hypot(avatar.position.x - x, avatar.position.z - z) < 2.4; }
@@ -1819,7 +1819,7 @@ function liftStone(heavy) {
   const W = cur && cur.wishStone; if (!W || wsAnim) return; wsStand();
   wsAnim = { kind: heavy ? 'heavy' : 'light', t: 0, W, T: cur, at: [avatar.position.x, avatar.position.z] };
   pose = 'bow'; poseT = 0; poseHold = false; sound.bead();
-  if (!heavy && !store.d.wsTip) { store.d.wsTip = 1; store.save(); toast('🪨 용호사 소원돌은 소원을 빌기 전에 한 번, 빈 뒤에 한 번 들어 보는 돌이에요', 3600); }
+  if (!heavy && !store.d.wsTip) { store.d.wsTip = 1; store.save(); toast('🪨 용호사 소원돌은 소원을 빌기 전에 한 번, 빈 뒤에 한 번 들어 보는 돌이에요 · 빈 뒤에 꿈쩍하지 않으면 소원을 들어준대요', 4200); }
   updateNear();
 }
 function wsPray() {
@@ -1853,7 +1853,7 @@ function updateWishStone(dt) {
     st.rotation.z = Math.sin(t * 29) * .035 * k;
     if (t > 2.75) {
       store.count('wishstone'); sound.chime();
-      wsEnd('🪨 돌이 꿈쩍도 하지 않네요 · 빈 마음을 돌이 무겁게 받아 주었어요 🙏', 0);
+      wsEnd('🪨 돌이 꿈쩍도 하지 않네요 · 소원돌이 소원을 들어준대요 🙏', 0);
       pose = 'hap'; poseT = 0; poseHold = false; // 합장으로 마무리
     }
   }
