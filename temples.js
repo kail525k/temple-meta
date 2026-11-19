@@ -21,6 +21,7 @@ export const REGIONS = [
     { name: '법주사', hall: '대웅보전', altar: 'amita biro:1.15 sakya', buddhas: 3, lat: 36.5427, lng: 127.8333, where: '보은 속리산', style: { bigStand: { k: 'buddhaS', tint: 'gold', h: 11, name: '금동미륵대불' }, pagoda: 'wood5' } },
     { name: '수덕사', hall: '대웅전', altar: 'amita sakya yaksa', buddhas: 3, lat: 36.6623, lng: 126.6224, where: '예산', style: { roof: 'gable', plain: true } },
     { name: '마곡사', hall: '대광보전', altar: 'biro', buddhas: 1, lat: 36.5532, lng: 127.0168, where: '공주', style: { pagoda: 'stone5' } },
+    { name: '용호사', hall: '대법왕궁', altar: 'bosal sakya bosal', buddhas: 3, lat: 36.6390, lng: 127.5170, where: '청주 명암지', q: '청주 용호사', addr: '충청북도 청주시 상당구 명암로 103', note: '명암지 옆 · 소원 빌기 전에 한 번, 빈 뒤에 한 번 들어 보는 소원돌 · 탑돌이', style: { extras: ['wishStone'] } }, // 용화불교 총본산(조계종 아님) · 전각 이름은 방문기 기준(대법왕궁) — 사찰 확인 필요
   ] },
   { id: 'jeonbuk', name: '전북', env: { trees: { maple: .4, pine: .35, broad: .15, camellia: .1 }, mtn: { h: 60 }, grass: '#a8bb7a', note: '단풍 · 동백' }, temples: [
     { name: '금산사', hall: '대적광전', altar: 'bosalS amita yaksa biro:1.05 sakya amita bosalS', buddhas: 3, lat: 35.7243, lng: 127.0543, where: '김제', style: { extras: ['mireuk'] } },

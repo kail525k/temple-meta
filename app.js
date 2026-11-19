@@ -299,7 +299,7 @@ function buildSite(info, T) {
   if (yg && T.seaRect) T.seaRect.inlet = { x0: -YX - 7, x1: -YX + .3, z0: YZ0 - 1, z1: YG.ZB + .5 };
   if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(yg ? 2.0 : 2.7, pg.r + .75); } else T.pagoda = null;
   // 사찰 상징물 (법당 옆 마당·뒤뜰)
-  const exo = buildExtras(H, T); T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini; T.fish = exo.fish; T.anim = exo.anim;
+  const exo = buildExtras(H, T); T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini; T.fish = exo.fish; T.anim = exo.anim; T.wishStone = exo.wishStone;
   if (hyu) buildHyuhyu(H, T);
   if (yg) { buildYonggung(H, T, YG); const hh = hall.heightAt; hall.heightAt = (lx, lz) => Math.max(hh(lx, lz), YG.ground(lx, lz)); }
   T.figs = H.fig; // 바깥 불상·보살상 자리 (3D 존상 모델을 불러오면 바꿔 끼움)
@@ -1715,6 +1715,7 @@ function updateCtx(inside, dBow, lx, lz) {
     if (chore) acts.push([chore.kind === 'broom' ? '🧹 싸리비 내려놓기' : '🧽 걸레 내려놓기', () => dropTool(), 'plain']);
     if (RACK && Math.hypot(avatar.position.x - RACK.x, avatar.position.z - RACK.z) < 3.8) acts.push(['🏮 소원 연등 걸기', () => openWish('lantern')]);
     if (TILE && Math.hypot(avatar.position.x - TILE.x, avatar.position.z - TILE.z) < 4.2) acts.push(['✍️ 기와 올리기', () => openWish('tile')]);
+    if (!inside && cur && cur.wishStone && !wsAnim && wsNear()) acts.unshift(wsStep === 1 ? ['🙏 마음속으로 소원 빌기', wsPray] : [wsStep === 2 ? '🪨 소원 빌고 다시 들어 보기' : '🪨 소원돌 들어 보기', () => liftStone(wsStep === 2)]);
     if (!inside && cur && cur.fish) { // 휴휴암: 판매대에서 물고기 밥·방생 물고기를 받아 연화대 끝에서 던지거나 놓아 줌
       const F = cur.fish, dSt = Math.hypot(lx - F.stall.lx, lz - F.stall.lz), dAt = Math.hypot(lx - F.at.lx, lz - F.at.lz);
       if (dSt < 3.2) {
@@ -1803,9 +1804,65 @@ function releaseFish(pt) {
 }
 document.getElementById('btnSit').onclick = toggleSit;
 
+// 용호사 소원돌: 소원 빌기 전에 한 번 들어 보고(가볍게 들림) → 마음속으로 소원을 빌고(합장) → 다시 들어 보면 꿈쩍하지 않음
+// 결과를 점치지 않음(늘 같은 흐름) · 소원은 어디에도 적거나 보내지 않음
+let wsStep = 0, wsAnim = null;
+const wsEase = t => t * t * (3 - 2 * t);
+function wsNear() { const W = cur && cur.wishStone; if (!W) return false; const [x, z] = L2W(W.lx, W.lz); return Math.hypot(avatar.position.x - x, avatar.position.z - z) < 2.4; }
+function wsStand() {
+  const W = cur.wishStone, [sx, sz] = L2W(W.stand.lx, W.stand.lz), [x, z] = L2W(W.lx, W.lz);
+  if (sit) standUp(); if (tapdori) stopTapdori(); if (chore) dropTool(true); moveTarget = null;
+  avatar.position.set(sx, avatar.position.y, sz); avatar.rotation.y = Math.atan2(x - sx, z - sz);
+  yaw = avatar.rotation.y + Math.PI * .66; dist = 4.2; pitch = .32; intro = -1; // 비스듬히 옆에서 돌과 아기 스님이 함께 보이게
+}
+function liftStone(heavy) {
+  const W = cur && cur.wishStone; if (!W || wsAnim) return; wsStand();
+  wsAnim = { kind: heavy ? 'heavy' : 'light', t: 0, W, T: cur, at: [avatar.position.x, avatar.position.z] };
+  pose = 'bow'; poseT = 0; poseHold = false; sound.bead();
+  if (!heavy && !store.d.wsTip) { store.d.wsTip = 1; store.save(); toast('🪨 용호사 소원돌은 소원을 빌기 전에 한 번, 빈 뒤에 한 번 들어 보는 돌이에요', 3600); }
+  updateNear();
+}
+function wsPray() {
+  if (!cur || !cur.wishStone || wsAnim) return; wsStand();
+  wsAnim = { kind: 'pray', t: 0, W: cur.wishStone, T: cur, at: [avatar.position.x, avatar.position.z] };
+  pose = 'hap'; poseT = .5; poseHold = true; sound.bell ? sound.bell(.12) : sound.bead();
+  toast('🙏 눈을 감고 마음속으로 소원을 빌어 보세요 · 소원은 어디에도 적히지 않아요', 3400); updateNear();
+}
+function wsEnd(msg, step) {
+  const A = wsAnim; if (!A) return; const W = A.W;
+  W.stone.position.set(W.lx, W.top + W.r * .82, W.lz); W.stone.rotation.set(0, 0, 0);
+  wsAnim = null; poseHold = false; if (pose) { pose = null; resetBody(); }
+  if (step !== undefined) wsStep = step; if (msg) toast(msg, 3800); updateNear();
+}
+function updateWishStone(dt) {
+  const A = wsAnim; if (!A) return; A.t += dt; const W = A.W, st = W.stone, t = A.t, base = W.top + W.r * .82;
+  if (A.T !== cur || Math.hypot(avatar.position.x - A.at[0], avatar.position.z - A.at[1]) > .7) { wsEnd('', A.kind === 'pray' ? 1 : wsStep); return; } // 걸어 나가면 멈춤
+  if (A.kind === 'light') { // 숙여 잡고(.5초) → 몸 쪽 가슴 높이로 들어 올림 → 잠시 들고 있다가 → 내려놓음
+    if (t > .45 && pose === 'bow') { pose = 'hap'; poseT = .5; poseHold = true; }
+    const up = t < .5 ? 0 : t < 1.1 ? wsEase((t - .5) / .6) : t < 2.2 ? 1 : t < 2.8 ? 1 - wsEase((t - 2.2) / .6) : 0;
+    const [ax, az] = W2L(avatar.position.x, avatar.position.z), hx = W.lx + (ax - W.lx) * .62, hz = W.lz + (az - W.lz) * .62;
+    st.position.set(W.lx + (hx - W.lx) * up, base + (.66 - base) * up + Math.sin(t * 5) * .004 * up, W.lz + (hz - W.lz) * up);
+    if (t > 2.2 && pose === 'hap' && poseHold) { pose = 'bow'; poseT = .55; poseHold = true; } // 내려놓을 때 다시 숙임
+    if (t > 3.0) { sound.bead(); wsEnd('🪨 돌이 가볍게 들렸어요 · 이제 마음속으로 소원을 빌어 보세요', 1); }
+  } else if (A.kind === 'pray') {
+    if (t > 3.6) { sound.chime(); wsEnd('🪨 소원을 빌었으면 소원돌을 다시 한 번 들어 보세요', 2); }
+  } else { // 다시 들기: 숙여서 힘을 줘도 꿈쩍하지 않음 (돌이 살짝 떨리기만 함)
+    if (t > .35 && !poseHold) { pose = 'bow'; poseT = .62; poseHold = true; }
+    const k = t < .45 ? 0 : t < 2.5 ? Math.min(1, (t - .45) / .3) : Math.max(0, 1 - (t - 2.5) / .2);
+    st.position.set(W.lx + Math.sin(t * 41) * .006 * k, base + Math.abs(Math.sin(t * 27)) * .004 * k, W.lz + Math.sin(t * 33 + 1) * .004 * k);
+    st.rotation.z = Math.sin(t * 29) * .035 * k;
+    if (t > 2.75) {
+      store.count('wishstone'); sound.chime();
+      wsEnd('🪨 돌이 꿈쩍도 하지 않네요 · 빈 마음을 돌이 무겁게 받아 주었어요 🙏', 0);
+      pose = 'hap'; poseT = 0; poseHold = false; // 합장으로 마무리
+    }
+  }
+}
+
 // 매 프레임: 연기 · 종 · 표시
 function updateWorld(dt) {
   updateFishAim(dt);
+  updateWishStone(dt);
   if (bellCool > 0) bellCool -= dt;
   updateBell(dt);
   if (moveMark.visible) { moveMark.userData.t += dt; moveMark.material.opacity = .9 * (.6 + .4 * Math.sin(moveMark.userData.t * 6)); }
@@ -2170,6 +2227,7 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   sweepOK(v = true) { SWEEP_OK = v; },
   goTo(lx, lz) { const [x, z] = L2W(lx, lz); moveTarget = { x, z, t: 0 }; },
   toBell() { if (!BELL) return false; avatar.position.set(BELL.stand[0], 0, BELL.stand[1]); avatar.rotation.y = Math.atan2(BELL.x - BELL.stand[0], BELL.z - BELL.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; intro = -1; return true; },
+  ws: () => cur && cur.wishStone && { lx: cur.wishStone.lx, lz: cur.wishStone.lz, step: wsStep, anim: wsAnim && wsAnim.kind, t: wsAnim && +wsAnim.t.toFixed(2) },
   tp(lx, lz, ry) { const [x, z] = L2W(lx, lz); avatar.position.x = x; avatar.position.z = z; if (ry !== undefined) avatar.rotation.y = ry; },
   npc: () => npc && { x: +npc.x.toFixed(2), z: +npc.z.toFixed(2), vis: npc.g.visible, glb: !!npc.glb, goal: npc.goal, wait: +npc.wait.toFixed(2) },
   chore: () => chore && { kind: chore.kind, n: chore.n, world: chore.world, sweepW: +sweepW.toFixed(2), tip: chore.mesh.userData.tip && chore.mesh.userData.tip.toArray().map(v => +v.toFixed(2)), me: avatar.position.toArray().map(v => +v.toFixed(2)), sc: +chore.mesh.scale.x.toFixed(2), hands: glb && glb.B ? ['LeftHand', 'RightHand'].map(k => glb.B[k] && glb.B[k].getWorldPosition(new THREE.Vector3()).toArray().map(v => +v.toFixed(2))) : null, inScene: !!chore.mesh.parent && chore.mesh.parent.type },

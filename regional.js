@@ -297,6 +297,24 @@ export function buildExtras(h, T) {
       col(0, z, 2.7, 2.7); col(0, z + 3.9, 1.9, 1.9);
       out.pagoda = { x: 0, z, r: 2.7 };
     }
+    if (kind === 'wishStone') { // 용호사 소원돌: 일주문 지나 올라가 왼쪽편 · 소원 빌기 전 한 번, 빈 뒤 한 번 들어 보는 둥근 돌 (작은 맞배지붕 보호각 + 입간판)
+      const x = -(h.YX - 2.4), z = h.YZ1 - 6.2, top = .42;
+      // 돌 받침: 화강암 두 단 + 붉은 천 (아기 스님 무릎 높이)
+      box(.95, .26, .8, R.granite2, x, .13, z); box(.82, .14, .68, R.granite, x, .33, z);
+      box(.7, .02, .56, M('#a3322a'), x, top - .03, z);
+      // 소원돌: 지름 26cm 남짓 둥근 화강암 (조금 납작하게)
+      const stone = add(new THREE.IcosahedronGeometry(.15, 2), M('#b8b0a2', { roughness: .95 }), x, top + .12, z); stone.scale.set(1.05, .82, 1);
+      // 작은 보호각: 기둥 네 개 + 맞배지붕
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) { add(new THREE.CylinderGeometry(.06, .07, 2.3, 8), R.wood, x + sx * .78, 1.15, z + sz * .64); col(x + sx * .78, z + sz * .64, .1, .1); }
+      for (const sx of [-1, 1]) { const r = box(1.0, .06, 2.0, R.roofTile, x + sx * .45, 2.45, z); r.rotation.z = sx * -.42; }
+      box(.12, .12, 2.0, R.wallCap || R.roofTile, x, 2.64, z);
+      // 입간판 '소원돌' (안쪽 길에서 보이게 오른쪽을 향함)
+      // 입간판 '소원돌': 보호각 앞(일주문 쪽) 담장 가에 · 일주문에서 들어오는 사람을 향함
+      { const gx = x - .35, gz = z + 1.35; add(new THREE.PlaneGeometry(.9, .42), new THREE.MeshStandardMaterial({ map: h.nameTex('소원돌', '#3a2418', '#f2cf72', 44), roughness: .7 }), gx, 1.05, gz, false).rotation.y = .35;
+        for (const d of [-.36, .36]) add(new THREE.CylinderGeometry(.03, .03, 1.0, 6), R.wood, gx + Math.cos(.35) * d, .5, gz - Math.sin(.35) * d); col(gx, gz, .45, .12); }
+      col(x, z, .5, .42);
+      out.wishStone = { lx: x, lz: z, top, stone, r: .15, stand: { lx: x + .95, lz: z } }; // stand: 돌 앞(마당 쪽)에 서는 자리
+    }
     if (kind === 'cairns') { // 통일의 돌탑: 세계 성지에서 가져온 돌을 쌓아 올린 작은 돌탑들
       for (const [x, z, n] of [[-4.6, D / 2 + 2.2, 7], [-5.8, D / 2 + 3.4, 5], [4.6, D / 2 + 2.4, 6], [5.9, D / 2 + 3.2, 8], [-6.2, D / 2 + 1.2, 4], [6.4, D / 2 + 1.4, 5]]) {
         let y = 0; for (let i = 0; i < n; i++) { const r = .34 - i * .028, m = add(new THREE.IcosahedronGeometry(r, 0), i % 2 ? R.rock : R.granite2, x + (Math.random() - .5) * .06, y + r * .45, z + (Math.random() - .5) * .06); m.scale.y = .55; m.rotation.y = Math.random() * 3; y += r * .78; }
