@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
 import { buildHall } from './hall.js?v=9';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=24';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=25';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
 import { REGIONS } from './temples.js?v=9';
@@ -699,7 +699,7 @@ function peerBlock(dt, moving, mx, mz) {
   }
   for (const P of peers.values()) P.touch = performance.now() - (P.touchT || 0) < 150;
   if (npc) npc.touch = performance.now() - (npc.touchT || 0) < 150;
-  pushOut(p, 0.42); clampBound(p);
+  if (!wsClose) pushOut(p, 0.42); clampBound(p);
 }
 function onBumped(p) { // 다른 분이 나에게 부딪힘: 나도 살짝 휘청하고 한 뼘 밀림
   if (p.to !== ME.id) return; wobble(.18);
@@ -1162,7 +1162,7 @@ function occluders(T) {
   const list = [], sph = new THREE.Sphere();
   (T.site || T.hall.group).updateMatrixWorld(true);
   (T.site || T.hall.group).traverse(o => {
-    if (!o.isMesh || o.isInstancedMesh || !o.visible) return;
+    if (!o.isMesh || o.isInstancedMesh || !o.visible || o.userData.noOcc) return;
     const g = o.geometry, t = g.type; if (t === 'PlaneGeometry' || t === 'CircleGeometry' || t === 'RingGeometry') return;
     const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m || m.transparent || m.side === THREE.BackSide) return;
     if (!g.boundingSphere) g.computeBoundingSphere(); sph.copy(g.boundingSphere).applyMatrix4(o.matrixWorld); if (sph.radius < .35) return;
@@ -1266,6 +1266,8 @@ function step() {
   ST.sweep = sweepW;
   if (bellHold) { ST.walkAmp = Math.max(ST.walkAmp, bellStep.amp); ST.speed = bellStep.speed; ST.back = bellStep.back; }
   if (bellGrip.w > .02) ST.grip = bellGrip;
+  if (wsPose.on) { ST.kneel = Math.max(ST.kneel, wsPose.kneel); ST.bend = wsPose.bend; ST.headX = wsPose.headX; ST.headZ = wsPose.headZ; ST.closed = wsPose.closed; ST.blink = false; ST.hap = 0; if (wsPose.walk) { ST.walkAmp = wsPose.walk; ST.speed = 1.4; } }
+  if (wsGrip.w > .02) ST.grip = wsGrip; // 소원돌 양옆을 두 손으로
   if (glb) glb.update(dt, ST);
   if (chore && chore.world && glb) { glb.root.updateMatrixWorld(true); gripBroom(chore.mesh, glb, avatar.position.y); }
   netTick(dt, ST); updatePeers(dt);
@@ -1808,19 +1810,39 @@ document.getElementById('btnSit').onclick = toggleSit;
 
 // 용호사 소원돌: 소원 빌기 전에 한 번 들어 보고(가볍게 들림) → 마음속으로 소원을 빌고(합장) → 다시 들어 보면 꿈쩍하지 않음
 // 소원돌은 늘 소원을 들어줌(빈 뒤엔 언제나 꿈쩍 않음) · 소원은 어디에도 적거나 보내지 않음
-let wsStep = 0, wsAnim = null;
-const wsEase = t => t * t * (3 - 2 * t);
+let wsStep = 0, wsAnim = null, wsClose = false; // wsClose: 돌을 잡으려고 받침 바로 앞까지 다가선 동안 (받침에 밀려나지 않게)
+const wsEase = t => t * t * (3 - 2 * t), wsS = (a, b, t) => wsEase(clamp((t - a) / (b - a), 0, 1));
+// 소원돌 들기 자세: 두 손은 돌 양옆을 잡고(IK) · 무릎을 굽혀 허리를 숙였다가 일어서며 들어 올림
+const wsGrip = { w: 0, L: new THREE.Vector3(), R: new THREE.Vector3() };
+const wsPose = { on: false, kneel: 0, bend: 0, headX: 0, headZ: 0, closed: false, walk: 0 };
+const _wsC = new THREE.Vector3(), _wsX = new THREE.Vector3(), _wsF = new THREE.Vector3();
 function wsNear() { const W = cur && cur.wishStone; if (!W) return false; const [x, z] = L2W(W.lx, W.lz); return Math.hypot(avatar.position.x - x, avatar.position.z - z) < 2.4; }
 function wsStand() {
   const W = cur.wishStone, [sx, sz] = L2W(W.stand.lx, W.stand.lz), [x, z] = L2W(W.lx, W.lz);
   if (sit) standUp(); if (tapdori) stopTapdori(); if (chore) dropTool(true); moveTarget = null;
   avatar.position.set(sx, avatar.position.y, sz); avatar.rotation.y = Math.atan2(x - sx, z - sz);
-  yaw = avatar.rotation.y + Math.PI * .66; dist = 4.2; pitch = .32; intro = -1; // 비스듬히 옆에서 돌과 아기 스님이 함께 보이게
+  yaw = avatar.rotation.y - Math.PI * .53; dist = 3.3; pitch = .17; intro = -1; // 옆에서 낮게: 지붕 아래로 돌과 아기 스님의 두 손이 함께 보이게
+}
+function wsHands(W, w) { // 두 손 목표: 돌의 왼쪽·오른쪽 옆구리 (스님 쪽으로 살짝)
+  W.stone.getWorldPosition(_wsC); const ry = avatar.rotation.y;
+  _wsX.set(Math.cos(ry), 0, -Math.sin(ry)); _wsF.set(Math.sin(ry), 0, Math.cos(ry));
+  const sd = W.r * 1.05 + .03;
+  wsGrip.L.copy(_wsC).addScaledVector(_wsX, sd).addScaledVector(_wsF, -.035); wsGrip.L.y -= .012;
+  wsGrip.R.copy(_wsC).addScaledVector(_wsX, -sd).addScaledVector(_wsF, -.035); wsGrip.R.y -= .012;
+  wsGrip.w = w;
+}
+function wsSlide(A, k) { // 서는 자리(k=0) ↔ 잡는 자리(k=1) 사이를 걸음
+  avatar.position.x = A.p0[0] + (A.p1[0] - A.p0[0]) * k; avatar.position.z = A.p0[1] + (A.p1[1] - A.p0[1]) * k;
+}
+function wsBegin(kind) {
+  const W = cur && cur.wishStone; if (!W || wsAnim) return null; wsStand();
+  const g = W.grip || W.stand, [gx, gz] = L2W(g.lx, g.lz);
+  wsAnim = { kind, t: 0, W, T: cur, at: [avatar.position.x, avatar.position.z], p0: [avatar.position.x, avatar.position.z], p1: [gx, gz] };
+  pose = null; poseHold = false; resetBody(); wsClose = true; Object.assign(wsPose, { on: true, kneel: 0, bend: 0, headX: 0, headZ: 0, closed: false, walk: 0 });
+  return wsAnim;
 }
 function liftStone(heavy) {
-  const W = cur && cur.wishStone; if (!W || wsAnim) return; wsStand();
-  wsAnim = { kind: heavy ? 'heavy' : 'light', t: 0, W, T: cur, at: [avatar.position.x, avatar.position.z] };
-  pose = 'bow'; poseT = 0; poseHold = false; sound.bead();
+  if (!wsBegin(heavy ? 'heavy' : 'light')) return; sound.bead();
   if (!heavy && !store.d.wsTip) { store.d.wsTip = 1; store.save(); toast('🪨 용호사 소원돌은 소원을 빌기 전에 한 번, 빈 뒤에 한 번 들어 보는 돌이에요 · 빈 뒤에 꿈쩍하지 않으면 소원을 들어준대요', 4200); }
   updateNear();
 }
@@ -1833,30 +1855,81 @@ function wsPray() {
 function wsEnd(msg, step) {
   const A = wsAnim; if (!A) return; const W = A.W;
   W.stone.position.set(W.lx, W.top + W.r * .82, W.lz); W.stone.rotation.set(0, 0, 0);
-  wsAnim = null; poseHold = false; if (pose) { pose = null; resetBody(); }
+  if (A.p0 && A.T === cur) wsSlide(A, 0); // 서는 자리로
+  wsAnim = null; wsClose = false; wsPose.on = false; wsGrip.w = 0; poseHold = false; if (pose) { pose = null; resetBody(); }
   if (step !== undefined) wsStep = step; if (msg) toast(msg, 3800); updateNear();
 }
+// 머리 위 작은 표시: 땀방울(힘쓸 때) · !? (안 들릴 때) · 반짝(소원 성취) · 가뿐! (가볍게 들릴 때)
+let wsEmo = null;
+function wsEmote(kind, dur) {
+  if (!wsEmo) {
+    const mk = draw => { const cv = document.createElement('canvas'); cv.width = cv.height = 256; draw(cv.getContext('2d')); const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; };
+    const drop = (c, x, y, s, r) => { c.save(); c.translate(x, y); c.rotate(r); c.scale(s, s); c.beginPath(); c.moveTo(0, -46); c.bezierCurveTo(14, -18, 30, 2, 30, 20); c.arc(0, 20, 30, 0, Math.PI); c.bezierCurveTo(-30, 2, -14, -18, 0, -46); c.closePath();
+      c.fillStyle = '#7cc8f2'; c.fill(); c.lineWidth = 6; c.strokeStyle = '#2f7fb5'; c.stroke(); c.fillStyle = 'rgba(255,255,255,.85)'; c.beginPath(); c.ellipse(-10, 18, 7, 12, -.4, 0, 7); c.fill(); c.restore(); };
+    const star = (c, x, y, r, col) => { c.save(); c.translate(x, y); c.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, rr = i % 2 ? r * .28 : r; c.lineTo(Math.sin(a) * rr, -Math.cos(a) * rr); } c.closePath(); c.fillStyle = col; c.fill(); c.lineWidth = 4; c.strokeStyle = 'rgba(150,100,10,.7)'; c.stroke(); c.restore(); };
+    const word = (c, t, size, fill) => { c.font = `900 ${size}px "Noto Sans KR", "Malgun Gothic", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round'; c.lineWidth = 16; c.strokeStyle = '#fff'; c.strokeText(t, 128, 132); c.fillStyle = fill; c.fillText(t, 128, 132); };
+    wsEmo = { sp: new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false, depthWrite: false })), kind: '', t: 0, dur: 0, tex: {
+      sweat: mk(c => { drop(c, 150, 120, 1.25, .35); drop(c, 82, 160, .8, -.25); }),
+      huh: mk(c => word(c, '!?', 170, '#c0392b')),
+      wow: mk(c => { star(c, 128, 110, 70, '#ffd54f'); star(c, 54, 178, 34, '#ffe082'); star(c, 200, 190, 28, '#ffe082'); }),
+      light: mk(c => word(c, '가뿐!', 92, '#2e7d32')),
+    } };
+    wsEmo.sp.renderOrder = 20; wsEmo.sp.visible = false; scene.add(wsEmo.sp);
+  }
+  wsEmo.kind = kind; wsEmo.t = 0; wsEmo.dur = dur; wsEmo.sp.material.map = wsEmo.tex[kind]; wsEmo.sp.material.needsUpdate = true; wsEmo.sp.visible = true;
+}
+const _emR = new THREE.Vector3();
+function updateWsEmote(dt) {
+  const E = wsEmo; if (!E || !E.sp.visible) return; E.t += dt;
+  if (E.t > E.dur) { E.sp.visible = false; return; }
+  const pop = E.t < .18 ? wsEase(E.t / .18) * 1.15 : E.t < .3 ? 1.15 - .15 * wsEase((E.t - .18) / .12) : 1, fade = clamp((E.dur - E.t) / .25, 0, 1);
+  _emR.setFromMatrixColumn(camera.matrixWorld, 0); // 화면 오른쪽
+  const bob = E.kind === 'sweat' ? Math.abs(Math.sin(E.t * 5)) * .04 : Math.sin(E.t * 3) * .015;
+  E.sp.position.copy(avatar.position).addScaledVector(_emR, .34); E.sp.position.y += 1.14 + bob;
+  E.sp.scale.setScalar(.36 * pop); E.sp.material.opacity = fade;
+}
 function updateWishStone(dt) {
+  updateWsEmote(dt);
   const A = wsAnim; if (!A) return; A.t += dt; const W = A.W, st = W.stone, t = A.t, base = W.top + W.r * .82;
-  if (A.T !== cur || Math.hypot(avatar.position.x - A.at[0], avatar.position.z - A.at[1]) > .7) { wsEnd('', A.kind === 'pray' ? 1 : wsStep); return; } // 걸어 나가면 멈춤
-  if (A.kind === 'light') { // 숙여 잡고(.5초) → 몸 쪽 가슴 높이로 들어 올림 → 잠시 들고 있다가 → 내려놓음
-    if (t > .45 && pose === 'bow') { pose = 'hap'; poseT = .5; poseHold = true; }
-    const up = t < .5 ? 0 : t < 1.1 ? wsEase((t - .5) / .6) : t < 2.2 ? 1 : t < 2.8 ? 1 - wsEase((t - 2.2) / .6) : 0;
-    const [ax, az] = W2L(avatar.position.x, avatar.position.z), hx = W.lx + (ax - W.lx) * .62, hz = W.lz + (az - W.lz) * .62;
-    st.position.set(W.lx + (hx - W.lx) * up, base + (.66 - base) * up + Math.sin(t * 5) * .004 * up, W.lz + (hz - W.lz) * up);
-    if (t > 2.2 && pose === 'hap' && poseHold) { pose = 'bow'; poseT = .55; poseHold = true; } // 내려놓을 때 다시 숙임
-    if (t > 3.0) { sound.bead(); wsEnd('🪨 돌이 가볍게 들렸어요 · 이제 마음속으로 소원을 빌어 보세요', 1); }
-  } else if (A.kind === 'pray') {
+  if (A.T !== cur || Math.hypot(avatar.position.x - A.at[0], avatar.position.z - A.at[1]) > .9) { wsEnd('', A.kind === 'pray' ? 1 : wsStep); return; } // 걸어 나가면 멈춤
+  if (A.kind === 'pray') {
     if (t > 3.6) { sound.chime(); wsEnd('🪨 소원을 빌었으면 소원돌을 다시 한 번 들어 보세요', 2); }
-  } else { // 다시 들기: 숙여서 힘을 줘도 꿈쩍하지 않음 (돌이 살짝 떨리기만 함)
-    if (t > .35 && !poseHold) { pose = 'bow'; poseT = .62; poseHold = true; }
-    const k = t < .45 ? 0 : t < 2.5 ? Math.min(1, (t - .45) / .3) : Math.max(0, 1 - (t - 2.5) / .2);
-    st.position.set(W.lx + Math.sin(t * 41) * .006 * k, base + Math.abs(Math.sin(t * 27)) * .004 * k, W.lz + Math.sin(t * 33 + 1) * .004 * k);
+    return;
+  }
+  // 공통: 한 걸음 다가서기(0~.45) → 무릎 굽혀 허리 숙이고 두 손으로 잡기(.35~.8)
+  const P = wsPose, heavy = A.kind === 'heavy', back = heavy ? 3.3 : 3.4;
+  const inK = wsS(0, .45, t), outK = wsS(back, back + .45, t);
+  wsSlide(A, inK * (1 - outK)); P.walk = (t < .45 || (t > back && t < back + .45)) ? .55 : 0;
+  const crouch = wsS(.35, .8, t);
+  // 돌의 위치 (받침 위 → 가슴 앞)
+  const [ax, az] = W2L(avatar.position.x, avatar.position.z); let dx = W.lx - ax, dz = W.lz - az; const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
+  const hx = ax + dx * .21, hz = az + dz * .21, hy = .43; // 가슴 앞에 안는 자리 (얼굴은 가리지 않게)
+  if (!heavy) { // 가볍게: 들어 올림(.9~1.5) → 잠깐 들고 가뿐!(1.5~2.5) → 내려놓기(2.5~3.1) → 손 떼기(3.1~3.35)
+    const up = wsS(.9, 1.5, t) * (1 - wsS(2.5, 3.1, t)), hold = t > 1.5 && t < 2.5 ? Math.sin((t - 1.5) / 1 * Math.PI) : 0;
+    st.position.set(W.lx + (hx - W.lx) * up, base + (hy - base) * up + hold * .045, W.lz + (hz - W.lz) * up);
+    st.rotation.set(0, 0, 0);
+    P.bend = .5 * crouch * (1 - up) + .05 * up; P.kneel = .2 * crouch * (1 - up);
+    P.headX = -.1 * hold; P.headZ = 0; P.closed = false;
+    wsHands(W, crouch * (1 - wsS(3.1, 3.35, t)));
+    if (t > 1.55 && !A.said) { A.said = 1; wsEmote('light', 1.1); }
+    if (t > 3.05 && !A.down) { A.down = 1; sound.bead(); }
+    if (t > back + .5) { wsEnd('🪨 돌이 가볍게 들렸어요 · 이제 마음속으로 소원을 빌어 보세요', 1); }
+  } else { // 다시 들기: 영차·영차·영차 세 번 힘을 줘도 꿈쩍하지 않음 → 손을 떼고 !? → 서는 자리로
+    const strain = wsS(.85, 1.0, t) * (1 - wsS(2.6, 2.8, t)), ph = Math.max(0, t - .9), pulse = strain * (.5 - .5 * Math.cos(ph * 2 * Math.PI / .62));
+    P.bend = .5 * crouch * (1 - wsS(2.75, 3.1, t)) - .18 * pulse; P.kneel = (.2 + .08 * pulse) * crouch * (1 - wsS(2.75, 3.1, t));
+    P.headX = -.14 * pulse + .06 * wsS(2.8, 3.0, t) * (1 - wsS(3.4, 3.7, t)); P.headZ = Math.sin(t * 41) * .03 * strain;
+    P.closed = strain > .3; // 질끈 감은 눈
+    const k = strain;
+    st.position.set(W.lx + Math.sin(t * 41) * .006 * k, base + (.5 + .5 * Math.sin(t * 27)) * .005 * k + .003 * pulse, W.lz + Math.sin(t * 33 + 1) * .004 * k);
     st.rotation.z = Math.sin(t * 29) * .035 * k;
-    if (t > 2.75) {
+    wsHands(W, crouch * (1 - wsS(2.7, 2.95, t)));
+    if (t > 1.15 && !A.sweat) { A.sweat = 1; wsEmote('sweat', 1.6); }
+    if (t > 2.8 && !A.huh) { A.huh = 1; wsEmote('huh', 1.1); sound.bead(); }
+    if (t > back + .5) {
       store.count('wishstone'); sound.chime();
       wsEnd('🪨 돌이 꿈쩍도 하지 않네요 · 소원돌이 소원을 들어준대요 🙏', 0);
-      pose = 'hap'; poseT = 0; poseHold = false; // 합장으로 마무리
+      avatar.rotation.y += Math.PI; yaw = avatar.rotation.y + .3; dist = 3.2; pitch = .2; // 마당 쪽으로 돌아서서 웃으며 합장 (얼굴이 보이게)
+      pose = 'hap'; poseT = 0; poseHold = false; wsEmote('wow', 2.4); // 합장으로 마무리 + 반짝
     }
   }
 }
