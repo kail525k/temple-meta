@@ -184,6 +184,34 @@
   body.touch #dbg{top:calc(var(--st) + 48px);right:auto;left:10px;width:min(calc(100vw - 80px),330px)}
   /* 가로로 눕힌 휴대폰: 높이가 낮으니 오른쪽 아이콘을 작은 지도 왼쪽에 가로로 */
   @media (max-height:560px){body.touch #actions{top:var(--st);right:102px;flex-direction:row}body.touch #topBtns{top:calc(var(--st) + 92px)}body.touch .panel{max-height:calc(100% - var(--st) - 110px)}body.touch #ctxBar,body.touch #bowPrompt{bottom:calc(var(--sb) + 64px)}body.touch #bellPull{bottom:calc(var(--sb) + 116px)}}
+  /* ── 휴대폰 깔끔 모드: 늘 보이는 건 사찰 이름·작은 지도·메뉴(☰)·기도(🙏)·점프·조이스틱뿐 ──
+     조이스틱은 맨 아래 왼쪽에 고정(손가락을 끌어도 밀려 올라가지 않음) · 할 일·순위 같은 창은 아래에서 올라오고 바깥을 누르면 닫힘 */
+  #btnMenu,#btnPray,#prayTray,#menuSheet,#sheetDim{display:none}
+  body.clean #topBtns,body.clean #actions,body.clean #tools{display:none!important}
+  body.clean #joy{left:14px;bottom:calc(var(--sb) + 14px);width:112px;height:112px;opacity:.6}
+  body.clean #joy.live{opacity:1}
+  body.clean #btnJump{right:16px;bottom:calc(var(--sb) + 22px);width:54px;height:54px;font-size:19px;background:rgba(255,250,240,.72)}
+  body.clean #btnMenu{display:flex;position:fixed;z-index:8;right:10px;top:calc(var(--st) + 92px);width:44px;height:44px;border-radius:50%;border:0;align-items:center;justify-content:center;font-size:19px;color:var(--ink);padding:0;font-family:inherit}
+  body.clean #btnMenu b{position:absolute;right:-4px;top:-5px;min-width:18px;height:17px;border-radius:99px;background:var(--accent);color:#fff;font-size:9.5px;line-height:17px;padding:0 4px;font-weight:700}
+  body.clean #btnMenu b:empty{display:none}
+  body.clean #btnPray{display:flex;position:fixed;z-index:8;right:18px;bottom:calc(var(--sb) + 88px);width:50px;height:50px;border-radius:50%;border:0;align-items:center;justify-content:center;font-size:22px;padding:0}
+  body.clean #btnPray.on{background:var(--accent)}
+  body.clean #prayTray.show{display:flex;flex-direction:column-reverse;position:fixed;z-index:8;right:16px;bottom:calc(var(--sb) + 146px);gap:2px;padding:4px;border-radius:28px}
+  body.clean #prayTray button{border:0;width:46px;height:48px;border-radius:50%;background:transparent;font-size:19px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;padding:0;font-family:inherit;color:var(--ink)}
+  body.clean #prayTray button small{font-size:9.5px;font-weight:700;margin-top:3px}
+  body.clean #sheetDim.show{display:block;position:fixed;inset:0;z-index:29;background:rgba(30,25,15,.2)}
+  body.clean #menuSheet.show{display:block;position:fixed;z-index:30;left:0;right:0;bottom:0;padding:8px 14px calc(var(--sb) + 12px);border-radius:20px 20px 0 0}
+  body.clean #menuSheet .hd{display:block;width:38px;height:4px;border-radius:4px;background:rgba(80,60,30,.22);margin:2px auto 12px}
+  body.clean #menuSheet .g{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  body.clean #menuSheet .g button{border:0;border-radius:14px;background:#f6efe0;padding:10px 2px 8px;font-size:20px;display:flex;flex-direction:column;align-items:center;gap:4px;font-family:inherit;color:var(--ink);line-height:1;min-width:0}
+  body.clean #menuSheet .g button small{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  body.clean #menuSheet .g button.red{background:var(--accent);color:#fff}
+  body.clean .panel.show{left:0;right:0;top:auto;bottom:0;width:auto;max-height:62vh;overflow:auto;border-radius:20px 20px 0 0;z-index:30;padding:14px 16px calc(var(--sb) + 14px)}
+  body.clean #ctxBar{bottom:calc(var(--sb) + 146px);max-width:calc(100vw - 24px)}
+  body.clean #ctxBar button{max-width:calc(100vw - 40px)}
+  body.clean #ctxBar .ctxRow .main,body.clean #ctxBar .ctxRow button:first-child{max-width:calc(100vw - 92px)}
+  body.clean #bowPrompt{bottom:calc(var(--sb) + 146px)}
+  @media (max-height:560px){body.clean #btnMenu{top:var(--st);right:102px}body.clean #prayTray.show{flex-direction:row-reverse;right:76px;bottom:calc(var(--sb) + 86px)}body.clean #ctxBar,body.clean #bowPrompt{bottom:calc(var(--sb) + 136px)}body.clean .panel.show{max-height:78vh}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 </head>
@@ -261,6 +289,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js?v=78"></script>
+<script type="module" src="./app.js?v=79"></script>
 </body>
 </html>

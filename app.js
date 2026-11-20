@@ -11,6 +11,7 @@ import { REGIONS } from './temples.js?v=9';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=8';
 import { initStats, addBow, initRanks, flushStats, statsDebug } from './ranks.js?v=1';
+import { initMobileClean } from './mobile.js?v=1';
 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
@@ -33,6 +34,7 @@ const dbgEl = document.getElementById('dbg');
 function dbg(k, v) { DBG[k] = v; renderDbg(); }
 function renderDbg() { dbgEl.textContent = Object.entries(DBG).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join('\n'); }
 document.getElementById('dbgBtn').onclick = () => dbgEl.classList.toggle('show');
+if (!QS.has('dbg')) document.getElementById('dbgBtn').style.display = 'none'; // 🛠 상태는 개발용 (?dbg=1 일 때만)
 window.addEventListener('error', e => dbg('jsError', String(e.message)));
 renderDbg();
 const toastEl = document.getElementById('toast');
@@ -972,20 +974,20 @@ if (document.body.classList.contains('touch')) { // 휴대폰: 사찰 이름 카
 }
 const joyEl = document.getElementById('joy'), knob = document.getElementById('knob');
 { const jb = document.getElementById('btnJump'); if (jb) { const on = e => { e.preventDefault(); jumpBtn = true; }, off = () => { jumpBtn = false; }; jb.addEventListener('pointerdown', on); jb.addEventListener('pointerup', off); jb.addEventListener('pointercancel', off); jb.addEventListener('pointerleave', off); } }
-/* 휴대폰 이동 조이스틱: 왼쪽 아래 아무 곳이나 누르면 그 자리에 생김 (작은 원을 정확히 누를 필요 없음)
-   손가락이 원 밖으로 멀리 가면 원이 따라옴 · 살짝 밀면 천천히, 끝까지 밀면 서서히 빨라짐 · 짧게 톡 누르면 그곳으로 걸어감 */
-const joy = { id: null, x: 0, y: 0, ox: 0, oy: 0, t0: 0, far: 0 }, JOY_R = 52, JOY_DEAD = .14;
-const inJoyZone = (x, y) => document.body.classList.contains('touch') && x < innerWidth * .46 && y > innerHeight * .36;
+/* 휴대폰 이동 조이스틱: 맨 아래 왼쪽에 고정 (손가락을 멀리 끌어도 원은 밀려 올라가지 않고 그 자리)
+   원 근처를 누르면 잡힘 · 살짝 밀면 천천히, 끝까지 밀면 서서히 빨라짐 */
+const joy = { id: null, x: 0, y: 0, ox: 0, oy: 0, sx: 0, sy: 0, t0: 0, far: 0 }, JOY_R = 52, JOY_DEAD = .14;
+const joyCenter = () => { const r = joyEl.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, r.width / 2]; };
+const inJoyZone = (x, y) => { if (!document.body.classList.contains('touch') || !joyEl.offsetWidth) return false; const [cx, cy, h] = joyCenter(); return Math.hypot(x - cx, y - cy) < h + 30; };
 function startJoy(e) {
-  joy.id = e.pointerId; joy.ox = e.clientX; joy.oy = e.clientY; joy.t0 = performance.now(); joy.far = 0; joy.x = joy.y = 0;
+  const [cx, cy] = joyCenter();
+  joy.id = e.pointerId; joy.ox = cx; joy.oy = cy; joy.sx = e.clientX; joy.sy = e.clientY; joy.t0 = performance.now(); joy.far = 0; joy.x = joy.y = 0;
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
-  joyEl.classList.add('live'); placeJoy(); knob.style.transform = '';
+  joyEl.classList.add('live'); knob.style.transform = ''; moveJoy(e);
 }
-function placeJoy() { const h = joyEl.offsetWidth / 2; joyEl.style.left = (joy.ox - h) + 'px'; joyEl.style.top = (joy.oy - h) + 'px'; joyEl.style.bottom = 'auto'; }
 function moveJoy(e) {
   let dx = e.clientX - joy.ox, dy = e.clientY - joy.oy, l = Math.hypot(dx, dy);
-  joy.far = Math.max(joy.far, Math.hypot(e.clientX - joy.ox, e.clientY - joy.oy));
-  if (l > JOY_R * 1.25) { const k = 1 - JOY_R * 1.25 / l; joy.ox += dx * k; joy.oy += dy * k; dx -= dx * k; dy -= dy * k; l = JOY_R * 1.25; placeJoy(); } // 원이 손가락을 따라옴
+  joy.far = Math.max(joy.far, Math.hypot(e.clientX - joy.sx, e.clientY - joy.sy));
   const v = Math.min(1, l / JOY_R), m = v < JOY_DEAD ? 0 : (v - JOY_DEAD) / (1 - JOY_DEAD); // 가운데 조금은 가만히
   joy.x = l ? dx / l * m : 0; joy.y = l ? dy / l * m : 0;
   const kl = Math.min(l, JOY_R) / (l || 1); knob.style.transform = `translate(${dx * kl}px,${dy * kl}px)`;
@@ -994,8 +996,8 @@ function endJoy(e) {
   if (e.pointerId !== joy.id) return;
   const tap = e.type === 'pointerup' && joy.far < 9 && performance.now() - joy.t0 < 380;
   joy.id = null; joy.x = joy.y = 0; knob.style.transform = '';
-  joyEl.classList.remove('live'); joyEl.style.left = joyEl.style.top = joyEl.style.bottom = '';
-  if (tap) tapAt(e); // 톡 누르면 예전처럼 (그 자리로 걷기 · 휴휴암에선 물고기 밥 던지기)
+  joyEl.classList.remove('live');
+  void tap; // 조이스틱을 톡 누른 것은 걷기 명령이 아님 (땅을 톡 누르는 건 조이스틱 밖에서)
 }
 
 /* ───────── 합장 · 절 · 삼배 ───────── */
@@ -2194,7 +2196,8 @@ async function startTogether() {
   loop();
   setTimeout(() => toast('🙏 수월하세요 · 오늘 하루도 수월하시길 바라요', 3200), 900); // 수월의 인사
   initStats({ getNick: () => ME.nick, isSitting: () => !!sit, monkSig: c => monkBadge(c) }); initRanks(); // 🏆 순위: 절 · 좌선 · 머문 시간
-  if (document.body.classList.contains('touch') && !store.d.joyTip) setTimeout(() => { store.d.joyTip = 1; store.save(); toast('👈 왼쪽 아래 아무 곳이나 눌러 끌면 걸어요 · 옆으로 밀면 그쪽으로 돌아요 · 땅을 톡 누르면 그곳으로 걸어가요', 5200); }, 4800);
+  initMobileClean(); // 휴대폰: 버튼은 메뉴(☰)·기도(🙏)로 모으고 화면을 넓게
+  if (document.body.classList.contains('touch') && !store.d.joyTip) setTimeout(() => { store.d.joyTip = 1; store.save(); toast('👈 아래 동그라미를 밀면 걷고, 땅을 톡 누르면 그곳으로 가요', 4200); }, 4800);
   { let tq = QS.get('t'); if (!tq && OFFLINE) { try { tq = sessionStorage.getItem('jeollo.t'); sessionStorage.removeItem('jeollo.t'); } catch (e) { } } const T = tq && temples.find(t => t.name === tq); if (T) { goTemple(T); intro = -1; } } // 다른 지역 창에서 '○○사 가기'로 왔으면 그 절 앞으로
   if (!QS.get('r') && !REGIONS.some(r => r.id === HASH_R) && !QS.has('dbg')) setTimeout(openRegions, 4200); // 처음 오면 지역 고르기를 보여 줌
 })();
