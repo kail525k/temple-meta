@@ -34,6 +34,7 @@ export const TODO = [
   ['giwa', '✍️ 기와에 소원 적어 올리기'],
   ['unryeok', '🧹 운력: 싸리비로 마당 쓸기·걸레로 마루 닦기'],
   ['visit', '🗺 다른 사찰 한 곳 더 가 보기'],
+  ['board', '📜 안내판 하나 읽어 보기'],
 ];
 export function initTodo(store, toast, sound) {
   const btn = document.getElementById('btnTodo'), panel = document.getElementById('todoPanel');

@@ -5,14 +5,15 @@ import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
 import { buildHall } from './hall.js?v=9';
 import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=26';
-import { buildItems, buildLantern } from './items.js?v=1';
+import { buildItems, buildLantern } from './items.js?v=2';
+import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
 import { REGIONS } from './temples.js?v=10';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
-import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=8';
+import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=9';
 import { initStats, addBow, initRanks, flushStats, statsDebug } from './ranks.js?v=1';
-import { initMobileClean } from './mobile.js?v=1';
+import { initMobileClean } from './mobile.js?v=2';
 
 /* ───────── 설정 ───────── */
 // hall: 법당(주불전) 실제 좌표. 브이월드 건물 중 이 좌표에 가장 가까운 건물을 법당으로 씀
@@ -45,6 +46,7 @@ function toast(msg, ms = 2400) { toastEl.textContent = msg; toastEl.classList.ad
 const store = createStore(), sound = createSound(store);
 addEventListener('pointerdown', () => sound.unlock(), { once: true }); addEventListener('keydown', () => sound.unlock(), { once: true });
 const done = initTodo(store, toast, sound);
+initBoards(() => done('board')); // 안내판 읽기 창
 initSoundPanel(sound);
 
 /* ───────── 좌표 (원점 = 법당 좌표) ───────── */
@@ -301,7 +303,7 @@ function buildSite(info, T) {
   if (hyu) { H.fishX = -6.2; H.fishZ = YZ0 - 7.3; H.fishAt = { lx: -6.2, lz: YZ0 - 2.4 }; H.fishStall = { lx: -9.2, lz: YZ0 + 2.7 }; }
   if (st.sea) T.seaRect = buildSea(H, hyu ? { gap: [-10.2, -2.2, 3.4], side: st.seaSide || 0, clear: { x: -6.2, z: -7.9, rx: 9.6, rz: 4.1 } } : yg ? { gap: YG.gap } : {});
   if (yg && T.seaRect) T.seaRect.inlet = { x0: -YX - 7, x1: -YX + .3, z0: YZ0 - 1, z1: YG.ZB + .5 };
-  if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(yg ? 2.0 : 2.7, pg.r + .75); } else T.pagoda = null;
+  let PG = null; if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); PG = pg; const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(yg ? 2.0 : 2.7, pg.r + .75); } else T.pagoda = null;
   // 사찰 상징물 (법당 옆 마당·뒤뜰)
   const exo = buildExtras(H, T), ito = buildItems(H, T); T.spots = [...(exo.spots || []), ...ito.spots, ...(lanSpot ? [lanSpot] : []), ...(st.pagoda === 'octa10' ? [{ lx: 0, lz: PZ + 3, r: 3.2, name: '조계사 팔각십층석탑', story: '부처님 진신사리를 모신 팔각 10층 석탑이에요' }] : [])]; T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini; T.fish = exo.fish; T.anim = exo.anim; T.wishStone = exo.wishStone;
   if (hyu) buildHyuhyu(H, T);
@@ -336,6 +338,28 @@ function buildSite(info, T) {
     const bd = new THREE.Mesh(new THREE.BoxGeometry(1.52, 1.02, .06), [edge, edge, edge, edge, face, edge]); bd.position.set(sx, b + 1.24, sz); bd.castShadow = true; site.add(bd);
     add(new THREE.BoxGeometry(1.66, .07, .14), wood, sx, b + 1.78, sz); // 지붕턱
     col(sx, sz, .85, .12); T.sign = { lx: sx, lz: sz }; }
+  // 안내판: 일주문 왼쪽 사찰 안내판 + 유적·상징물 앞 안내판 (가까이 가서 [📜 안내판 읽기] 또는 팻말을 누르면 크게 읽기)
+  { const SXe = L / 2 + 3.2, sp = T.spots, ex = (st.extras || []), first = k => (BOARDS[k] ? BOARDS[k].p[0] : '');
+    for (const p of sp) p.board = boardKey(p.name);
+    const sign = (key, lx, lz, ry, o = {}) => { if (!BOARDS[key] || yg && !o.yg) return; boardSign(H, lx, lz, ry, key, { y0: gy(lx, lz), title: o.title });
+      sp.push({ lx: lx + Math.sin(ry) * 1.1, lz: lz + Math.cos(ry) * 1.1, r: 2.2, name: o.title || key, story: o.story || first(key), board: key }); };
+    const at = (key, lx, lz, r) => { if (BOARDS[key] && !sp.some(q => q.board === key && Math.hypot(q.lx - lx, q.lz - lz) < 1.5)) sp.push({ lx, lz, r, name: key, story: first(key), board: key }); };
+    if (BOARDS[T.name]) sign(T.name, -2.75, YZ1 + 1.7, 0, { title: T.name + ' 안내', story: BOARDS[T.name].tag + ' · 안내판을 읽어 보세요', yg: true });
+    const PK = { '조계사': '조계사 팔각십층석탑', '월정사': '월정사 팔각구층석탑', '법주사': '법주사 팔상전', '마곡사': '마곡사 오층석탑', '불국사': '불국사 석가탑' }[T.name];
+    if (PG && PK) { const R0 = (T.pagodaR || 2.7) + 1.5, s0 = PG.x > .1 ? 1 : -1; at(PK, PG.x, PZ, (T.pagodaR || 2.7) + 2); sign(PK, PG.x + s0 * R0, PZ + 1.3, -s0 * .45); }
+    if (PG && st.pagoda === 'pair') { const k2 = '불국사 다보탑', R0 = (T.pagodaR || 2.7) + 1.6; at(k2, -PG.x, PZ, (T.pagodaR || 2.7) + 2); sign(k2, -PG.x + R0, PZ + 1.3, -.45); }
+    if (ex.includes('buldu')) { at('와우정사 황금 불두', 0, PZ + 3, 3.6); sign('와우정사 황금 불두', -3.4, PZ + 2.6, .4); }
+    if (st.bigStand && st.bigStand.name) { const k = T.name + ' ' + st.bigStand.name; at(k, -SXe, 2.6, 3.4); sign(k, -SXe + 1.7, 3.0, .35); }
+    if (ex.includes('bigBuddha')) { at('신흥사 통일대불', -SXe, 2.0, 3.4); sign('신흥사 통일대불', -SXe + 1.7, 2.8, .35); }
+    if (ex.includes('mireuk')) sign('금산사 미륵전', -SXe + 1.9, 3.3, .35);
+    if (ex.includes('gyedan')) { at('통도사 금강계단', 0, -D / 2 - 2.4, 3.6); sign('통도사 금강계단', -(L / 2 + 2.6), -D / 2 - .6, Math.PI / 2); }
+    if (ex.includes('janggyeong')) { at('해인사 장경판전', 0, -D / 2 - 1.4, 3.0); sign('해인사 장경판전', -(L / 2 + 2.6), -D / 2 - .6, Math.PI / 2); }
+    if (ex.includes('pond')) { at('백양사 쌍계루', SXe, 1.6, 3.4); sign('백양사 쌍계루', SXe + .9, D / 2 + 1.3, 0); }
+    if (ex.includes('bridge')) { at('선암사 승선교', SXe, 1.2, 3.0); sign('선암사 승선교', SXe + 1.9, D / 2 + 1.0, -.3); }
+    if (ex.includes('stoneBuddhas')) { at('관음사 돌부처 길', 0, YZ1 - 4, 3.0); sign('관음사 돌부처 길', 3.6, YZ1 - 2.4, -.35); }
+    const HK = { '수덕사': '수덕사 대웅전', '화엄사': '화엄사 각황전', '봉선사': '봉선사 큰법당' }[T.name]; if (HK) sign(HK, -(L / 2 - 1.2), D / 2 + 1.4, 0);
+    if (lanSpot && boardKey(lanSpot.name)) sign(boardKey(lanSpot.name), 1.9, SL + .3, -.5);
+    T.signs = H.signs || []; }
   { const bx = YX - 1.1, bz = Math.min(D / 2 + 5.5, YZ1 - 3), b = gy(bx, bz); // 싸리비 걸이 (운력: 마당 쓸기)
     for (const pz of [-.5, .5]) add(new THREE.CylinderGeometry(.035, .04, 1.3, 6), MAT.trunk, bx, b + .65, bz + pz);
     add(new THREE.CylinderGeometry(.028, .028, 1.1, 6), MAT.trunk, bx, b + 1.22, bz).rotation.x = Math.PI / 2;
@@ -866,7 +890,7 @@ let statuesDone = false;
 /* ───────── 입력 ───────── */
 const keys = {};
 addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || rituals.open) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || rituals.open || isBoardOpen()) return;
   keys[e.code] = true;
   if (e.code === 'KeyE') useContext();
   if (e.code === 'Space') e.preventDefault();
@@ -978,21 +1002,26 @@ const joyEl = document.getElementById('joy'), knob = document.getElementById('kn
 { const jb = document.getElementById('btnJump'); if (jb) { const on = e => { e.preventDefault(); jumpBtn = true; }, off = () => { jumpBtn = false; }; jb.addEventListener('pointerdown', on); jb.addEventListener('pointerup', off); jb.addEventListener('pointercancel', off); jb.addEventListener('pointerleave', off); } }
 /* 휴대폰 이동 조이스틱: 맨 아래 왼쪽에 고정 (손가락을 멀리 끌어도 원은 밀려 올라가지 않고 그 자리)
    원 근처를 누르면 잡힘 · 살짝 밀면 천천히, 끝까지 밀면 서서히 빨라짐 */
-const joy = { id: null, x: 0, y: 0, ox: 0, oy: 0, sx: 0, sy: 0, t0: 0, far: 0 }, JOY_R = 52, JOY_DEAD = .14;
+const joy = { id: null, x: 0, y: 0, ox: 0, oy: 0, sx: 0, sy: 0, t0: 0, far: 0, r: 56, edge: 0 }, JOY_DEAD = .14;
+// 휴대폰 걷기 빠르기 (☰ 메뉴에서 바꿈 · 기기에 저장): 끝까지 밀었을 때 걷는 빠르기. 끝에 1초 넘게 대고 있으면 서서히 달림
+const WALK_LV = [['느리게', 2.0], ['보통', 2.7], ['빠르게', 3.5]];
+let walkLv = (() => { try { const v = +localStorage.getItem('suwol.walkLv'); return v >= 0 && v < 3 && localStorage.getItem('suwol.walkLv') !== null ? v : 1; } catch (e) { return 1; } })();
+addEventListener('suwol:walk', () => { walkLv = (walkLv + 1) % 3; try { localStorage.setItem('suwol.walkLv', walkLv); } catch (e) { } toast(`🚶 걷기 빠르기: ${WALK_LV[walkLv][0]} · 조이스틱을 끝까지 1초 넘게 밀면 달려요`, 2600); });
+window.__walkLabel = () => '걷기 ' + WALK_LV[walkLv][0];
 const joyCenter = () => { const r = joyEl.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, r.width / 2]; };
 const inJoyZone = (x, y) => { if (!document.body.classList.contains('touch') || !joyEl.offsetWidth) return false; const [cx, cy, h] = joyCenter(); return Math.hypot(x - cx, y - cy) < h + 30; };
 function startJoy(e) {
-  const [cx, cy] = joyCenter();
-  joy.id = e.pointerId; joy.ox = cx; joy.oy = cy; joy.sx = e.clientX; joy.sy = e.clientY; joy.t0 = performance.now(); joy.far = 0; joy.x = joy.y = 0;
+  const [cx, cy, h] = joyCenter();
+  joy.id = e.pointerId; joy.ox = cx; joy.oy = cy; joy.r = Math.max(48, h); joy.sx = e.clientX; joy.sy = e.clientY; joy.t0 = performance.now(); joy.far = 0; joy.x = joy.y = 0; joy.edge = 0;
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
   joyEl.classList.add('live'); knob.style.transform = ''; moveJoy(e);
 }
 function moveJoy(e) {
   let dx = e.clientX - joy.ox, dy = e.clientY - joy.oy, l = Math.hypot(dx, dy);
   joy.far = Math.max(joy.far, Math.hypot(e.clientX - joy.sx, e.clientY - joy.sy));
-  const v = Math.min(1, l / JOY_R), m = v < JOY_DEAD ? 0 : (v - JOY_DEAD) / (1 - JOY_DEAD); // 가운데 조금은 가만히
+  const v = Math.min(1, l / joy.r), m = v < JOY_DEAD ? 0 : Math.pow((v - JOY_DEAD) / (1 - JOY_DEAD), 1.5); // 가운데 조금은 가만히 · 살짝 밀면 아주 천천히
   joy.x = l ? dx / l * m : 0; joy.y = l ? dy / l * m : 0;
-  const kl = Math.min(l, JOY_R) / (l || 1); knob.style.transform = `translate(${dx * kl}px,${dy * kl}px)`;
+  const kl = Math.min(l, joy.r) / (l || 1); knob.style.transform = `translate(${dx * kl}px,${dy * kl}px)`;
 }
 function endJoy(e) {
   if (e.pointerId !== joy.id) return;
@@ -1196,7 +1225,8 @@ function step() {
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   if (sam && il > .5) { sam = null; resetBody(); toast('삼배를 멈췄어요'); }
   if (il > .05) { moveTarget = null; if (sit) standUp(); if (tapdori) stopTapdori('탑돌이를 멈췄어요'); }
-  let speed = keys.ShiftLeft || keys.ShiftRight ? 7 : joy.id !== null ? 3.6 + 2.6 * ss(.86, 1, il) : 3.6; // 조이스틱: 끝까지 밀면 서서히 빨라짐
+  if (joy.id !== null && il > .9) joy.edge += dt; else joy.edge = Math.max(0, joy.edge - dt * 3);
+  let speed = keys.ShiftLeft || keys.ShiftRight ? 7 : joy.id !== null ? WALK_LV[walkLv][1] * (1 + .55 * ss(1.0, 2.2, joy.edge)) : 3.6; // 조이스틱: 끝까지 1초 넘게 밀고 있으면 서서히 달림
   let mx = 0, mz = 0, moving = false;
   if (!sam && !sit && pose !== 'bow') {
     if (chore) speed = Math.min(speed, chore.kind === 'rag' ? 1.6 : chore.world ? 1.3 : 2.4); // 비·걸레를 들면 천천히
@@ -1204,7 +1234,7 @@ function step() {
     else if (tapdori) { speed = 2.2; const v = tapdoriStep(dt); mx = v[0]; mz = v[1]; moving = true; }
     else if (moveTarget) {
       const dx = moveTarget.x - avatar.position.x, dz = moveTarget.z - avatar.position.z, d = Math.hypot(dx, dz);
-      moveTarget.t += dt; if (d < .35 || moveTarget.t > 25) { moveTarget = null; markMove(null); } else { mx = dx / d; mz = dz / d; moving = true; if (d > 6 && !chore) speed = 5; }
+      moveTarget.t += dt; if (d < .35 || moveTarget.t > 25) { moveTarget = null; markMove(null); } else { mx = dx / d; mz = dz / d; moving = true; if (d > 6 && !chore) speed = document.body.classList.contains('touch') ? 4 : 5; }
     }
   }
   if (moving) {
@@ -1336,6 +1366,11 @@ function clickMove(e) {
   if (sam || rituals.open || bellHold) { DBG.tap = 'busy'; return; }
   const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ndc, camera);
+  if (cur && cur.signs && cur.signs.length) { // 안내판(팻말)을 누르면 읽기 창
+    const hit = ray.intersectObjects(cur.signs, true)[0];
+    if (hit && hit.distance < 40) { let key = hit.object.userData.board;
+      if (!key) { const [hx, hz] = W2L(hit.point.x, hit.point.z); let bd = 6; for (const p of cur.spots || []) if (p.board) { const d = Math.hypot(p.lx - hx, p.lz - hz); if (d < bd) { bd = d; key = p.board; } } }
+      if (key && openBoard(key)) { DBG.tap = 'board'; return; } } }
   if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -avatar.position.y), _p) || _p.distanceTo(avatar.position) > 70) { DBG.tap = 'miss'; return; }
   DBG.tap = 'go';
   if (sit) standUp(); if (tapdori) stopTapdori(); intro = -1;
@@ -1738,6 +1773,9 @@ function updateCtx(inside, dBow, lx, lz) {
       }
     }
   }
+  if (!sam && !tapdori && !inside && !chore && cur && cur.spots) { // 안내판 가까이: 크게 펼쳐 읽기
+    let bp = null, bd = 1e9; for (const p of cur.spots) { if (!p.board) continue; const d = Math.hypot(lx - p.lx, lz - p.lz); if (d < p.r && d < bd) { bd = d; bp = p; } }
+    if (bp) acts.push(['📜 안내판 읽기', () => openBoard(bp.board)]); }
   if (tapdori) acts.push(['⏹ 탑돌이 멈추기', () => stopTapdori('탑돌이를 멈췄어요')]);
   const key = acts.map(a => a[0]).join('|'); ctxActs = acts;
   if (key === ctxKey) return; ctxKey = key; ctxBar.innerHTML = ''; ctxBar.classList.remove('open');

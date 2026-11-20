@@ -52,6 +52,7 @@ function signpost(h, x, z, ry, text, sub, w = 1.5) {
   mesh(g, new THREE.BoxGeometry(w + .06, hh + .06, .04), h.MAT.trunk, 0, .7 + hh / 2, -.03);
   plate(h, g, text, w, 0, .7 + hh / 2, .0, { sub, px: 40, cw: 700 });
   colG(h, g, 0, 0, w / 2, .1);
+  (h.signs || (h.signs = [])).push(g); // 누르면 가까운 상징물 안내판을 크게 읽기
   return g;
 }
 // 여러 줄 글 판 (효행 이야기 · 현판 이야기)
@@ -164,8 +165,8 @@ export function buildItems(h, T) {
       const g = grp(h, FX, FZ, RIGHT);
       smallHall(h, g, { w: 3.6, d: 2.4, hh: 1.7, gable: true, roofH: .95, plaque: '板殿', plaqueW: 1.0 });
       colG(h, g, 0, 0, 2.1, 1.5);
-      signpost(h, ...toSite(g, -2.6, 1.9), RIGHT, '판전', '추사 김정희가 세상을 떠나기 사흘 전에 쓴 현판');
-      spot(g, 0, 2.2, 3.4, '봉은사 판전', '추사 김정희가 세상을 떠나기 사흘 전에 쓴 ‘판전’ 현판이 걸려 있어요');
+      signpost(h, ...toSite(g, -2.6, 1.9), RIGHT, '판전', '추사 김정희가 생애 마지막에 쓴 현판');
+      spot(g, 0, 2.2, 3.4, '봉은사 판전', '추사 김정희가 세상을 떠나기 며칠 전에 쓴 ‘판전’ 현판이 걸려 있어요');
     }
     if (kind === 'yongjuBell') { // 용주사 동종: 작은 종각에 모신 국보 범종 (치지 않고 보기만)
       const g = grp(h, -FX, FZ, LEFT), P = parts();
@@ -424,7 +425,7 @@ export function buildItems(h, T) {
       const P = parts();
       for (let i = 0; i < 6; i++) for (const sx of [-1, 1]) { const x = sx * (3.3 + rnd() * .4), z = YZ1 + 4 + i * 3.4 + rnd() * .5; blossomTree(P, rnd, x, z, 1.25, k.cherry, k.cherry2, { spread: 1.2, lean: .2 }); h.col(x, z, .3, .3); }
       P.flush(h.site);
-      signpost(h, -2.75, YZ1 + 1.7, 0, '십리벚꽃길', '화개장터에서 쌍계사까지 이어지는 벚꽃길', 1.5);
+      signpost(h, -2.5, YZ1 + 5.8, Math.PI / 2, '십리벚꽃길', '화개장터에서 쌍계사까지 이어지는 벚꽃길', 1.5); // 일주문 왼쪽은 사찰 안내판 자리 · 벚나무 사이에서 길을 바라봄
       spotAt(0, YZ1 + 8, 4.5, '쌍계사 십리벚꽃길', '화개장터에서 쌍계사까지 봄마다 벚꽃이 길을 덮어요');
     }
   }

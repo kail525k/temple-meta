@@ -8,6 +8,7 @@ const MENU = [
   ['btnRegion', '🗺', '다른 사찰'], ['btnHall', '🛕', null], ['btnHome', '📍', '순례 마당'], ['btnPano', '📷', '실제 모습', 'red'],
   ['btnTodo', '📋', null], ['btnWish', '🏮', '소원 연등'], ['btnTile', '✍️', '기와 불사'], ['btnPhoto', '📸', '사진'],
   ['btnRank', '🏆', '순위'], ['btnPeople', '👥', null], ['btnSound', null, '소리'], ['title', 'ⓘ', '안내·출처'],
+  ['walk', '🚶', null],
 ];
 const PRAY = [['btnHapjang', '🙏', '합장'], ['btnBow', '🙇', '절'], ['btnSit', '🧘', '앉기'], ['btnMoktak', '🪵', '목탁'], ['btnBeads', '📿', '염주']];
 
@@ -23,6 +24,7 @@ export function initMobileClean() {
   const grid = sheet.querySelector('.g');
 
   const label = id => { // 원래 버튼의 지금 글자를 그대로 가져옴 (법당 안으로/밖으로, 할 일 0/13, 함께 3 …)
+    if (id === 'walk') return window.__walkLabel ? window.__walkLabel() : '걷기 빠르기';
     const b = $(id); if (!b) return '';
     if (id === 'btnTodo') return '할 일 ' + (b.textContent.match(/\d+\/\d+/) || [''])[0];
     if (id === 'btnPeople') return '함께 ' + (b.textContent.match(/\d+/) || [''])[0];
@@ -47,6 +49,7 @@ export function initMobileClean() {
     const b = e.target.closest('button'); if (!b) return; const id = b.dataset.id;
     sheet.classList.remove('show');
     if (id === 'title') { $('title').classList.add('open'); syncDim(); return; }
+    if (id === 'walk') { dispatchEvent(new Event('suwol:walk')); syncDim(); return; } // 걷기 빠르기: 느리게 → 보통 → 빠르게
     if (/Todo|Rank|People|Sound/.test(id)) closePanels();
     const src = $(id); if (src) src.click();
     syncDim();
