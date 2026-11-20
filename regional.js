@@ -9,7 +9,7 @@ import { createSchool, tankFish } from './fish.js?v=6';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
-const R = {
+export const R = {
   bronze: M('#8a6b3a', { metalness: .45, roughness: .45 }), roofTile: M('#4f5b69', { side: THREE.DoubleSide }), redCol: M('#9b3b2b'),
   white: M('#f3e6cc'), wood: M('#7d5a3c'), lattice: M('#5a4330'), water: new THREE.MeshStandardMaterial({ color: '#5d8fa6', roughness: .15, metalness: .2, emissive: '#1d3f52', emissiveIntensity: .35 }),
   band: M('#2e8b74'), granite: M('#d4cdbf'), granite2: M('#b9b2a4'),
@@ -151,7 +151,7 @@ function stoneTiers(h, x, z, n, s = 1, bronze = false) {
   return 1.32 * s;
 }
 // 월정사 팔각구층석탑: 팔각 2단 기단(연꽃 받침) + 팔각 몸돌 9층, 처마 귀마다 풍경, 청동 상륜
-function octa9(h, x, z) {
+function octa9(h, x, z, n = 9) { // n층 (조계사 팔각십층석탑은 n=10)
   const { a: GA, b: GB } = GR(), P = parts(), C = (rt, rb, hh, mat, y, faceted = true) => P.cyl(rt, rb, hh, 8, mat, 0, y + hh / 2, 0, faceted);
   C(1.75, 1.8, .3, GB, 0); C(1.5, 1.6, .26, GA, .3);
   P.cyl(1.22, 1.5, .2, 16, GA, 0, .66, 0); // 연꽃 받침 몸
@@ -159,8 +159,8 @@ function octa9(h, x, z) {
     const tip = new THREE.SphereGeometry(1, 8, 6); tip.scale(.07, .04, .09); tip.rotateX(.2); tip.rotateY(a); P.put(tip, GA, Math.sin(a) * 1.55, .58, Math.cos(a) * 1.55); } // 잎 끝이 살짝 들림
   C(1.0, 1.25, .2, GB, .56); C(.92, .92, .32, GA, .76); C(1.12, .95, .12, GB, 1.08); // 중대석·갑석
   let y = 1.2;
-  for (let i = 0; i < 9; i++) {
-    const r = .7 * (1 - i * .05), hh = i ? .34 - i * .01 : .6;
+  for (let i = 0; i < n; i++) {
+    const r = .7 * (1 - i * .45 / n), hh = i ? .34 - i * .09 / n : .6;
     C(r, r, hh, GA, y); y += hh;
     C(r + .1, r, .05, GB, y); y += .05; // 받침
     const R1 = r + .42, R2 = r + .1;
@@ -241,6 +241,7 @@ export function buildPagoda(h, type, PZ) {
   const { col } = h;
   let r, x = 0;
   if (type === 'octa9') r = octa9(h, 0, PZ);
+  else if (type === 'octa10') r = octa9(h, 0, PZ, 10);
   else if (type === 'wood5') r = wood5(h, 0, PZ);
   else if (type === 'stone5') r = stoneTiers(h, 0, PZ, 5, 1.05, true);
   else if (type === 'stone7') r = stoneTiers(h, 0, PZ, 7, 1.1);
@@ -323,21 +324,36 @@ export function buildExtras(h, T) {
         col(x, z, .35, .35);
       }
     }
-    if (kind === 'mireuk') { // 금산사 미륵전: 3층 법당
+    if (kind === 'mireuk') { // 금산사 미륵전: 3층 법당 · 앞문을 활짝 열어 안에 모신 미륵삼존(가운데 미륵불, 양옆 보살)이 보임
       const x = -SX, z = -.5;
       box(5.2, .5, 4.8, h.MAT.stone, x, .25, z);
-      let y = .5; const fl = [[4.6, 4.2, 2.1], [3.7, 3.3, 1.5], [2.9, 2.5, 1.4]];
+      let y = .5; const fl = [[4.6, 4.2, 3.0], [3.7, 3.3, 1.4], [2.9, 2.5, 1.3]];
       fl.forEach(([w, d, hh], i) => {
-        box(w, hh, d, R.white, x, y + hh / 2, z);
+        if (i === 0) { // 1층: 뒤·옆 벽 + 앞은 가운데를 열고 양끝만 막음 · 안은 어둡게
+          box(w, hh, .14, R.white, x, y + hh / 2, z - d / 2 + .07);
+          for (const sx of [-1, 1]) { box(.14, hh, d, R.white, x + sx * (w / 2 - .07), y + hh / 2, z); box(w * .1, hh, .14, R.white, x + sx * (w / 2 - w * .05), y + hh / 2, z + d / 2 - .07); }
+          box(w - .3, hh - .1, .04, M('#3a2a20', { roughness: 1 }), x, y + hh / 2, z - d / 2 + .16); // 어두운 안벽
+          box(w - .3, .06, d - .3, R.wood, x, y + .03, z);                                   // 마루
+          box(w * .8, .5, .1, R.lattice, x, y + hh - .25, z + d / 2 - .05);                   // 문 위 살창
+          for (const sx of [-1, 1]) for (const k of [0, 1]) { const dr = box(.36, hh - .7, .05, R.lattice, x + sx * (w * .4 - .2 - k * .38), y + (hh - .7) / 2 + .05, z + d / 2 + .02); dr.rotation.y = sx * .9; } // 활짝 접어 연 문짝
+          // 불단 + 미륵삼존 (불상 모델을 불러오면 바꿔 끼움)
+          box(w * .8, .32, 1.1, R.redCol, x, y + .16, z - d / 2 + .9);
+          for (const [dx, k, hh2] of [[0, 'buddhaS', 2.55], [-1.2, 'bosalS', 2.0], [1.2, 'bosalS', 2.0]]) {
+            const py = y + .32, pz = z - d / 2 + .9;
+            const ph = standingGwaneum(o => h.site.add(o), x + dx, py, pz, hh2 * .95, 0, R.gold);
+            fig.push({ k, tint: 'gold', lx: x + dx, ly: py, lz: pz, h: hh2, ry: 0, ph: [ph] });
+          }
+        } else box(w, hh, d, R.white, x, y + hh / 2, z);
         for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.18, hh, .18, R.redCol, x + sx * w / 2, y + hh / 2, z + sz * d / 2);
         box(w + .05, .16, d + .05, R.band, x, y + hh - .08, z);
-        box(w * .6, hh * .55, .05, R.lattice, x, y + hh * .42, z + d / 2 + .02);
+        if (i) box(w * .6, hh * .55, .05, R.lattice, x, y + hh * .42, z + d / 2 + .02);
         y += hh; const rw = w + 1.6, rd = d + 1.6, rh = rd * (i === 2 ? .36 : .2);
         const m = add(hipRoofGeo(THREE, rw, rd, rh, Math.max(.5, rw - rd * .95), .3), R.roofTile, x, y, z); m.receiveShadow = false;
         y += i === 2 ? rh : rh * .4;
       });
-      const bd = add(new THREE.PlaneGeometry(1.3, .4), new THREE.MeshStandardMaterial({ map: h.nameTex('미륵전', '#2b1d14', '#f2cf72', 46), roughness: .6 }), x, .5 + 2.1 + 1.5 * .62, z + 3.3 / 2 + .06, false);
+      const bd = add(new THREE.PlaneGeometry(1.3, .4), new THREE.MeshStandardMaterial({ map: h.nameTex('미륵전', '#2b1d14', '#f2cf72', 46), roughness: .6 }), x, .5 + 3.0 + (4.2 + 1.6) * .2 * .4 + 1.4 * .62, z + 3.3 / 2 + .06, false);
       col(x, z, 2.6, 2.4);
+      (out.spots || (out.spots = [])).push({ lx: x, lz: z + 2.8, r: 3.2, name: '금산사 미륵전', story: '3층 법당 안에 서 계신 미륵삼존 · 문을 활짝 열어 두었어요' });
     }
     if (kind === 'pond') { // 백양사 쌍계루: 연못가 2층 누각
       const x = SX, zP = 1.6;

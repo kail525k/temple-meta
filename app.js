@@ -4,10 +4,11 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
 import { buildHall } from './hall.js?v=9';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=25';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=26';
+import { buildItems, buildLantern } from './items.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
-import { REGIONS } from './temples.js?v=9';
+import { REGIONS } from './temples.js?v=10';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=8';
 import { initStats, addBow, initRanks, flushStats, statsDebug } from './ranks.js?v=1';
@@ -287,7 +288,7 @@ function buildSite(info, T) {
   for (const sx of [-1, 1]) { add(new THREE.CylinderGeometry(.16, .18, 3, 10), MAT.red, sx * 1.6, 1.5, YZ1); col(sx * 1.6, YZ1, .25, .25); }
   box(4.2, .3, 1.2, MAT.wallCap, 0, 3.1, YZ1); box(3.6, .25, .3, MAT.red, 0, 2.8, YZ1);
   const SL = D / 2 + 4.4;
-  if (!yg) { // 석등 (법당 바로 앞) — 해동용궁사는 그 자리에 사사자 석탑
+  if (!yg && !st.lantern) { // 석등 (법당 바로 앞) — 해동용궁사는 그 자리에 사사자 석탑 · 법주사 쌍사자석등·화엄사 큰 석등은 items.js
   add(new THREE.CylinderGeometry(.42, .5, .3, 8), MAT.stone, 0, .15, SL); add(new THREE.CylinderGeometry(.12, .14, .95, 8), MAT.stone, 0, .78, SL);
   box(.62, .14, .62, MAT.stone, 0, 1.3, SL); box(.46, .5, .46, MAT.stone, 0, 1.62, SL); box(.3, .26, .48, MAT.fire, 0, 1.62, SL);
   add(new THREE.ConeGeometry(.52, .38, 8), MAT.stoneDark, 0, 2.06, SL); add(new THREE.SphereGeometry(.1, 10, 8), MAT.stoneDark, 0, 2.3, SL);
@@ -296,12 +297,13 @@ function buildSite(info, T) {
   // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
   const YG = yg ? yonggungFrame({ L, D, YX, YZ1 }) : null;
   const PZ = yg ? YG.PZ : D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, nameTex, site, fig: [] };
+  let lanSpot = null; if (st.lantern && !yg) { const r = buildLantern(H, st.lantern, SL); if (r) lanSpot = { lx: 0, lz: SL, r: 2.6, ...r }; }
   if (hyu) { H.fishX = -6.2; H.fishZ = YZ0 - 7.3; H.fishAt = { lx: -6.2, lz: YZ0 - 2.4 }; H.fishStall = { lx: -9.2, lz: YZ0 + 2.7 }; }
   if (st.sea) T.seaRect = buildSea(H, hyu ? { gap: [-10.2, -2.2, 3.4], side: st.seaSide || 0, clear: { x: -6.2, z: -7.9, rx: 9.6, rz: 4.1 } } : yg ? { gap: YG.gap } : {});
   if (yg && T.seaRect) T.seaRect.inlet = { x0: -YX - 7, x1: -YX + .3, z0: YZ0 - 1, z1: YG.ZB + .5 };
   if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(yg ? 2.0 : 2.7, pg.r + .75); } else T.pagoda = null;
   // 사찰 상징물 (법당 옆 마당·뒤뜰)
-  const exo = buildExtras(H, T); T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini; T.fish = exo.fish; T.anim = exo.anim; T.wishStone = exo.wishStone;
+  const exo = buildExtras(H, T), ito = buildItems(H, T); T.spots = [...(exo.spots || []), ...ito.spots, ...(lanSpot ? [lanSpot] : []), ...(st.pagoda === 'octa10' ? [{ lx: 0, lz: PZ + 3, r: 3.2, name: '조계사 팔각십층석탑', story: '부처님 진신사리를 모신 팔각 10층 석탑이에요' }] : [])]; T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini; T.fish = exo.fish; T.anim = exo.anim; T.wishStone = exo.wishStone;
   if (hyu) buildHyuhyu(H, T);
   if (yg) { buildYonggung(H, T, YG); const hh = hall.heightAt; hall.heightAt = (lx, lz) => Math.max(hh(lx, lz), YG.ground(lx, lz)); }
   T.figs = H.fig; // 바깥 불상·보살상 자리 (3D 존상 모델을 불러오면 바꿔 끼움)
@@ -1138,6 +1140,9 @@ function updateNear() {
   let html = '';
   if (Math.hypot(avatar.position.x, avatar.position.z) < 9.5) html = `<b>${REGION.name} 순례 마당</b><span>길 입구마다 표지석이 있어요 · 가고 싶은 절 쪽 길로 걸어가 보세요 (사찰 ${temples.length}곳)</span>`;
   else if (inside) html = `<b>${CFG.temple.name} ${CFG.hall.name} 안</b><span>${CFG.hall.buddhas === 0 ? '불상 대신 불단 뒤 창 너머 금강계단(부처님 진신사리)을 향해 삼배를 올려요' : '가운데 빛나는 방석에서 삼배를 올릴 수 있어요'}${bowCount ? ` · 오늘 ${bowCount}번 올렸어요` : ''}</span>`;
+  else if (cur && cur.spots && cur.spots.some(p => Math.hypot(lx - p.lx, lz - p.lz) < p.r)) { // 사찰 상징물 가까이: 이름과 간직한 이야기
+    const p = cur.spots.filter(q => Math.hypot(lx - q.lx, lz - q.lz) < q.r).sort((a, b) => Math.hypot(lx - a.lx, lz - a.lz) - Math.hypot(lx - b.lx, lz - b.lz))[0];
+    html = `<b>${p.name}</b><span>${p.story}</span>`; }
   else if (Math.abs(lx) < hall.L / 2 + 3 && lz > -hall.D / 2 && lz < hall.D / 2 + 8) html = `<b>${CFG.temple.name} ${CFG.hall.name}</b><span>가운데 계단으로 올라가 안으로 들어가 보세요</span>`;
   if (document.body.classList.contains('touch')) { // 휴대폰: 장소가 바뀔 때만 4초 보여 주고 접음 (다니는 길을 가리지 않게)
     if (html === nearLast) return; nearLast = html; clearTimeout(nearT);
@@ -2007,7 +2012,7 @@ function openRegions() {
   const rp = document.createElement('div'); rp.className = 'rg report';
   rp.innerHTML = `<b>🙏 우리 절도 넣어 주세요</b><span>지도에 없는 작은 절을 알려 주시면 검토해서 실제 모습대로 순례길에 넣어요 · 스님·종무소·신도 누구나</span><div class="go"><button>사찰 제보하기</button></div>`;
   if (OFFLINE) rp.innerHTML = `<b>🙏 우리 절도 넣어 주세요</b><span>사찰 제보는 사이트에서 받아요 · temple-meta.vercel.app</span><div class="go"><a href="${SITE}" target="_blank" rel="noopener" style="display:inline-block;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;text-decoration:none">사이트에서 제보하기</a></div>`;
-  else rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=4').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
+  else rp.onclick = () => { regionModal.classList.remove('show'); import('./report.js?v=5').then(m => m.openReport({ sido: REGION.name.split('·')[0], toast })); };
   regionList.appendChild(rp);
   regionModal.classList.add('show');
   if (!OFFLINE) monkRoster(true).then(list => { // 지금 접속해 계신 인증 스님의 절에 🪷 표시
@@ -2169,7 +2174,7 @@ function renderPeople() {
 }
 function openMonkReq(T = cur) { // 주지스님 등록 신청 (일주문 옆 팻말·👥 창)
   if (!T) return; if (OFFLINE) { window.open(SITE, '_blank', 'noopener'); return; }
-  import('./report.js?v=4').then(m => m.openMonkRequest({ temple: T.name, region: REGION.name, where: T.where || '', sido: REGION.name.split('·')[0] }));
+  import('./report.js?v=5').then(m => m.openMonkRequest({ temple: T.name, region: REGION.name, where: T.where || '', sido: REGION.name.split('·')[0] }));
 }
 function wireMonkBox() {
   const $ = id => document.getElementById(id);
