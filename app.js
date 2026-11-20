@@ -7,6 +7,7 @@ import { buildHall } from './hall.js?v=9';
 import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=26';
 import { buildItems, buildLantern } from './items.js?v=2';
 import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=1';
+import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
 import { REGIONS } from './temples.js?v=10';
@@ -943,7 +944,8 @@ function tapAt(e) {
     const r = canvas.getBoundingClientRect(), pt = isLocked() ? fishAimPt : fishAimAt((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     if (pt) { if (fishFood > 0) throwFish(pt); else releaseFish(pt); return; }
   }
-  if (FINE && e.pointerType === 'mouse') lockMouse(e); else clickMove(e);
+  if (FINE && e.pointerType === 'mouse') { if (isLocked()) { if (e.button === 0) clickMove(e, true); } else lockMouse(e); } // PC: 둘러보는 중 왼쪽 클릭 → 가운데 점 자리로 걸어감
+  else clickMove(e);
 }
 // 마우스 감도 10단계 ([ ] 키 또는 왼쪽 아래 −/+), 기기에 저장
 const SENS_STEPS = [.35, .5, .65, .8, 1, 1.2, 1.45, 1.75, 2.1, 2.5];
@@ -1230,18 +1232,22 @@ function step() {
   let mx = 0, mz = 0, moving = false;
   if (!sam && !sit && pose !== 'bow') {
     if (chore) speed = Math.min(speed, chore.kind === 'rag' ? 1.6 : chore.world ? 1.3 : 2.4); // 비·걸레를 들면 천천히
-    if (il > 0.05) { const c = Math.cos(yaw), s = Math.sin(yaw); mx = ix * c + iz * s; mz = -ix * s + iz * c; moving = true; }
+    if (il > 0.05) { const c = Math.cos(yaw), s = Math.sin(yaw); mx = ix * c + iz * s; mz = -ix * s + iz * c; moving = true; if (moveTarget) { moveTarget = null; markMove(null); } } // 조이스틱·키로 움직이면 누른 곳 걷기는 그만
     else if (tapdori) { speed = 2.2; const v = tapdoriStep(dt); mx = v[0]; mz = v[1]; moving = true; }
-    else if (moveTarget) {
-      const dx = moveTarget.x - avatar.position.x, dz = moveTarget.z - avatar.position.z, d = Math.hypot(dx, dz);
-      moveTarget.t += dt; if (d < .35 || moveTarget.t > 25) { moveTarget = null; markMove(null); } else { mx = dx / d; mz = dz / d; moving = true; if (d > 6 && !chore) speed = document.body.classList.contains('touch') ? 4 : 5; }
+    else if (moveTarget) { // 누른 곳으로: 길(꺾이는 점)을 차례로 따라감
+      const M = moveTarget, P = M.pts; let q = P ? P[M.i] : [M.x, 0, M.z], dx = q[0] - avatar.position.x, dz = q[2] - avatar.position.z, d = Math.hypot(dx, dz);
+      while (P && M.i < P.length - 1 && d < .45) { M.i++; q = P[M.i]; dx = q[0] - avatar.position.x; dz = q[2] - avatar.position.z; d = Math.hypot(dx, dz); }
+      const left = d + (P ? M.rest[M.i] : 0); M.t += dt;
+      if (left < .3 || M.t > (M.max || 25)) { const ok2 = left < .6; moveTarget = null; WT.clear(ok2); }
+      else { mx = dx / d; mz = dz / d; moving = true; if (!chore) speed = left > 6 ? (document.body.classList.contains('touch') ? 4 : 5) : 3.4; }
     }
   }
   if (moving) {
     if (!tapdori) {
       const p = avatar.position, nx = p.x + mx * speed * dt, nz = p.z + mz * speed * dt; let ok = true;
       if (blockedAt(p.x, p.z, feetY) || !blockedAt(nx, nz, feetY)) { p.x = nx; p.z = nz; } else if (!blockedAt(nx, p.z, feetY)) p.x = nx; else if (!blockedAt(p.x, nz, feetY)) p.z = nz; else ok = false; // 이미 물체 안(순간이동 직후)이면 빠져나갈 수 있게
-      if (!ok && moveTarget) { moveTarget = null; markMove(null); } // 막혀서 못 가면 멈춤
+      if (moveTarget) { if (ok) moveTarget.stuck = 0; else if ((moveTarget.stuck += dt) > .35) { // 막히면 그 자리에서 길을 한 번 더 찾고, 그래도 막히면 멈춤
+        const M = moveTarget; if (M.re < 2 && M.pts) { const re = M.re + 1, last = M.pts[M.pts.length - 1]; if (goToW(last[0], last[2], last[1], true)) moveTarget.re = re; else { moveTarget = null; markMove(null); } } else { moveTarget = null; markMove(null); toast('🚧 길이 막혀서 멈췄어요', 1300); } } }
       pushOut(p, 0.42); clampBound(p);
     }
     // 카메라가 걷는 방향 뒤로 천천히 따라 돎 → 왼쪽으로 밀면 왼쪽으로 돌아 걸음 (마우스 시점·1인칭·화면 끌기·뒤로 걷기일 땐 안 함)
@@ -1357,24 +1363,41 @@ const rituals = initRituals({ sound, store, toast, done, onUse: () => { if (sit)
 document.getElementById('btnMoktak').onclick = () => rituals.openMoktak();
 document.getElementById('btnBeads').onclick = () => rituals.openBeads();
 
-// 바닥 클릭 → 그 자리로 걸어감
-const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), _p = new THREE.Vector3();
-const moveMark = new THREE.Mesh(new THREE.RingGeometry(.22, .34, 28), new THREE.MeshBasicMaterial({ color: '#ffe08a', transparent: true, opacity: .9, depthWrite: false }));
-moveMark.rotation.x = -Math.PI / 2; moveMark.visible = false; scene.add(moveMark);
-function markMove(p) { if (!p) { moveMark.visible = false; return; } moveMark.position.set(p.x, avatar.position.y + .05, p.z); moveMark.visible = true; moveMark.userData.t = 0; }
-function clickMove(e) {
+// 누른 곳(PC는 둘러보는 중 가운데 점)으로 걸어감: 금빛 동그라미·화살표를 띄우고, 물체·벽을 돌아가는 길을 점선으로 보여 주며 걸음
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), _p = new THREE.Vector3(), _n = new THREE.Vector3();
+const WT = createWalkTo({ scene, blockedAt, groundAt, obstacles, bound: () => RB - 4 });
+function markMove(p) { if (!p) WT.clear(); }
+// 세계 좌표 (x, z)로 길을 찾아 걸어가기 (y: 누른 곳 높이 · 계단 위를 눌렀을 때)
+function goToW(x, z, y = feetY, quiet = false) {
+  const p = avatar.position, r = WT.find(p.x, p.z, feetY, x, z, y);
+  if (r.fail) { moveTarget = null; WT.clear(); if (!quiet) toast(r.fail === 'far' ? '🚶 너무 멀어요 · 조금 가까운 곳을 눌러 주세요' : '🚧 그곳으로는 걸어갈 수 없어요', 1800); DBG.tap = 'nopath ' + r.fail; return false; }
+  const P = r.pts, rest = new Float32Array(P.length); for (let i = P.length - 2; i >= 0; i--) rest[i] = rest[i + 1] + Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][2] - P[i][2]);
+  const last = P[P.length - 1]; moveTarget = { x: last[0], z: last[2], pts: P, rest, i: 1, t: 0, max: 8 + rest[0] / 1.6, stuck: 0, re: 0 };
+  WT.show(P); DBG.tap = `go ${P.length - 1}꺾임 ${rest[0].toFixed(1)}m ${(r.ms || 0).toFixed(0)}ms`;
+  if (r.near && !quiet) toast('🚶 그 자리는 들어갈 수 없어서 바로 옆까지 걸어갈게요', 1700);
+  return true;
+}
+const visibleUp = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+function clickMove(e, center = false) {
   if (sam || rituals.open || bellHold) { DBG.tap = 'busy'; return; }
-  const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  if (center) ndc.set(0, 0); else { const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); }
   ray.setFromCamera(ndc, camera);
   if (cur && cur.signs && cur.signs.length) { // 안내판(팻말)을 누르면 읽기 창
     const hit = ray.intersectObjects(cur.signs, true)[0];
     if (hit && hit.distance < 40) { let key = hit.object.userData.board;
       if (!key) { const [hx, hz] = W2L(hit.point.x, hit.point.z); let bd = 6; for (const p of cur.spots || []) if (p.board) { const d = Math.hypot(p.lx - hx, p.lz - hz); if (d < bd) { bd = d; key = p.board; } } }
       if (key && openBoard(key)) { DBG.tap = 'board'; return; } } }
-  if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -avatar.position.y), _p) || _p.distanceTo(avatar.position) > 70) { DBG.tap = 'miss'; return; }
-  DBG.tap = 'go';
+  // 누른 곳: 사찰 바닥·계단·건물 중 처음 맞은 곳 (머리 위 연등·나뭇잎 옆면은 건너뜀), 없으면 발 높이 평면
+  let hp = null; const roots = [cur && cur.site, COMMONS].filter(Boolean);
+  for (const h of roots.length ? ray.intersectObjects(roots, true) : []) {
+    if (h.distance > 95) break; const m = h.object; if (!m.isMesh || !visibleUp(m) || (m.material && m.material.depthWrite === false)) continue;
+    const ny = h.face ? _n.copy(h.face.normal).transformDirection(m.matrixWorld).y : 1;
+    if (h.point.y > feetY + 2.4 && ny < .5) continue; hp = h.point; break;
+  }
+  if (!hp) { if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -avatar.position.y), _p)) { DBG.tap = 'miss'; return; } hp = _p; }
+  if (Math.hypot(hp.x - avatar.position.x, hp.z - avatar.position.z) > 70) { DBG.tap = 'far'; toast('🚶 너무 멀어요 · 조금 가까운 곳을 눌러 주세요', 1500); return; }
   if (sit) standUp(); if (tapdori) stopTapdori(); intro = -1;
-  moveTarget = { x: _p.x, z: _p.z, t: 0 }; markMove(_p);
+  goToW(hp.x, hp.z, hp.y);
 }
 
 // 앉기: 법당 안이면 가장 가까운 방석에 가부좌(눈 감고 명상), 밖이면 그 자리에 앉아 쉬기
@@ -1769,7 +1792,7 @@ function updateCtx(inside, dBow, lx, lz) {
       if (dAt < 4.6) {
         if (fishFood > 0) acts.push([`🐟 밥 던지기 (${fishFood}줌)`, throwFish]);
         if (bucket) acts.push(['🙏 방생하기', releaseFish]);
-        if (!fishFood && !bucket) acts.push(['🛍️ 판매대로 가기', () => { const [x, z] = L2W(F.stall.lx, F.stall.lz + 1.6); moveTarget = { x, z, t: 0 }; markMove(new THREE.Vector3(x, avatar.position.y, z)); }]);
+        if (!fishFood && !bucket) acts.push(['🛍️ 판매대로 가기', () => { const [x, z] = L2W(F.stall.lx, F.stall.lz + 1.6); goToW(x, z, avatar.position.y); }]);
       }
     }
   }
@@ -1983,7 +2006,7 @@ function updateWorld(dt) {
   updateWishStone(dt);
   if (bellCool > 0) bellCool -= dt;
   updateBell(dt);
-  if (moveMark.visible) { moveMark.userData.t += dt; moveMark.material.opacity = .9 * (.6 + .4 * Math.sin(moveMark.userData.t * 6)); }
+  WT.update(dt, avatar.position.x, avatar.position.z); // 누른 곳 동그라미·길 점선
   for (const T of temples) if (T.anim && T === cur) T.anim(dt); // 지금 있는 사찰만 (황어 떼 등)
   for (let i = GROW.length - 1; i >= 0; i--) { const it = GROW[i]; it.userData.grow = Math.min(1, it.userData.grow + dt * 2); it.scale.setScalar((.01 + .99 * it.userData.grow) * (it.userData.base || 1)); if (it.userData.grow >= 1) { delete it.userData.grow; GROW.splice(i, 1); } }
   if (RACK) for (const it of RACK.items) if (it.userData.grow !== undefined) { it.userData.grow = Math.min(1, it.userData.grow + dt * 2); it.scale.setScalar(.01 + .99 * it.userData.grow); if (it.userData.grow >= 1) delete it.userData.grow; }
@@ -2308,6 +2331,7 @@ async function startTogether() {
   camera.position.set(temples[0].ux * 6, 2.2, temples[0].uz * 6);
   await Promise.race([glbReady, new Promise(r => setTimeout(r, 9000))]); // 모델이 늦으면 9초 뒤 코드 아바타로 먼저 시작
   document.getElementById('loading').classList.add('hide');
+  if (document.body.classList.contains('touch')) { let seen = true; try { seen = !!localStorage.getItem('suwol.tapHint'); localStorage.setItem('suwol.tapHint', '1'); } catch (e) { } if (!seen) setTimeout(() => toast('👆 가고 싶은 곳을 톡 누르면 금빛 동그라미가 생기고 그리로 걸어가요', 4200), 7000); }
   canvas.focus();
   loop();
   setTimeout(() => toast('🙏 수월하세요 · 오늘 하루도 수월하시길 바라요', 3200), 900); // 수월의 인사
@@ -2345,6 +2369,8 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   walk(on, run) { keys.KeyW = !!on; keys.ShiftLeft = !!run; },
   sweepOK(v = true) { SWEEP_OK = v; },
   goTo(lx, lz) { const [x, z] = L2W(lx, lz); moveTarget = { x, z, t: 0 }; },
+  path(lx, lz, y) { const [x, z] = L2W(lx, lz); goToW(x, z, y ?? feetY); return { tap: DBG.tap, mt: moveTarget && { n: moveTarget.pts.length, len: +moveTarget.rest[0].toFixed(1) } }; },
+  tapAt(nx, ny) { clickMove({ clientX: (nx + 1) / 2 * canvas.clientWidth, clientY: (1 - ny) / 2 * canvas.clientHeight }); return { tap: DBG.tap, mt: moveTarget && { n: moveTarget.pts ? moveTarget.pts.length : 0, len: moveTarget.rest ? +moveTarget.rest[0].toFixed(1) : 0 } }; },
   toBell() { if (!BELL) return false; avatar.position.set(BELL.stand[0], 0, BELL.stand[1]); avatar.rotation.y = Math.atan2(BELL.x - BELL.stand[0], BELL.z - BELL.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; intro = -1; return true; },
   ws: () => cur && cur.wishStone && { lx: cur.wishStone.lx, lz: cur.wishStone.lz, step: wsStep, anim: wsAnim && wsAnim.kind, t: wsAnim && +wsAnim.t.toFixed(2) },
   tp(lx, lz, ry) { const [x, z] = L2W(lx, lz); avatar.position.x = x; avatar.position.z = z; if (ry !== undefined) avatar.rotation.y = ry; },
