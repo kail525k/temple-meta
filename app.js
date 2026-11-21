@@ -239,6 +239,10 @@ const W2L = (x, z) => { const dx = x - HX, dz = z - HZ; return [dx * cosT - dz *
 const obstacles = []; // 월드 기준 회전 사각형 {cx,cz,c,s,hu,hv}
 let hall = null, YARD = null, startL = [0, 20];
 function addCollider(c) { const [cx, cz] = L2W(c.cx, c.cz); obstacles.push({ cx, cz, c: cosT, s: -sinT, hu: c.hx, hv: c.hz }); }
+function inObstacle(wx, wz, r = 0) { for (const ob of obstacles) { const dx = wx - ob.cx, dz = wz - ob.cz, du = dx * ob.c + dz * ob.s, dv = -dx * ob.s + dz * ob.c; if (Math.abs(du) < ob.hu + r && Math.abs(dv) < ob.hv + r) return true; } return false; }
+// 사찰 좌표의 그 자리가 발로 닿는 평평한 마당인가 (낙엽·비질하는 동자승 자리: 계곡물·돌난간·나무 울타리·다리 위는 아님)
+function openGround(lx, lz, r = .3) { const [x, z] = L2W(lx, lz); return !inObstacle(x, z, r) && !blockedAt(x, z, 0) && groundAt(x, z, 0) < .05; }
+function clearLine(x0, z0, x1, z1) { const n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / .45); for (let i = 1; i <= n; i++) if (!openGround(x0 + (x1 - x0) * i / n, z0 + (z1 - z0) * i / n, .2)) return false; return true; }
 // 권역 안 사찰들: 사찰마다 자기 좌표틀(법당 기준)이 있고, 아바타와 가장 가까운 사찰의 틀을 '지금 사찰'로 씀
 const temples = []; let cur = null, sharedLights = null, RG = 30, RB = 90;
 function setFrame(T) { HX = T.hx; HZ = T.hz; TH = T.th; cosT = Math.cos(TH); sinT = Math.sin(TH); NX = Math.sin(TH); NZ = Math.cos(TH); }
@@ -419,7 +423,7 @@ function leavesOf(T) { // 그 절 마당 낙엽 (처음 들를 때 만듦 · 법
   const heaps = Array.from({ length: 9 }, () => [Y.x0 + 1 + Math.random() * (Y.x1 - Y.x0 - 2), Y.z0 + 1 + Math.random() * (Y.z1 - Y.z0 - 2)]); // 바람에 몰린 낙엽 무더기
   heaps.push([Y.x0 + 1.2, Y.z1 - 2], [Y.x1 - 1.2, Y.z1 - 2], [Y.x0 + 1.2, (Y.z0 + Y.z1) / 2], [Y.x1 - 1.2, (Y.z0 + Y.z1) / 2]); // 담 밑
   const gss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.4;
-  const spot = () => { for (let k = 0; k < 30; k++) { const h = Math.random() < .6 ? heaps[Math.floor(Math.random() * heaps.length)] : null; let x = h ? h[0] + gss() : Y.x0 + .9 + Math.random() * (Y.x1 - Y.x0 - 1.8), z = h ? h[1] + gss() : Y.z0 + .9 + Math.random() * (Y.z1 - Y.z0 - 1.8); x = Math.max(Y.x0 + .7, Math.min(Y.x1 - .7, x)); z = Math.max(Y.z0 + .7, Math.min(Y.z1 - .7, z)); if (Math.abs(x) < T.L / 2 + 1.6 && z > -T.D / 2 - 1.6 && z < T.D / 2 + 2.6) continue; if (Hh.isInside(x, z) || (pg && Math.hypot(x - pg[0], z - pg[1]) < (T.pagodaR || 2.4))) continue; return [x, z]; } return null; };
+  const spot = () => { for (let k = 0; k < 30; k++) { const h = Math.random() < .6 ? heaps[Math.floor(Math.random() * heaps.length)] : null; let x = h ? h[0] + gss() : Y.x0 + .9 + Math.random() * (Y.x1 - Y.x0 - 1.8), z = h ? h[1] + gss() : Y.z0 + .9 + Math.random() * (Y.z1 - Y.z0 - 1.8); x = Math.max(Y.x0 + .7, Math.min(Y.x1 - .7, x)); z = Math.max(Y.z0 + .7, Math.min(Y.z1 - .7, z)); if (Math.abs(x) < T.L / 2 + 1.6 && z > -T.D / 2 - 1.6 && z < T.D / 2 + 2.6) continue; if (Hh.isInside(x, z) || (pg && Math.hypot(x - pg[0], z - pg[1]) < (T.pagodaR || 2.4)) || !openGround(x, z)) continue; return [x, z]; } return null; };
   const im = new THREE.InstancedMesh(LEAF_GEO, new THREE.MeshStandardMaterial({ roughness: .9, side: THREE.DoubleSide }), N); im.frustumCulled = false; im.receiveShadow = true;
   const col = new THREE.Color();
   for (let i = 0; i < N; i++) { const p = spot() || [Y.x0 + 1, Y.z1 - 1], L = { x: p[0], z: p[1], y: 0, yaw: Math.random() * 6.28, tilt: (Math.random() - .5) * .5, s: .8 + Math.random() * .5, st: 0, t: 0, vx: 0, vy: 0, vz: 0 }; L.y = (Hh.heightAt ? Hh.heightAt(L.x, L.z) : 0) + .022; list.push(L); im.setColorAt(i, col.set(LEAF_COL[i % LEAF_COL.length]).offsetHSL(0, 0, (Math.random() - .5) * .08)); }
@@ -534,6 +538,7 @@ function updateNpc(dt) {
       const L = LV.list[Math.floor(Math.random() * LV.list.length)]; if (L.st !== 0 || Math.hypot(L.x - ax, L.z - az) < 2.5 || Math.hypot(L.x - npc.x, L.z - npc.z) > 9) continue;
       if (pg) { const vx = L.x - npc.x, vz = L.z - npc.z, l2 = vx * vx + vz * vz || 1, t = Math.max(0, Math.min(1, ((pg[0] - npc.x) * vx + (pg[1] - npc.z) * vz) / l2)); if (Math.hypot(npc.x + vx * t - pg[0], npc.z + vz * t - pg[1]) < (T.pagodaR || 2.4) + .4) continue; }
       if (Math.min(Math.abs(L.x), Math.abs(npc.x)) < T.L / 2 + 1.6 && Math.min(L.z, npc.z) < T.D / 2 + 2.6) continue;
+      if (!clearLine(npc.x, npc.z, L.x, L.z)) continue; // 계곡·석탑 난간·나무 울타리를 가로지르지 않게
       npc.goal = [L.x, L.z];
     }
     if (!npc.goal) npc.wait = 2;
@@ -2362,6 +2367,8 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   others: () => [...peers.values()].map(P => ({ x: +P.g.position.x.toFixed(3), z: +P.g.position.z.toFixed(3), wob: +(P.wob || 0).toFixed(3) })),
   place(x, z, ry) { avatar.position.x = x; avatar.position.z = z; if (ry !== undefined) avatar.rotation.y = ry; intro = -1; },
   cam(y, d, p) { yaw = y; dist = d; pitch = p; intro = -1; },
+  npcAt: () => npc && { x: +npc.x.toFixed(2), z: +npc.z.toFixed(2), goal: npc.goal, open: npc.T ? openGround(npc.x, npc.z, 0) : null },
+  leafAudit: () => { const T = cur, LV = T && T.leaves; if (!LV) return null; let bad = 0; for (const L of LV.list) if (L.st === 0 && !openGround(L.x, L.z, 0)) bad++; return { n: LV.list.length, bad }; },
   snap(lx, ly, lz, tx, ty, tz, fov = 55) { const [x, z] = L2W(lx, lz), [X, Z] = L2W(tx, tz), f0 = camera.fov; camera.position.set(x, ly, z); camera.fov = fov; camera.updateProjectionMatrix(); camera.lookAt(X, ty, Z); renderer.render(scene, camera); camera.fov = f0; camera.updateProjectionMatrix(); }, // 사진 대조용: 사찰 좌표로 카메라를 바로 놓고 한 장
   view: () => ({ yaw: +yaw.toFixed(3), face: +avatar.rotation.y.toFixed(3), joy: { ...joy }, mv: !!moveTarget, tap: DBG.tap, sam: !!sam, bell: !!bellHold }),
   peers: () => [...peers.values()].map(P => ({ nick: P.nick, vis: P.g.visible, bell: P.bell || 0, glb: !!P.glb })),
