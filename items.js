@@ -724,6 +724,47 @@ export function buildItems(h, T) {
       h.col(0, zc + d / 2 - .1, w / 2 + .2, .2); for (const sx of [-1, 1]) h.col(sx * w / 2, zc, .2, d / 2 + .2);
       spotAt(0, zc - d / 2 - 1.2, 3.6, '선운사 만세루', '정면 9칸, 우리나라 사찰 누각 가운데 가장 큰 강당이에요 · 대웅보전 쪽으로 활짝 열려 있어요');
     }
+    if (kind === 'gaunruSite') { // 고운사 가운루 터: 계곡을 가로지른 2층 누각(보물)이 2025년 3월 산불로 불타 지금은 돌 주초만 남은 자리 · 줄을 둘러 보호
+      const cx = -(L / 2 + 2.1), cz = D / 2 + 13.4, w = 7.0, d = 2.6, P = parts(), Pr = parts();
+      const bed = mesh(h.site, new THREE.PlaneGeometry(w + 1.6, d + 1.2), M('#b9ab90'), cx, .03, cz, false); bed.rotation.x = -Math.PI / 2; // 물이 거의 마른 계곡 바닥
+      for (let i = 0; i < 14; i++) P.ball(.18 + rnd() * .2, i % 2 ? R.rock : R.rock2, cx + (rnd() - .5) * (w + 1), .08, cz + (rnd() - .5) * (d + .6), 1, .5, 1);
+      for (const sz of [-1, 1]) for (let i = 0; i < 6; i++) { const x = cx - w / 2 + .5 + i * (w - 1) / 5, z = cz + sz * d / 2 * .7;
+        P.box(.62, .14, .62, R.granite, x, .07, z); P.box(.36, .35 + rnd() * .55, .36, R.granite2, x, .3, z); }        // 돌 주초와 남은 돌기둥 밑동
+      for (const sx of [-1, 1]) P.box(.5, .45, d + .4, R.granite2, cx + sx * (w / 2 + .1), .22, cz);                   // 양 끝 축대
+      const fx = w / 2 + .5, fz = d / 2 + .5, rope = M('#c9b48a');
+      for (const [x, z] of [[-fx, -fz], [0, -fz], [fx, -fz], [-fx, fz], [0, fz], [fx, fz]]) Pr.cyl(.05, .06, .8, 6, k.bark2 || R.rock2, cx + x, .4, cz + z);
+      for (const z of [-fz, fz]) Pr.box(2 * fx, .03, .03, rope, cx, .68, cz + z);
+      for (const x of [-fx, fx]) Pr.box(.03, .03, 2 * fz, rope, cx + x, .68, cz);
+      P.flush(h.site); Pr.flush(h.site, { noOcc: true });
+      h.col(cx, cz, fx + .1, fz + .1);
+      spotAt(cx + fx + 1.6, cz, 3.0, '고운사 가운루 터', '최치원이 처음 세웠다는 계곡 위 누각 자리 · 2025년 산불로 불타 복원을 준비하고 있어요');
+    }
+    if (kind === 'gounNahan') { // 고운사 나한전과 삼층석탑(높이 2.5m): 대웅보전 동쪽 언덕 · 나한전은 옛 대웅전
+      const x = L / 2 + 3.3, g = grp(h, x, -1.2);
+      smallHall(h, g, { w: 3.4, d: 2.6, hh: 1.7, roofH: 1.0, plaque: '나한전', plaqueW: 1.0 });
+      colG(h, g, 0, 0, 2.0, 1.6);
+      stoneTiers(h, x, D / 2 - 1.6, 3, .62);
+      h.col(x, D / 2 - 1.6, 1.0, 1.0);
+      spotAt(x - 1.8, D / 2, 2.8, '고운사 삼층석탑', '나한전 앞에 선 높이 2.5m의 단정한 삼층석탑이에요');
+    }
+    if (kind === 'burntForest') { // 고운사 사찰림: 2025년 산불로 탄 줄기 사이로 새순이 돋는 숲 (나무를 새로 심지 않고 스스로 되살아나게 둠) · 마당 바깥에만
+      const trunk = new THREE.MeshStandardMaterial({ color: '#2e2925', roughness: 1, flatShading: true }), sprout = M('#8cc06a'), sprout2 = M('#6fa957');
+      const tr = [], sp = [], q = new THREE.Quaternion(), e = new THREE.Euler(), z0 = (h.YZ0 ?? -D / 2 - 2) - 1.5;
+      for (let i = 0; i < 260 && tr.length < 70; i++) {
+        const x = (rnd() - .5) * 2 * (YX + 13), z = -D / 2 - 14 + rnd() * (YZ1 + D / 2 + 20);
+        if (Math.abs(x) < YX + 1.2 && z > z0 && z < YZ1 + 1.5) continue; // 마당 안은 비움
+        if (Math.abs(x) < 3.2 && z > YZ1 - 1) continue;                           // 일주문 앞 길도 비움
+        const ht = 2.2 + rnd() * 4.8, br = rnd() < .3;
+        e.set((rnd() - .5) * .12, rnd() * 6, (rnd() - .5) * .12); q.setFromEuler(e);
+        tr.push(new THREE.Matrix4().compose(new THREE.Vector3(x, (br ? ht * .55 : ht) / 2, z), q, new THREE.Vector3(.7 + rnd() * .5, br ? ht * .55 : ht, .7 + rnd() * .5)));
+        for (let j = 0; j < 3; j++) { const a = rnd() * 6.3, r = .35 + rnd() * .7, s = .3 + rnd() * .45;
+          sp.push(new THREE.Matrix4().compose(new THREE.Vector3(x + Math.cos(a) * r, s * .5, z + Math.sin(a) * r), new THREE.Quaternion(), new THREE.Vector3(s, s, s))); }
+      }
+      const tg = new THREE.CylinderGeometry(.11, .17, 1, 6), im = new THREE.InstancedMesh(tg, trunk, tr.length); tr.forEach((m, i) => im.setMatrixAt(i, m)); im.castShadow = true; h.site.add(im);
+      const sg = new THREE.IcosahedronGeometry(.5, 0), half = Math.ceil(sp.length / 2);
+      for (const [mat, list] of [[sprout, sp.slice(0, half)], [sprout2, sp.slice(half)]]) { const ims = new THREE.InstancedMesh(sg, mat, list.length); list.forEach((m, i) => ims.setMatrixAt(i, m)); h.site.add(ims); }
+      spotAt(YX - 1.4, D / 2 + 7, 2.6, '고운사 사찰림', '2025년 산불로 탄 숲이 스스로 되살아나고 있어요 · 탄 줄기 둘레로 새순이 돋아요');
+    }
     if (kind === 'neungsohwa') { // 봉녕사 능소화: 여름이면 대적광전·향하당 곁 담장을 타고 주황 꽃이 핌 (법당 오른쪽 담장)
       const P = parts(), x = YX - .2, orange = glow('#f08a3a', .3), orange2 = glow('#f6a65a', .25);
       for (let z = D / 2 - 5.5; z < D / 2 + 3.5; z += .55) {

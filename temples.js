@@ -41,6 +41,7 @@ export const REGIONS = [
     { name: '동화사', hall: '대웅전', altar: 'amita sakya yaksa', buddhas: 3, lat: 35.9950, lng: 128.6990, where: '대구 팔공산', style: { bigStand: { k: 'buddhaS', tint: 'stone', h: 11, name: '통일약사여래대불' } } },
     { name: '직지사', hall: '대웅전', altar: 'yaksa sakya amita', buddhas: 3, lat: 36.1225, lng: 128.0008, where: '김천', style: { pagoda: 'twin3', items: ['cheonbul'] } },
     { name: '은해사', hall: '극락보전', altar: 'bosal amita bosal', buddhas: 3, lat: 35.9998, lng: 128.8400, where: '영천', style: { items: ['chusa'] } },
+    { name: '고운사', hall: '대웅보전', altar: 'bosal sakya bosal', buddhas: 3, lat: 36.4440, lng: 128.7020, where: '의성 등운산', q: '의성 고운사', addr: '경상북도 의성군 단촌면 고운사길 415', note: '조계종 제16교구 본사 · 2025년 산불을 견딘 대웅보전 · 가운루 터와 되살아나는 숲', style: { pagoda: 'none', items: ['gaunruSite', 'gounNahan', 'burntForest'], lanRows: [6.8, 9.2] } }, // 2025.3 의성 산불: 30동 중 9동만 남음(가운루·연수전 등 소실) → 지금 남은 모습대로
   ] },
   { id: 'gyeongnam', name: '경남·부산·울산', env: { trees: { pine: .45, broad: .2, maple: .2, bamboo: .15 }, mtn: { h: 82, rock: true }, grass: '#a2b97a', note: '가야산·영축산' }, temples: [
     { name: '통도사', hall: '대웅전', buddhas: 0, lat: 35.4879, lng: 129.0637, where: '양산', note: '삼보사찰 중 불보사찰 · 불상 대신 진신사리를 모셨어요', style: { roof: 'tee', extras: ['gyedan'], items: ['jajangmae'] } },

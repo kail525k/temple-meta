@@ -5,12 +5,12 @@ import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
 import { buildHall } from './hall.js?v=11';
 import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=29';
-import { buildItems, buildLantern, buildGate } from './items.js?v=5';
-import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=4';
+import { buildItems, buildLantern, buildGate } from './items.js?v=6';
+import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=5';
 import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
-import { REGIONS } from './temples.js?v=13';
+import { REGIONS } from './temples.js?v=14';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=9';
 import { initStats, addBow, initRanks, flushStats, statsDebug } from './ranks.js?v=1';
@@ -367,6 +367,7 @@ function buildSite(info, T) {
     if (ex.includes('janggyeong')) { at('해인사 장경판전', 0, -D / 2 - 1.4, 3.0); sign('해인사 장경판전', -(L / 2 + 2.6), -D / 2 - .6, Math.PI / 2); }
     if (ex.includes('pond')) { at('백양사 쌍계루', SXe, 1.6, 3.4); sign('백양사 쌍계루', SXe + .9, D / 2 + 1.3, 0); }
     if (ex.includes('bridge')) { at('선암사 승선교', SXe - 1.4, D / 2 + 5.4, 3.0); sign('선암사 승선교', SXe - 2.4, D / 2 + 5.2, -.5); }
+    if ((st.items || []).includes('gaunruSite')) sign('고운사 가운루 터', -(L / 2 - .2), D / 2 + 11.2, .45);
     if (ex.includes('stoneBuddhas')) { at('관음사 돌부처 길', 0, YZ1 - 4, 3.0); sign('관음사 돌부처 길', 3.6, YZ1 - 2.4, -.35); }
     const HK = { '수덕사': '수덕사 대웅전', '화엄사': '화엄사 각황전', '봉선사': '봉선사 큰법당' }[T.name]; if (HK) sign(HK, -(L / 2 - 1.2), D / 2 + 1.4, 0);
     if (lanSpot && boardKey(lanSpot.name)) sign(boardKey(lanSpot.name), 1.9, SL + .3, -.5);
