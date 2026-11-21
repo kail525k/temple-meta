@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=8';
-import { R, standingGwaneum } from './regional.js?v=26';
+import { R, standingGwaneum, stoneTiers } from './regional.js?v=27';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const glow = (c, e = .25) => M(c, { emissive: c, emissiveIntensity: e });
@@ -153,6 +153,130 @@ export function buildLantern(h, kind, z) {
 }
 
 /* ───────── 사찰 상징물 ───────── */
+
+// ───────── 실제 사진과 맞춘 모습 (2026.11): 계곡과 다리, 문, 누각, 노거수 ─────────
+// 마당을 가로지르는 계곡: 물 + 양쪽 돌축대 + 바위 · 가운데 다리 자리(gap)만 비워 두고 물에는 못 들어감
+// (돌축대·바위는 따로따로 그려야 함 — 한 덩어리로 합치면 다리 자리까지 막는 상자가 됨)
+function streamAcross(h, zc, { wd = 3.0, half, gap = 1.4, bankH = .85, rocks = 7, rnd = Math.random } = {}) {
+  const wt = mesh(h.site, new THREE.PlaneGeometry(2 * half, wd + .3), R.water, 0, .045, zc, false); wt.rotation.x = -Math.PI / 2;
+  for (const sx of [-1, 1]) {
+    const len = half - gap, cx = sx * (gap + len / 2);
+    for (const sz of [-1, 1]) { mesh(h.site, new THREE.BoxGeometry(len, bankH, .46), R.rock2, cx, bankH / 2, zc + sz * (wd / 2 + .23)); mesh(h.site, new THREE.BoxGeometry(len, .1, .56), R.granite, cx, bankH + .05, zc + sz * (wd / 2 + .23)); }
+    const P = parts();
+    for (let i = 0; i < rocks; i++) { const x = sx * (gap + .6 + rnd() * (len - 1.2)), z = zc + (rnd() - .5) * (wd - .6); P.ball(.22 + rnd() * .22, rnd() < .5 ? R.rock : R.rock2, x, .08, z, 1.3, .55, 1, 0); }
+    P.flush(h.site);
+    h.col(cx, zc, len / 2, wd / 2 + .46);
+  }
+}
+// 무지개(홍예) 돌다리: 아래가 반원으로 뚫린 돌덩이 + 홍예석 테 + 양끝 돌계단 (위는 걸어서 건넘)
+function archBridge(h, zc, { len = 4.4, w = 2.8, deck = 1.0, r = .8, steps = 3, mat = R.granite, arches = 1 } = {}) {
+  const sh = new THREE.Shape(), L2 = len / 2, cs = arches > 1 ? (len - 2 * r - .5) / (arches - 1) : 0, cx = i => -cs * (arches - 1) / 2 + i * cs; // 홍예 여러 칸이면 고르게 나눔
+  sh.moveTo(-L2, 0); for (let i = 0; i < arches; i++) { sh.lineTo(cx(i) - r, 0); sh.absarc(cx(i), 0, r, Math.PI, 0, true); } sh.lineTo(L2, 0); sh.lineTo(L2, deck); sh.lineTo(-L2, deck); sh.lineTo(-L2, 0);
+  const geo = new THREE.ExtrudeGeometry(sh, { depth: w, bevelEnabled: false, curveSegments: 18 }); geo.rotateY(Math.PI / 2); geo.translate(-w / 2, 0, 0);
+  mesh(h.site, geo, mat, 0, 0, zc);
+  for (let i = 0; i < arches; i++) for (const sx of [-1, 1]) { const ring = mesh(h.site, new THREE.TorusGeometry(r + .09, .1, 6, 20, Math.PI), R.granite2, sx * (w / 2 + .02), 0, zc - cx(i), false); ring.rotation.y = Math.PI / 2; }
+  for (const se of [-1, 1]) for (let i = 0; i < steps; i++) { const hh = deck * (i + 1) / (steps + 1); mesh(h.site, new THREE.BoxGeometry(w * .86, hh, .36), R.granite2, 0, hh / 2, zc + se * (L2 + .18 + (steps - 1 - i) * .36)); }
+  return { L2, deck, end: L2 + steps * .36 };
+}
+// 송광사 우화각: 삼청교 위에 앉은 긴 누각 (빨간 기둥 · 팔작지붕이 다리 방향으로 길게)
+function uhwagak(h, zc, deck) {
+  const len = 4.2, hw = 1.18, ph = 2.15, P = parts();
+  for (const sx of [-1, 1]) for (const z of [-1.95, -.65, .65, 1.95]) mesh(h.site, new THREE.CylinderGeometry(.11, .12, ph, 10), R.redCol, sx * hw, deck + ph / 2, zc + z);
+  for (const sx of [-1, 1]) { // 낮은 난간 (기둥 사이)
+    mesh(h.site, new THREE.BoxGeometry(.07, .07, len), R.wood, sx * (hw + .02), deck + .63, zc); // 난간 윗면이 발보다 0.6m 넘게 높아야 올라서지 못함
+    for (let z = -1.85; z <= 1.86; z += .3) mesh(h.site, new THREE.BoxGeometry(.04, .6, .04), R.lattice, sx * (hw + .02), deck + .3, zc + z);
+  }
+  const yb = deck + ph;
+  P.box(2 * hw + .3, .2, len + .3, R.band, 0, yb + .1, zc); P.box(2 * hw + .5, .14, len + .5, R.redCol, 0, yb + .27, zc);
+  for (let z = -2.1; z <= 2.11; z += .42) for (const sx of [-1, 1]) P.box(.5, .12, .14, R.band, sx * (hw + .2), yb + .4, zc + z); // 서까래 끝
+  const roof = hipRoofGeo(THREE, len + 2.0, 2 * hw + 2.2, 1.25, len - .4, .28); roof.rotateY(Math.PI / 2); roof.translate(0, yb + .34, zc); P.put(roof, R.roofTile);
+  P.flush(h.site);
+  const g = grp(h, 0, zc + len / 2 + .2); plate(h, g, '우화각', 1.1, 0, yb - .05, 0, { px: 44 });
+}
+// 일주문 바꿔 세우기: 범어사 조계문(돌기둥 네 개 + 짧은 나무기둥 · 맞배지붕 · 풍판), 용주사 삼문(가운데가 높은 솟을삼문)
+export function buildGate(h, kind, T) {
+  const Z = h.YZ1, P = parts();
+  if (kind === 'jogye') {
+    for (const x of [-4.35, -1.5, 1.5, 4.35]) {
+      mesh(h.site, new THREE.CylinderGeometry(.3, .37, 1.95, 16), R.granite, x, .975, Z);   // 아랫부분은 굵은 돌기둥
+      mesh(h.site, new THREE.CylinderGeometry(.29, .3, .1, 16), R.granite2, x, 2.0, Z);
+      mesh(h.site, new THREE.CylinderGeometry(.24, .26, .82, 14), R.redCol, x, 2.46, Z);    // 그 위에 짧은 나무기둥
+      h.col(x, Z, .4, .4);
+    }
+    P.box(9.2, .22, .3, R.redCol, 0, 2.97, Z); P.box(9.35, .14, .46, R.band, 0, 3.15, Z);   // 창방 · 평방
+    for (let x = -4.5; x <= 4.51; x += .5) { P.box(.2, .3, .9, R.band, x, 3.37, Z); P.box(.15, .14, 1.35, R.redCol, x, 3.58, Z); } // 다포 공포 (3출목)
+    P.box(9.8, .16, 1.8, R.band, 0, 3.72, Z);
+    const roof = gableRoofGeo(THREE, 11.4, 3.7, 1.4, .16); roof.translate(0, 3.8, Z); P.put(roof, R.roofTile);
+    P.box(11.6, .26, .34, h.MAT.stoneDark, 0, 5.24, Z);                                          // 용마루
+    const fw = new THREE.Shape(); fw.moveTo(-1.6, 0); fw.lineTo(1.6, 0); fw.lineTo(0, 1.25); fw.lineTo(-1.6, 0);
+    for (const sx of [-1, 1]) { const g2 = new THREE.ShapeGeometry(fw); g2.rotateY(Math.PI / 2); g2.translate(sx * 5.5, 3.82, Z); P.put(g2, FUNG()); } // 풍판
+    P.flush(h.site);
+    const g = grp(h, 0, Z + .32);
+    plate(h, g, '조계문', 1.5, 0, 2.62, 0, { px: 46 }); plate(h, g, '선찰대본산', 1.85, -2.92, 2.62, 0, { px: 40 }); plate(h, g, '금정산 범어사', 1.95, 2.92, 2.62, 0, { px: 38 });
+    const gi = grp(h, 0, Z - .32, Math.PI); plate(h, gi, T.name, 1.5, 0, 2.62, 0, { px: 46 });
+    return 4.35;
+  }
+  if (kind === 'sammun') {
+    const wall = M('#efe6d2'), door = M('#9b3b2b');
+    for (const x of [-3.7, -1.5, 1.5, 3.7]) { mesh(h.site, new THREE.BoxGeometry(.28, Math.abs(x) < 2 ? 3.1 : 2.6, .28), R.redCol, x, Math.abs(x) < 2 ? 1.55 : 1.3, Z); h.col(x, Z, .2, .2); }
+    for (const sx of [-1, 1]) { // 양옆 칸: 닫힌 붉은 문 + 흰 벽
+      mesh(h.site, new THREE.BoxGeometry(1.92, 2.0, .12), door, sx * 2.6, 1.0, Z); mesh(h.site, new THREE.BoxGeometry(1.92, .6, .14), wall, sx * 2.6, 2.3, Z);
+      mesh(h.site, new THREE.BoxGeometry(.03, 1.9, .14), R.lattice, sx * 2.6, 1.0, Z);
+      h.col(sx * 2.6, Z, 1.0, .16);
+    }
+    for (const sx of [-1, 1]) { const d = mesh(h.site, new THREE.BoxGeometry(1.4, 2.3, .08), door, sx * (1.5 - .1), 1.15, Z - .72); d.rotation.y = sx * -Math.PI / 2; d.position.x = sx * 1.42; } // 가운데 문: 안쪽으로 활짝
+    P.box(3.4, .2, .5, R.band, 0, 3.1, Z); P.box(2.6, .2, .5, R.band, -2.6, 2.6, Z); P.box(2.6, .2, .5, R.band, 2.6, 2.6, Z);
+    const r1 = gableRoofGeo(THREE, 4.0, 2.5, 1.0, .12); r1.translate(0, 3.2, Z); P.put(r1, R.roofTile);
+    for (const sx of [-1, 1]) { const r2 = gableRoofGeo(THREE, 2.8, 2.2, .85, .1); r2.translate(sx * 2.65, 2.7, Z); P.put(r2, R.roofTile); }
+    P.box(4.1, .2, .26, h.MAT.stoneDark, 0, 4.22, Z);
+    P.flush(h.site);
+    for (const side of [1, -1]) { const g = grp(h, 0, Z + side * .28, side > 0 ? 0 : Math.PI); plate(h, g, T.name, 1.5, 0, 2.7, 0, { px: 46 }); }
+    return 3.85;
+  }
+  return 1.6;
+}
+let FUNG_ = null; const FUNG = () => FUNG_ || (FUNG_ = M('#7d5a3c', { side: THREE.DoubleSide }));
+let BOWL_ = null; const BOWL = () => BOWL_ || (BOWL_ = M('#cbc4b6', { side: THREE.DoubleSide }));
+// 용주사 홍살문: 붉은 두 기둥 위에 화살 같은 붉은 살 + 가운데 태극 (지붕 없음)
+function hongsalmun(h, z) {
+  const red = M('#b23a2c'), P = parts();
+  for (const sx of [-1, 1]) { mesh(h.site, new THREE.CylinderGeometry(.14, .16, 5.6, 12), red, sx * 2.4, 2.8, z); h.col(sx * 2.4, z, .22, .22); }
+  for (const y of [4.55, 5.3]) P.box(5.4, .16, .16, red, 0, y, z);
+  for (let x = -2.15; x <= 2.16; x += .36) { P.box(.06, 1.25, .06, red, x, 5.1, z); P.put(new THREE.ConeGeometry(.06, .2, 4).translate(x, 5.82, z), red); }
+  const tg = new THREE.CircleGeometry(.32, 24, 0, Math.PI); tg.translate(0, 6.15, z + .05); P.put(tg, M('#c0392b', { side: THREE.DoubleSide }));
+  const tb = new THREE.CircleGeometry(.32, 24, Math.PI, Math.PI); tb.translate(0, 6.15, z + .05); P.put(tb, M('#2c5aa0', { side: THREE.DoubleSide }));
+  for (const dx of [-.16, 0, .16]) P.box(.035, dx ? .32 : .46, .035, red, dx, 6.62 + (dx ? 0 : .07), z);
+  P.box(.4, .04, .04, red, 0, 6.48, z);
+  P.flush(h.site);
+}
+// 용주사 천보루: 정면 5칸 2층 누각 · 아래층은 기둥만 서 있는 통로(누하진입), 앞줄은 높은 돌기둥 · 위층은 강당
+function cheonboru(h, zc) {
+  const xs = [-5.7, -3.6, -1.5, 1.5, 3.6, 5.7], zs = [-1.5, 0, 1.5], y1 = 2.4, P = parts();
+  for (const x of xs) for (const dz of zs) {
+    if (dz > 0) mesh(h.site, new THREE.BoxGeometry(.34, y1, .34), R.granite, x, y1 / 2, zc + dz); // 앞줄 장대 돌기둥
+    else { mesh(h.site, new THREE.BoxGeometry(.4, .3, .4), R.granite2, x, .15, zc + dz); mesh(h.site, new THREE.CylinderGeometry(.15, .16, y1 - .3, 10), R.redCol, x, .3 + (y1 - .3) / 2, zc + dz); }
+  }
+  P.box(12.1, .22, 3.5, R.wood, 0, y1 + .11, zc);                       // 위층 마루
+  const uh = 1.75, yu = y1 + .22;
+  for (const x of xs) for (const dz of [-1.5, 1.5]) P.cyl(.13, .14, uh, 10, R.redCol, x, yu + uh / 2, zc + dz);
+  for (let i = 0; i < 5; i++) { const x0 = xs[i], x1 = xs[i + 1], cx = (x0 + x1) / 2, bw = x1 - x0 - .3; // 칸마다 살창 분합문
+    for (const dz of [-1.5, 1.5]) { P.box(bw, uh - .5, .06, R.lattice, cx, yu + .25 + (uh - .5) / 2, zc + dz); P.box(bw, .25, .07, M('#efe6d2'), cx, yu + .12, zc + dz); } }
+  for (const sx of [-1, 1]) P.box(.08, uh, 3.0, M('#efe6d2'), sx * 5.7, yu + uh / 2, zc);
+  P.box(12.3, .1, .06, R.wood, 0, yu + .55, zc + 1.75); for (let x = -6; x <= 6.01; x += .4) P.box(.04, .5, .04, R.lattice, x, yu + .3, zc + 1.75); // 앞 난간
+  P.box(12.4, .24, 3.5, R.band, 0, yu + uh + .12, zc);
+  for (let x = -6.2; x <= 6.21; x += .5) for (const dz of [-1, 1]) P.box(.14, .14, .7, R.band, x, yu + uh + .3, zc + dz * 1.95); // 공포
+  const roof = hipRoofGeo(THREE, 14.2, 5.4, 2.0, 8.6, .35); roof.translate(0, yu + uh + .36, zc); P.put(roof, R.roofTile);
+  P.flush(h.site);
+  const g = grp(h, 0, zc + 1.82); plate(h, g, '천보루', 1.7, 0, yu + uh - .2, 0, { px: 46 });
+  const gi = grp(h, 0, zc - 1.82, Math.PI); plate(h, gi, '홍제루', 1.7, 0, yu + uh - .2, 0, { px: 46 });
+}
+// 전나무: 곧은 줄기 (아래는 가지 없이) + 층층이 원뿔 잎
+function firTree(Pc, trunks, h, x, z, s, rnd) {
+  const k = K(), th = 2.4 * s;
+  trunks.push(mesh(h.site, new THREE.CylinderGeometry(.13 * s, .2 * s, th + 1.6 * s, 7), k.bark, x, (th + 1.6 * s) / 2, z));
+  for (let i = 0; i < 5; i++) { const r = (1.35 - i * .22) * s, hh = (1.9 - i * .18) * s; Pc.put(new THREE.ConeGeometry(r, hh, 8).translate(x + (rnd() - .5) * .1, th + i * 1.15 * s + hh / 2, z), i % 2 ? k.juniper : k.leaf2); }
+  h.col(x, z, .25, .25);
+}
 export function buildItems(h, T) {
   const list = (T.style && T.style.items) || [], out = { spots: [] }; if (!list.length) return out;
   const { L, D, YX, YZ1 } = h, k = K(), rnd = rng(T.name);
@@ -428,6 +552,117 @@ export function buildItems(h, T) {
       signpost(h, -2.5, YZ1 + 5.8, Math.PI / 2, '십리벚꽃길', '화개장터에서 쌍계사까지 이어지는 벚꽃길', 1.5); // 일주문 왼쪽은 사찰 안내판 자리 · 벚나무 사이에서 길을 바라봄
       spotAt(0, YZ1 + 8, 4.5, '쌍계사 십리벚꽃길', '화개장터에서 쌍계사까지 봄마다 벚꽃이 길을 덮어요');
     }
+    if (kind === 'uhwagak') { // 송광사: 일주문을 지나 계곡 위 무지개다리 삼청교 + 그 위 누각 우화각을 건너 경내로 (탑·석등은 없음)
+      const zc = D / 2 + 15.3;
+      streamAcross(h, zc, { wd: 3.0, half: YX - .25, gap: 1.4, bankH: .85, rnd });
+      const b = archBridge(h, zc, { len: 4.4, w: 2.8, deck: 1.0, r: .82, steps: 3 });
+      uhwagak(h, zc, b.deck);
+      signpost(h, -2.8, zc + 2.85, 0, '우화각 · 삼청교', '계곡 위 무지개다리와 그 위 누각', 1.5);
+      spotAt(0, zc, 3.4, '송광사 우화각 · 삼청교', '계곡 위 무지개다리(삼청교)와 그 위 누각(우화각)을 건너 경내로 들어가요');
+    }
+    if (kind === 'geukrakgyo') { // 마곡사: 태화천이 절을 남원·북원으로 가르고, 극락교를 건너 북원(대광보전·오층석탑)으로
+      const zc = D / 2 + 16.05, w = 3.0, bl = 4.2; // 탑돌이 길(탑에서 2.7m)과 일주문 사이에 맞춤
+      streamAcross(h, zc, { wd: 3.6, half: YX - .25, gap: w / 2, bankH: .55, rocks: 12, rnd });
+      const b = archBridge(h, zc, { len: bl, w, deck: .66, r: .42, steps: 2, mat: R.granite2, arches: 3 }); // 홍예 세 칸 · 평평한 다리
+      for (const sx of [-1, 1]) { // 흰 돌난간
+        mesh(h.site, new THREE.BoxGeometry(.12, .1, bl), R.rail, sx * (w / 2 - .08), b.deck + .66, zc);
+        for (let z = -bl / 2 + .1; z <= bl / 2 - .09; z += .6) mesh(h.site, new THREE.BoxGeometry(.15, .66, .15), R.rail, sx * (w / 2 - .08), b.deck + .33, zc + z);
+      }
+      signpost(h, -2.9, zc + 2.45, 0, '극락교', '태화천을 건너 북원으로', 1.4);
+      spotAt(0, zc, 3.6, '마곡사 극락교 · 태화천', '태화천을 사이에 두고 남원과 북원으로 나뉜 절이에요 · 극락교를 건너면 북원이에요');
+    }
+    if (kind === 'cheonbo') { // 용주사: 홍살문 → 삼문(일주문 자리) → 천보루 아래 통로 → 대웅보전 (정조가 궁궐처럼 지은 왕실 원찰)
+      hongsalmun(h, YZ1 + 6.5);
+      signpost(h, 3.3, YZ1 + 5.3, -Math.PI / 2, '홍살문', '신성한 곳임을 알리는 붉은 문', 1.3);
+      spotAt(0, YZ1 + 6.5, 3.2, '용주사 홍살문', '왕릉이나 궁궐 앞에 세우는 붉은 홍살문이 절 앞에 서 있어요');
+      cheonboru(h, D / 2 + 15.2);
+      signpost(h, -2.9, D / 2 + 17.95, 0, '천보루 · 보물', '아래로 걸어 들어가는 2층 누각', 1.45);
+      spotAt(0, D / 2 + 17.6, 3.4, '용주사 천보루', '1790년 정조 때 세운 2층 누각 · 아래 통로를 지나면 대웅보전이에요');
+    }
+    if (kind === 'firRoad') { // 월정사 전나무숲길: 일주문 밖 길 양옆으로 곧게 자란 전나무
+      const Pc = parts(), tr = [], zMax = YZ1 + Math.max(9, (h.RG || 20) - 10.5);
+      for (let z = YZ1 + 2.8; z < zMax; z += 2.1 + rnd() * .6) for (const sx of [-1, 1]) {
+        firTree(Pc, tr, h, sx * (3.0 + rnd() * .5), z + rnd() * .5, 1.15 + rnd() * .35, rnd);
+        if (rnd() < .65) firTree(Pc, tr, h, sx * (4.7 + rnd() * .8), z + 1.1, .95 + rnd() * .4, rnd);
+      }
+      Pc.flush(h.site);
+      signpost(h, 2.35, YZ1 + 3.7, -Math.PI / 2, '전나무숲길', '일주문에서 금강교까지 1km 남짓', 1.4);
+      spotAt(0, YZ1 + 6, 4.2, '월정사 전나무숲길', '일주문에서 금강교까지 1km 남짓 전나무가 늘어선 숲길이에요');
+    }
+    if (kind === 'seongnyeonji') { // 법주사 석련지 (국보): 구름무늬 받침 위에 올린 커다란 돌 연꽃 물그릇
+      const g = grp(h, -FX, FZ, LEFT), P = parts(), G = R.granite, G2 = R.granite2, GD = BOWL();
+      P.cyl(1.05, 1.1, .14, 8, G2, 0, .07, 0); P.cyl(.82, .92, .12, 8, G, 0, .2, 0); P.cyl(.68, .78, .1, 8, G, 0, .31, 0); // 8각 바닥돌 · 굄
+      for (let i = 0; i < 8; i++) { const a = (i + .5) / 8 * Math.PI * 2; P.ball(.18, G, Math.sin(a) * .58, .4, Math.cos(a) * .58, 1.3, .45, 1.3); } // 복련
+      P.cyl(.34, .44, .3, 10, G, 0, .5, 0);
+      for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; P.ball(.2 + rnd() * .08, G2, Math.sin(a) * .3, .72 + (i % 3) * .07, Math.cos(a) * .3, 1.3, .7, 1.3, 1); } // 구름무늬 받침
+      const prof = [[.42, 0], [.75, .06], [1.05, .22], [1.25, .48], [1.33, .78], [1.3, .9], [1.2, .92], [1.15, .55], [.95, .35], [.5, .26], [0, .24]].map(([r, y]) => new THREE.Vector2(r, y));
+      P.put(new THREE.LatheGeometry(prof, 32).translate(0, .9, 0), GD); // 위가 열린 큰 돌그릇
+      for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, pt = new THREE.SphereGeometry(1, 10, 6); pt.scale(.2, .34, .08); pt.rotateX(-.35); pt.rotateY(a); pt.translate(Math.sin(a) * 1.27, 1.32, Math.cos(a) * 1.27); P.put(pt, G2); } // 연잎 돋을새김
+      for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2; P.box(.07, .2, .07, G2, Math.sin(a) * 1.25, 1.92, Math.cos(a) * 1.25); } // 동자주
+      P.put(new THREE.TorusGeometry(1.25, .035, 4, 40).rotateX(Math.PI / 2).translate(0, 2.02, 0), G2); // 난간대
+      P.flush(g);
+      const wt = mesh(g, new THREE.CircleGeometry(1.12, 28), R.water, 0, 1.68, 0, false); wt.rotation.x = -Math.PI / 2;
+      { // 보호각: 붉은 기둥 여섯 · 육모지붕 · 낮은 붉은 난간 (지금은 이 안에 모셔 둠)
+        const Q = parts(), RR = 2.25, ph = 2.7;
+        for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + Math.PI / 6, px = Math.sin(a) * RR, pz = Math.cos(a) * RR; mesh(g, new THREE.CylinderGeometry(.11, .12, ph, 10), R.redCol, px, ph / 2, pz); }
+        for (let i = 0; i < 6; i++) { const a0 = i / 6 * Math.PI * 2 + Math.PI / 6, a1 = a0 + Math.PI / 3, mx = (Math.sin(a0) + Math.sin(a1)) / 2 * RR, mz = (Math.cos(a0) + Math.cos(a1)) / 2 * RR, ry = (a0 + a1) / 2;
+          Q.box(RR + .2, .2, .16, R.band, mx, ph + .02, mz, ry);
+          if (i !== 0) mesh(g, new THREE.BoxGeometry(RR - .25, .08, .08, 1, 1, 1).rotateY(ry), R.redCol, mx, .62, mz); } // 낮은 난간 (앞 한 칸은 열어 둠)
+        const roof = new THREE.ConeGeometry(RR + 1.05, 1.45, 6, 1, true); roof.rotateY(Math.PI / 6); roof.translate(0, ph + .85, 0); Q.put(roof, R.roofTile);
+        Q.put(new THREE.CylinderGeometry(RR + 1.05, RR + .2, .12, 6, 1, true).rotateY(Math.PI / 6).translate(0, ph + .1, 0), R.band);
+        Q.put(new THREE.SphereGeometry(.16, 10, 8).translate(0, ph + 1.6, 0), h.MAT.stoneDark);
+        Q.flush(g);
+      }
+      colG(h, g, 0, 0, 1.4, 1.4);
+      signpost(h, ...toSite(g, 1.9, 1.5), LEFT, '석련지 · 국보', '돌로 만든 연꽃 모양 물그릇', 1.45);
+      spot(g, 0, 2.2, 3.4, '법주사 석련지', '구름 위에 뜬 연꽃 같은 통일신라의 돌 물그릇이에요');
+    }
+    if (kind === 'hwaeomTwin') { // 화엄사 동·서 오층석탑: 대웅전 앞마당에 나란히 선 통일신라 석탑 (각황전에서 보면 오른쪽 앞)
+      const z = FZ + .6, xw = FX - 1.9, xe = FX + 1.9;
+      stoneTiers(h, xw, z, 5, .88);                            // 서탑: 2층 기단
+      stoneTiers(h, xe, z, 5, .88, false, { single: true });    // 동탑: 단층 기단
+      h.col(xw, z, 1.2, 1.2); h.col(xe, z, 1.0, 1.0);
+      signpost(h, FX, z + 2.6, 0, '동·서 오층석탑', '대웅전 앞마당에 나란히 선 보물', 1.45);
+      spotAt(FX, z + 2.3, 3.4, '화엄사 동·서 오층석탑', '대웅전 앞마당에 나란히 선 통일신라 석탑 두 기예요');
+    }
+    if (kind === 'baeksong') { // 조계사 백송 (천연기념물): 하얗게 벗겨지는 껍질 · 위에서 갈라진 가지 중 대웅전 쪽 세 가지만 살아 있음
+      const x = SX + .3, z = -1.6, Pt = parts(), Pb = parts(), wb = M('#e9e7df'), wg = M('#b9bcae'), nd = M('#6f9660');
+      Pt.cyl(.28, .36, 4.4, 9, wb, x, 2.2, z); Pt.cyl(.36, .5, .3, 9, wb, x, .15, z);
+      for (let i = 0; i < 14; i++) Pt.box(.12 + rnd() * .1, .22 + rnd() * .3, .05, wg, x + Math.cos(i * 1.7) * .3, .4 + rnd() * 3.8, z + Math.sin(i * 1.7) * .3, -i * 1.7); // 얼룩덜룩한 흰 껍질
+      stoneRing(Pt, x, z, 1.25, h.MAT.stoneDark);
+      Pt.flush(h.site);
+      const top = V(x, 4.3, z);
+      for (const [dx, dy, dz] of [[-2.4, 2.3, -.7], [-2.0, 3.2, .9], [-1.0, 3.7, -.2]]) { // 대웅전(왼쪽) 쪽으로 뻗은 세 가지
+        const e = V(x + dx, 4.3 + dy, z + dz), mid = V(x + dx * .45, 4.3 + dy * .65, z + dz * .4);
+        Pb.limb(wb, top, mid, .22, .16, 7); Pb.limb(wb, mid, e, .16, .08, 6);
+      }
+      for (let j = 0; j < 26; j++) { const a = rnd() * 6.28, rr = Math.sqrt(rnd()) * 2.1; Pb.ball(.5 + rnd() * .3, rnd() < .6 ? nd : M('#5a8350'), x - 1.4 + Math.cos(a) * rr, 7.1 + (rnd() - .4) * 1.4 - rr * .3, z + Math.sin(a) * rr * .9, 1.15, .62, 1.15, 1); } // 둥근 솔잎 머리
+      Pb.flush(h.site);
+      for (const [dx, dz] of [[-1.7, -.4], [-1.5, .7]]) mesh(h.site, new THREE.CylinderGeometry(.05, .05, 5.2, 6), M('#5b5f63'), x + dx, 2.6, z + dz); // 버팀대
+      h.col(x, z, 1.25, 1.25);
+      signpost(h, x - 1.6, z + 1.8, 0, '조계사 백송', '천연기념물 · 하얀 껍질의 소나무', 1.4);
+      spotAt(x - .8, z + 1.6, 3.0, '조계사 백송', '나무껍질이 하얗게 벗겨지는 귀한 소나무예요');
+    }
+    if (kind === 'hyangTree') { // 봉녕사 향나무 (약 800년): 대웅전 앞뜰 · 용이 기어가듯 비틀린 줄기와 가지가 낮고 넓게 퍼지고, 버팀목이 가지를 받침
+      const x = L / 4 + 2.4, z = D / 2 + 3.5, P = parts(), Pf = parts();
+      let p = V(x, 0, z), a = rnd() * 6;
+      for (let i = 0; i < 4; i++) { a += 1.2; const q = V(p.x + Math.cos(a) * .32 - .12, p.y + .38, p.z + Math.sin(a) * .32); P.limb(k.bark2, p, q, .42 - i * .04, .38 - i * .04, 8); p = q; } // 굵고 비틀린 밑동
+      for (let b = 0; b < 6; b++) {
+        const ang = b / 6 * Math.PI * 2 + rnd() * .4, len = 2.2 + rnd() * 1.1;
+        let s0 = p, s1 = null;
+        for (let seg = 1; seg <= 3; seg++) { const t = seg / 3, wob = (rnd() - .5) * .5; s1 = V(p.x + Math.cos(ang + wob) * len * t, p.y + .25 * seg - (seg === 3 ? .5 : 0) + rnd() * .2, p.z + Math.sin(ang + wob) * len * t); P.limb(k.bark, s0, s1, .22 - seg * .04, .18 - seg * .04, 6); // 구불구불 옆으로 뻗는 가지
+          for (let j = 0; j < 2; j++) Pf.ball(.5 + rnd() * .25, rnd() < .55 ? k.juniper : k.juniper2, s1.x + (rnd() - .5) * .9, s1.y + .35 + rnd() * .35, s1.z + (rnd() - .5) * .9, 1.15, .62, 1.15, 1);
+          s0 = s1; }
+        if (b % 2 === 0) mesh(h.site, new THREE.CylinderGeometry(.06, .07, s1.y, 6), k.plank, s1.x, s1.y / 2, s1.z); // 버팀목
+      }
+      for (let j = 0; j < 7; j++) Pf.ball(.6 + rnd() * .25, k.juniper, x + (rnd() - .5) * 1.4, p.y + .5 + rnd() * .6, z + (rnd() - .5) * 1.4, 1.15, .7, 1.15, 1);
+      stoneRing(P, x, z, 3.1, h.MAT.stoneDark);
+      P.flush(h.site); Pf.flush(h.site);
+      h.col(x, z, 2.9, 2.9);
+      signpost(h, x - 3.6, z + 2.4, -Math.PI / 2, '봉녕사 향나무', '800년쯤 된 노거수', 1.4);
+      spotAt(x - 3.3, z + 1.2, 3.4, '봉녕사 향나무', '봉녕사와 역사를 함께해 온 800년쯤 된 향나무예요');
+    }
+
   }
   return out;
 }
