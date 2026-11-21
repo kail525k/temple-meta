@@ -550,9 +550,9 @@ export function buildExtras(h, T) {
       out.backYard = Math.max(out.backYard || 0, 6.5);
     }
     if (kind === 'magokDaeung') { // 마곡사 대웅보전: 대광보전 뒤 높은 터 위의 2층 법당 (아래층 정면 5칸, 위층 3칸, 팔작지붕)
-      const z = -D / 2 - 10.0, TH = 5.0, w = 10.2, d = 6.6, h1 = 3.3, w2 = 7.0, d2 = 4.4, h2 = 2.5, NS = 10; // 높은 축대 위라 앞마당에서도 대광보전 지붕 너머로 위층이 보임
+      const z = -D / 2 - 10.0, TH = 3.0, w = 10.2, d = 6.6, h1 = 4.0, w2 = 7.0, d2 = 4.4, h2 = 3.0, NS = 10; // 계단 한 단 .28m·너비 .5m (눌러서 걷기 길찾기가 오를 수 있게) // 높은 축대 위라 앞마당에서도 대광보전 지붕 너머로 위층이 보임
       box(w + 3.4, TH, d + 4.6, R.granite2, 0, TH / 2, z); box(w + 3.6, .12, d + 4.8, R.granite, 0, TH + .06, z); // 법당 앞에 걸어 다닐 너른 터
-      { const zf = z + (d + 4.6) / 2, sd = 1.7, sr = (TH + .12) / (NS + 1), sl = .55; // 축대 앞면을 따라 양쪽에서 올라가는 돌계단 + 가운데 참
+      { const zf = z + (d + 4.6) / 2, sd = 1.7, sr = (TH + .12) / (NS + 1), sl = .5; // 축대 앞면을 따라 양쪽에서 올라가는 돌계단 + 가운데 참
         box(2.0, TH + .12, sd, R.granite2, 0, (TH + .12) / 2, zf + sd / 2);
         for (const sx of [-1, 1]) for (let i = 0; i < NS; i++) { const hh = sr * (i + 1); box(sl, hh, sd, R.granite, sx * (1.0 + (NS - 1 - i) * sl + sl / 2), hh / 2, zf + sd / 2); } }
       const y0 = TH + .12;
@@ -566,7 +566,7 @@ export function buildExtras(h, T) {
       for (let i = 0; i <= 3; i++) for (const sz of [-1, 1]) box(.2, h2, .2, R.redCol, -w2 / 2 + w2 * i / 3, y1 + h2 / 2, z + sz * d2 / 2);
       for (let i = 0; i < 3; i++) box(w2 / 3 - .5, h2 * .5, .06, R.lattice, -w2 / 2 + w2 * (i + .5) / 3, y1 + h2 * .45, z + d2 / 2 + .03);
       box(w2 + .1, .28, d2 + .1, R.band, 0, y1 + h2 - .14, z);
-      const r2 = add(hipRoofGeo(THREE, w2 + 2.2, d2 + 2.2, (d2 + 2.2) * .38, Math.max(.6, w2 - d2 * .8), .32), R.roofTile, 0, y1 + h2, z); r2.receiveShadow = false;
+      const r2 = add(hipRoofGeo(THREE, w2 + 2.2, d2 + 2.2, (d2 + 2.2) * .46, Math.max(.6, w2 - d2 * .8), .32), R.roofTile, 0, y1 + h2, z); r2.receiveShadow = false;
       add(new THREE.PlaneGeometry(1.5, .45), new THREE.MeshStandardMaterial({ map: h.nameTex('대웅보전', '#2b1d14', '#f2cf72', 46), roughness: .6 }), 0, y1 + h2 * .78, z + d2 / 2 + .12, false);
       col(0, z, w / 2 + .3, d / 2 + .3);
       (out.spots || (out.spots = [])).push({ lx: 2.6, lz: z + (d + 4.6) / 2 + 2.4, r: 3.4, name: '마곡사 대웅보전', story: '대광보전 뒤 높은 터에 선 2층 법당이에요' });
