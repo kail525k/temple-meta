@@ -3,14 +3,14 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
-import { buildHall } from './hall.js?v=9';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=27';
-import { buildItems, buildLantern, buildGate } from './items.js?v=3';
-import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=2';
+import { buildHall } from './hall.js?v=11';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=29';
+import { buildItems, buildLantern, buildGate } from './items.js?v=5';
+import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=4';
 import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
-import { REGIONS } from './temples.js?v=11';
+import { REGIONS } from './temples.js?v=13';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=9';
 import { initStats, addBow, initRanks, flushStats, statsDebug } from './ranks.js?v=1';
@@ -280,7 +280,7 @@ function buildSite(info, T) {
 
   // 마당과 박석길
   const hyu = st.layout === 'hyuhyu', yg = st.layout === 'yonggung';
-  const back = hyu ? 18 : yg ? 6 : ex.includes('janggyeong') ? 12.5 : ex.includes('bangdeung') ? 9.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('whiteGwaneum') ? 7.5 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
+  const back = hyu ? 18 : yg ? 6 : ex.includes('janggyeong') ? 12.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('magokDaeung') ? 16 : ex.includes('whiteGwaneum') ? 7.5 : ex.includes('hyodae') ? 6.5 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
   const YX = L / 2 + 6, YZ0 = -D / 2 - 2 - back, YZ1 = D / 2 + 19;
   YARD = { x0: -YX, x1: YX, z0: YZ0, z1: YZ1 };
   const yard = add(new THREE.PlaneGeometry(2 * YX, YZ1 - YZ0), MAT.yard, 0, .02, (YZ0 + YZ1) / 2, false); yard.rotation.x = -Math.PI / 2;
@@ -325,7 +325,7 @@ function buildSite(info, T) {
   const rows = yg ? [D / 2 + 7.3, D / 2 + 12.2, D / 2 + 13.4, D / 2 + 16.6] : st.lanRows ? st.lanRows.map(o => D / 2 + o) : st.lanterns === 'canopy' ? Array.from({ length: Math.floor((YZ1 - 2 - (D / 2 + 5)) / 1.5) }, (_, i) => D / 2 + 5 + i * 1.5).filter(z => Math.abs(z - PZ) > 2) : [D / 2 + 7.2, D / 2 + 13.5, D / 2 + 17];
   let k = 0;
   for (const z of rows) {
-    const x0 = -YX + .6, x1 = YX - .6, wy = Math.max(gy(0, z), gy(x0, z));
+    const x0 = -YX + (st.lanInset || .6), x1 = YX - (st.lanInset || .6), wy = Math.max(gy(0, z), gy(x0, z)); // 양옆에 긴 건물이 있는 절은 연등 줄을 안쪽에서 맴
     for (const x of [x0, x1]) { const b = gy(x, z), hp = 3.4 + wy - b; add(new THREE.CylinderGeometry(.05, .06, hp, 6), MAT.line, x, b + hp / 2, z); col(x, z, .12, .12); }
     const wire = add(new THREE.CylinderGeometry(.01, .01, x1 - x0, 4), MAT.line, 0, 3.25 + wy, z, false); wire.rotation.z = Math.PI / 2;
     for (let x = x0 + .9; x < x1 - .5; x += st.lanterns === 'canopy' ? .7 : .95) {
@@ -333,7 +333,7 @@ function buildSite(info, T) {
       tasM[(c + 2) % LM].push(new THREE.Matrix4().makeTranslation(x, 2.67 + wy, z));
     }
   }
-  T.wire = { z: rows[0], x0: -YX + .6, x1: YX - .6, step: st.lanterns === 'canopy' ? .7 : .95, items: [], k: 0 };
+  T.wire = { z: rows[0], x0: -YX + (st.lanInset || .6), x1: YX - (st.lanInset || .6), step: st.lanterns === 'canopy' ? .7 : .95, items: [], k: 0 };
   for (let c = 0; c < LM; c++) for (const [geo, arr] of [[lanGeo, lanM[c]], [tasGeo, tasM[c]]]) { if (!arr.length) continue; const im = new THREE.InstancedMesh(geo, MAT.lotus[c], arr.length); arr.forEach((mm, i) => im.setMatrixAt(i, mm)); site.add(im); }
   // 일주문 현판 (안팎 양쪽)
   if (!st.gate) for (const side of [1, -1]) {
@@ -360,23 +360,23 @@ function buildSite(info, T) {
     if (ex.includes('buldu')) { at('와우정사 황금 불두', 0, PZ + 3, 3.6); sign('와우정사 황금 불두', -3.4, PZ + 2.6, .4); }
     if (st.bigStand && st.bigStand.name) { const k = T.name + ' ' + st.bigStand.name; at(k, -SXe, 2.6, 3.4); sign(k, -SXe + 1.7, 3.0, .35); }
     if (ex.includes('bigBuddha')) { at('신흥사 통일대불', -SXe, 2.0, 3.4); sign('신흥사 통일대불', -SXe + 1.7, 2.8, .35); }
-    if (ex.includes('mireuk')) sign('금산사 미륵전', -SXe + 1.9, 3.3, .35);
-    if (exo.bangdeung) { const B = exo.bangdeung; at('금산사 금강계단 · 오층석탑', B.x + 3.4, B.zc + 1.5, 3.4); sign('금산사 금강계단 · 오층석탑', B.x + 3.3, B.zt + .4, Math.PI / 2); }
+    if (exo.mireuk) { const M = exo.mireuk; sign('금산사 미륵전', M.sign[0], M.sign[1], M.ry + .4); }
+    if (exo.bangdeung) { const B = exo.bangdeung; sign('금산사 금강계단 · 오층석탑', B.x - 2.0, B.zt + 3.3, -.4); }
     if (st.pagoda === 'octa9s') at('월정사 석조보살좌상', .9, PZ + 2.9, 2.4);
     if (ex.includes('gyedan')) { at('통도사 금강계단', 0, -D / 2 - 2.4, 3.6); sign('통도사 금강계단', -(L / 2 + 2.6), -D / 2 - .6, Math.PI / 2); }
     if (ex.includes('janggyeong')) { at('해인사 장경판전', 0, -D / 2 - 1.4, 3.0); sign('해인사 장경판전', -(L / 2 + 2.6), -D / 2 - .6, Math.PI / 2); }
     if (ex.includes('pond')) { at('백양사 쌍계루', SXe, 1.6, 3.4); sign('백양사 쌍계루', SXe + .9, D / 2 + 1.3, 0); }
-    if (ex.includes('bridge')) { at('선암사 승선교', SXe, 1.2, 3.0); sign('선암사 승선교', SXe + 1.9, D / 2 + 1.0, -.3); }
+    if (ex.includes('bridge')) { at('선암사 승선교', SXe - 1.4, D / 2 + 5.4, 3.0); sign('선암사 승선교', SXe - 2.4, D / 2 + 5.2, -.5); }
     if (ex.includes('stoneBuddhas')) { at('관음사 돌부처 길', 0, YZ1 - 4, 3.0); sign('관음사 돌부처 길', 3.6, YZ1 - 2.4, -.35); }
     const HK = { '수덕사': '수덕사 대웅전', '화엄사': '화엄사 각황전', '봉선사': '봉선사 큰법당' }[T.name]; if (HK) sign(HK, -(L / 2 - 1.2), D / 2 + 1.4, 0);
     if (lanSpot && boardKey(lanSpot.name)) sign(boardKey(lanSpot.name), 1.9, SL + .3, -.5);
     T.signs = H.signs || []; }
-  { const bx = YX - 1.1, bz = Math.min(D / 2 + 5.5, YZ1 - 3), b = gy(bx, bz); // 싸리비 걸이 (운력: 마당 쓸기)
+  { const BA = st.broomAt || {}, bx = (BA.side || 1) * (YX - (BA.inset ?? 1.1)), bz = BA.z != null ? D / 2 + BA.z : Math.min(D / 2 + 5.5, YZ1 - 3), b = gy(bx, bz); // 싸리비 걸이 (운력: 마당 쓸기)
     for (const pz of [-.5, .5]) add(new THREE.CylinderGeometry(.035, .04, 1.3, 6), MAT.trunk, bx, b + .65, bz + pz);
     add(new THREE.CylinderGeometry(.028, .028, 1.1, 6), MAT.trunk, bx, b + 1.22, bz).rotation.x = Math.PI / 2;
     for (const k of [-.24, .02, .26]) { const br = makeBroom(); br.position.set(bx + .07, b + 1.2, bz + k); br.rotation.z = -.16 + k * .2; site.add(br); }
-    col(bx, bz, .25, .62); T.broomAt = { lx: bx - .8, lz: bz }; }
-  startL = [0, st.startNear ? YZ1 - 1.2 : YZ1 - 3]; // 마당 앞쪽에 계곡·누각이 있는 절은 일주문 바로 안에서 시작
+    col(bx, bz, .25, .62); T.broomAt = { lx: bx - .8 * (BA.side || 1), lz: bz }; }
+  startL = st.start ? [st.start[0], D / 2 + st.start[1]] : [0, st.startNear ? YZ1 - 1.2 : YZ1 - 3]; // 마당 앞쪽에 계곡·누각이 있는 절은 일주문 바로 안에서 시작
   T.hall = hall; T.YARD = YARD; T.startL = startL; T.L = L; T.D = D;
   const [ycx, ycz] = L2W(0, (YZ0 + YZ1) / 2); T.cx = ycx; T.cz = ycz;
   return { L, D };
@@ -2328,7 +2328,7 @@ async function startTogether() {
   badge.textContent = ok === list.length ? `실제 법당 ${ok}곳 위치·크기 반영` : ok ? `실제 법당 ${ok}/${list.length}곳 반영 · 나머지는 기본 크기` : '브이월드 연결 실패 · 기본 법당으로 보여드려요';
   if (ok < list.length) badge.classList.add('err');
   layoutRegion(temples);
-  for (const T of temples) { try { buildSite(T.info, T); } catch (e) { dbg('buildError.' + T.name, e.message); } }
+  for (const T of temples) { try { buildSite(T.info, T); } catch (e) { dbg('buildError.' + T.name, e.message); console.error('buildError', T.name, e.stack); } }
   // 법당 조명은 한 벌만 두고 지금 사찰로 옮겨 다님 (조명이 사찰 수만큼 늘면 무거워져서)
   sharedLights = temples[0].hall.lights;
   for (const T of temples) { T.lightPos = T.hall.lights.map(l => l.position.clone()); if (T !== temples[0]) T.hall.lights.forEach(l => l.removeFromParent()); }

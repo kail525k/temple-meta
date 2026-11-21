@@ -1,6 +1,6 @@
 // 법당 하나 — 앞면이 +z. 계단으로 올라가 안으로 들어가고, 가운데 방석에서 삼배를 올릴 수 있게 내부까지 만든 모델 (위레브)
 // L: 정면 폭, D: 측면 깊이(실제 건물 크기에서 가져옴), buddhas: 불단 위 부처님 수(1 또는 3)
-// roof: 'hip'(팔작) | 'gable'(맞배) · stories: 2면 바깥이 2층(중층) · plain: 단청 없는 나무 빛 · sign: 현판 글자 텍스처
+// roof: 'hip'(팔작) | 'gable'(맞배) | 'cross'(아자 지붕) · stories: 2면 바깥이 2층(중층) · plain: 단청 없는 나무 빛 · sign: 현판 글자 텍스처
 // altar: 불단 위 존상 [{k, s}] (보는 사람 기준 왼쪽→오른쪽) — k: sakya·amita·yaksa·biro(앉은 부처), bosal(앉은 보살), bosalS(선 보살), disciple(선 제자), chunsu(천수관음), buddhaS(선 부처)
 export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, roof: roofType = 'hip', stories = 1, plain = false, sign = null } = {}) {
   const g = new THREE.Group();
@@ -113,6 +113,21 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
       const gw = new THREE.Mesh(new THREE.ShapeGeometry(sh), MAT.wall); gw.position.set(sx * (L / 2 - .05), R0, 0); gw.rotation.y = sx * Math.PI / 2; gw.material.side = THREE.DoubleSide; g.add(gw);
       for (const zz of [-D / 4, 0, D / 4]) box(.08, RH * .92 * (1 - Math.abs(zz) * 2 / Wr) - .1, .16, MAT.col, sx * (L / 2 - .02), R0 + (RH * .92 * (1 - Math.abs(zz) * 2 / Wr) - .1) / 2, zz);
       box(.08, .16, D, MAT.col, sx * (L / 2 - .02), R0 + eY * .9, 0);
+    }
+  } else if (roofType === 'cross' || roofType === 'tee') { // tee: 정(丁)자 지붕 — 앞으로만 맞배가 튀어나옴 (통도사 대웅전) // 아(亞)자 지붕: 팔작 큰 지붕 네 면 가운데에 맞배 지붕이 한 칸씩 튀어나옴 (송광사 대웅보전)
+    hipRoof(Lr, Wr, RH, R0);
+    const pw = Math.min(L * .3, 5.2), pd = 1.1, ph = RH * .52, py = R0 + RH * .24;
+    for (const sz of roofType === 'tee' ? [1] : [-1, 1]) { // 앞·뒤로 튀어나온 맞배
+      const ln = Wr / 2 + pd, geo = gableRoofGeo(THREE, ln, pw, ph, .18); geo.rotateY(Math.PI / 2);
+      const m = add(geo, MAT.roof, 0, py, sz * ln / 2); m.receiveShadow = false;
+      box(.4, .36, ln, MAT.ridge, 0, py + ph + .1, sz * ln / 2);
+      const tri = new THREE.Shape([new THREE.Vector2(-pw / 2 + .5, 0), new THREE.Vector2(pw / 2 - .5, 0), new THREE.Vector2(0, ph - .3)]);
+      const gw = new THREE.Mesh(new THREE.ShapeGeometry(tri), M('#6e4b33', { side: THREE.DoubleSide })); /* 박공면: 나무 널판(풍판) */ gw.position.set(0, py + .05, sz * (ln - .35)); g.add(gw);
+    }
+    if (roofType === 'cross') for (const sx of [-1, 1]) { // 양옆으로 튀어나온 맞배
+      const ln = Lr / 2 + pd * .8, pw2 = Math.min(D * .42, 5.4), geo = gableRoofGeo(THREE, ln, pw2, ph * .9, .18);
+      const m = add(geo, MAT.roof, sx * ln / 2, py, 0); m.receiveShadow = false;
+      box(ln, .36, .4, MAT.ridge, sx * ln / 2, py + ph * .9 + .1, 0);
     }
   } else {
     hipRoof(Lr, Wr, RH, R0);

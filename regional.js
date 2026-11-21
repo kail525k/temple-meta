@@ -4,7 +4,7 @@
 //   통도사 금강계단, 해인사 장경판전, 백양사 쌍계루, 선암사 승선교, 관음사 석불 길, 조계사 노거수 등
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
-import { hipRoofGeo, gableRoofGeo } from './hall.js?v=8';
+import { hipRoofGeo, gableRoofGeo } from './hall.js?v=11';
 import { createSchool, tankFish } from './fish.js?v=6';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -70,7 +70,7 @@ export const GR = () => GR_ || (GR_ = { a: graniteMat('#cfc8ba', { lichen: .5, s
 // 여러 조각을 재질별로 하나로 합쳐(그리기 횟수 줄임) 놓음
 function parts() {
   const L = new Map();
-  const put = (geo, mat, px, py, pz) => { geo.translate(px, py, pz); const g = geo.index ? geo.toNonIndexed() : geo; for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k); g.clearGroups(); (L.get(mat) || L.set(mat, []).get(mat)).push(g); return g; };
+  const put = (geo, mat, px = 0, py = 0, pz = 0) => { geo.translate(px, py, pz); const g = geo.index ? geo.toNonIndexed() : geo; for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k); g.clearGroups(); (L.get(mat) || L.set(mat, []).get(mat)).push(g); return g; };
   const flat = g => { const n = g.toNonIndexed(); n.computeVertexNormals(); return n; };
   return {
     put,
@@ -140,6 +140,18 @@ export function stoneTiers(h, x, z, n, s = 1, bronze = false, o = {}) { // o.sin
   P.put(sp(nb * .42, .72), GA, 0, y, 0); y += nb * .42 * .72; // 복발
   P.cyl(nb * .2, nb * .2, .03 * s, 12, GB, 0, y + .015 * s, 0); y += .03 * s;
   P.cyl(nb * .44, nb * .22, .09 * s, 8, fm, 0, y + .045 * s, 0, true); y += .09 * s; // 앙화
+  if (bronze) { // 마곡사 풍마동: 원나라 라마탑을 닮은 청동 보탑 (네모 받침 → 병 모양 몸 → 고리 첨탑 → 일산 → 보주)
+    const B = R.bronze;
+    P.box(nb * 1.1, .12 * s, nb * 1.1, B, 0, y + .06 * s, 0); P.box(nb * .86, .08 * s, nb * .86, B, 0, y + .16 * s, 0); y += .2 * s;
+    const pr = [[.0, 0], [.2, 0], [.22, .04], [.26, .14], [.27, .26], [.24, .36], [.17, .42], [.11, .44], [0, .45]].map(([r, yy]) => new THREE.Vector2(r * s, yy * s));
+    P.put(new THREE.LatheGeometry(pr, 16), B, 0, y, 0); y += .44 * s;                       // 병 모양 몸(복발)
+    P.cyl(.05 * s, .09 * s, .08 * s, 8, B, 0, y + .04 * s, 0); y += .08 * s;
+    for (let k = 0; k < 9; k++) { const r = (.085 - k * .006) * s; P.cyl(r, r + .01 * s, .045 * s, 12, B, 0, y + .0225 * s, 0); y += .05 * s; } // 13층 고리 첨탑을 줄여서
+    P.cyl(.04 * s, .17 * s, .06 * s, 12, B, 0, y + .03 * s, 0); y += .06 * s;                         // 일산
+    P.put(new THREE.SphereGeometry(.05 * s, 10, 8).translate(0, y + .06 * s, 0), B); P.put(new THREE.ConeGeometry(.03 * s, .14 * s, 8).translate(0, y + .17 * s, 0), B);
+    P.flush(h, x, z);
+    return 1.32 * s;
+  }
   const rings = bronze ? 5 : 3, top = y + (bronze ? 1.2 : .78) * s;
   P.cyl(.026 * s, .03 * s, top - y, 8, fm, 0, (y + top) / 2, 0); // 찰주
   for (let k = 0; k < rings; k++) { const r = (.15 - k * .012) * s; P.cyl(r, r, .04 * s, 16, fm, 0, y + (.08 + k * .12) * s, 0); } // 보륜
@@ -217,9 +229,9 @@ function dabotap(h, x, z) {
   return 1.5;
 }
 // 해동용궁사 사사자 석탑: 네 마리 돌사자가 받친 삼층석탑
-function lion3(h, x, z) {
+function lion3(h, x, z, o = {}) { // o.monk: 사자 넷 가운데 합장한 스님상 (화엄사 사사자 삼층석탑) · o.s: 크기
   const { a: GA, b: GB } = GR();
-  const { box, add } = h, S = .9;
+  const { box, add } = h, S = o.s || .9;
   box(2.5 * S, .4, 2.5 * S, GA, x, .2, z);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const lx = x + sx * .72 * S, lz = z + sz * .72 * S, ry = Math.atan2(sx, sz);
@@ -230,10 +242,14 @@ function lion3(h, x, z) {
     mk(new THREE.SphereGeometry(.1, 8, 6), 0, .56, .27, 1, .8, .8);              // 주둥이
     for (const s2 of [-1, 1]) mk(new THREE.CylinderGeometry(.05, .06, .36, 6), s2 * .1, .18, .16);
   }
-  box(.36, .82, .36, GB, x, .81, z);
+  if (o.monk) { // 합장한 스님상: 연꽃 받침 위에 서서 머리는 갑석에 닿지 않음
+    add(new THREE.CylinderGeometry(.2, .2, .1, 10), GA, x, .45, z);
+    add(new THREE.CylinderGeometry(.11, .17, .52, 10), GA, x, .76, z); add(new THREE.SphereGeometry(.09, 10, 8), GA, x, 1.1, z);
+    add(new THREE.BoxGeometry(.06, .14, .06), GA, x, .9, z + .14);
+  } else box(.36, .82, .36, GB, x, .81, z);
   box(2.1 * S, .2, 2.1 * S, GB, x, 1.32, z);
   const up = { ...h, add: (geo, m, px, py, pz, s) => add(geo, m, px, py + 1.42, pz, s), box: (w, hh, d, m, px, py, pz) => add(new THREE.BoxGeometry(w, hh, d), m, px, py + 1.42, pz) };
-  stoneTiers(up, x, z, 3, .7);
+  stoneTiers(up, x, z, 3, .7 * S / .9);
   return 1.25 * S;
 }
 // 탑 둘레 돌난간 (선운사 육층석탑·직지사 삼층석탑처럼 네모나게 두름): 돌기둥 + 두 줄 난간대
@@ -266,21 +282,27 @@ function hexSlate(h, x, z) {
   return 1.15;
 }
 // 월정사 석조보살좌상(복제본): 탑을 향해 무릎 꿇고 공양하는 보살 · 원통형 높은 보관 (단순한 덩어리로만 그림)
-function offeringBosal(h, x, z, ry) {
+function offeringBosal(h, x, z, ry) { // 월정사 석조보살좌상: 왼 무릎을 세우고 꿇어앉아 두 손으로 공양구를 받든 보살 · 원통형 높은 보관 · 통통한 얼굴
   const { a: GA, b: GB } = GR(), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; h.site.add(g);
   const mk = (geo, px, py, pz, sx = 1, sy = 1, sz = 1, mat = GA, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.scale.set(sx, sy, sz); m.rotation.set(rx, 0, rz); m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
-  mk(new THREE.CylinderGeometry(.66, .72, .34, 8), 0, .17, 0, 1, 1, 1, GB);                       // 대좌
-  mk(new THREE.BoxGeometry(.62, .2, .7), 0, .44, -.08);                                            // 꿇어앉은 다리 (오른 무릎을 바닥에)
-  mk(new THREE.CylinderGeometry(.11, .13, .5, 10), .16, .62, .12, 1, 1, 1, GA, .2, 0);              // 세운 왼 무릎
-  mk(new THREE.SphereGeometry(.14, 10, 8), .16, .86, .18);
-  mk(new THREE.CylinderGeometry(.2, .3, .72, 10), 0, 1.0, -.06, 1.3, 1, 1);                        // 몸 (옷자락)
-  mk(new THREE.SphereGeometry(.2, 12, 8), 0, 1.34, -.06, 1.65, .55, 1.05);                         // 어깨
-  for (const sx of [-1, 1]) mk(new THREE.CylinderGeometry(.065, .075, .46, 8), sx * .23, 1.14, .1, 1, 1, 1, GA, -1.05, sx * .25); // 앞으로 모은 두 팔
-  mk(new THREE.CylinderGeometry(.08, .1, .16, 10), 0, 1.08, .32);                                  // 두 손에 든 공양구
-  mk(new THREE.SphereGeometry(.17, 14, 12), 0, 1.58, -.02, 1, 1.12, 1);                            // 얼굴
-  mk(new THREE.CylinderGeometry(.14, .16, .42, 14), 0, 1.92, -.04);                                // 원통형 높은 보관
-  mk(new THREE.CylinderGeometry(.17, .17, .05, 14), 0, 2.14, -.04, 1, 1, 1, GB);
-  h.col(x, z, .62, .62);
+  const up = new THREE.Vector3(0, 1, 0), limb = (a, b, r) => { const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A), n = d.length(); const m = mk(new THREE.CapsuleGeometry(r, Math.max(.01, n - r), 4, 10), (A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2); m.quaternion.setFromUnitVectors(up, d.normalize()); return m; };
+  mk(new THREE.CylinderGeometry(.7, .76, .26, 8), 0, .13, 0, 1, 1, 1, GB);                         // 팔각 대좌
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, m = mk(new THREE.SphereGeometry(.17, 10, 8), Math.sin(a) * .56, .3, Math.cos(a) * .56, 1, .45, .62); m.rotation.y = a; } // 연꽃잎
+  mk(new THREE.CylinderGeometry(.6, .64, .1, 24), 0, .31, 0, 1, 1, 1, GB);
+  mk(new THREE.SphereGeometry(.4, 18, 12), 0, .5, -.02, 1.12, .52, 1.2);                            // 꿇어앉은 다리를 덮은 옷자락
+  limb([.17, .44, -.05], [.18, .74, .2], .12); mk(new THREE.SphereGeometry(.13, 12, 10), .18, .76, .22); // 세운 왼 무릎
+  limb([.18, .74, .22], [.2, .42, .34], .09);                                                        // 정강이
+  const pr = [[.3, 0], [.31, .1], [.28, .3], [.24, .5], [.23, .62], [.26, .7], [.22, .78], [.08, .82], [.06, .9]].map(([r, y]) => new THREE.Vector2(r, y));
+  mk(new THREE.LatheGeometry(pr, 18), 0, .58, -.04, 1.18, 1, .9);                                   // 옷을 입은 몸 (어깨까지 부드럽게)
+  for (const sx of [-1, 1]) { limb([sx * .27, 1.28, -.03], [sx * .25, 1.02, .13], .075); limb([sx * .25, 1.02, .13], [sx * .08, 1.1, .3], .065); } // 앞으로 모은 두 팔
+  mk(new THREE.CylinderGeometry(.07, .09, .17, 14), 0, 1.13, .34);                                    // 두 손에 든 공양구
+  mk(new THREE.SphereGeometry(.075, 10, 8), 0, 1.24, .34);
+  mk(new THREE.SphereGeometry(.165, 18, 14), 0, 1.6, 0, 1, 1.14, .98);                              // 통통한 얼굴
+  for (const sx of [-1, 1]) mk(new THREE.BoxGeometry(.06, .3, .1), sx * .15, 1.46, -.05);           // 어깨로 내려온 머리칼
+  mk(new THREE.CylinderGeometry(.165, .14, .44, 18), 0, 1.96, -.02);                                // 원통형 높은 보관
+  mk(new THREE.CylinderGeometry(.18, .18, .045, 18), 0, 2.19, -.02, 1, 1, 1, GB);
+  mk(new THREE.TorusGeometry(.15, .02, 6, 18), 0, 1.8, -.02, 1, 1, 1, GB, Math.PI / 2);            // 보관 테
+  h.col(x, z, .66, .66);
 }
 // 탑 종류에 맞춰 세우기 → 탑돌이 중심 반환
 export function buildPagoda(h, type, PZ) {
@@ -331,8 +353,8 @@ export function buildExtras(h, T) {
   const out = {}, fig = h.fig || (h.fig = []); // fig: 나중에 3D 존상 모델로 바꿔 끼울 바깥 불상·보살상 자리
   if (T.style && T.style.bigStand) list.push('bigStand');
   for (const kind of list) {
-    if (kind === 'oldTree') { // 수백 년 된 노거수 (조계사 회화나무·백송, 봉은사)
-      const x = SX - .2, z = D / 2 - 1.5;
+    if (kind === 'oldTree') { // 수백 년 된 노거수 (조계사 회화나무, 봉은사) · 조계사는 백송이 오른쪽에 있어 회화나무를 왼쪽 앞에
+      const x = ((T.style && T.style.oldTreeSide) || 1) * (SX - .2), z = D / 2 - 1.5;
       const tr = add(new THREE.CylinderGeometry(.32, .55, 3.6, 8), h.MAT.trunk, x, 1.8, z); tr.rotation.z = .08;
       for (const [dx, dy, dz, r] of [[0, 4.6, 0, 2.3], [-1.4, 4.0, .6, 1.6], [1.3, 4.2, -.5, 1.7], [.2, 5.6, -.2, 1.5]]) { const c = add(new THREE.IcosahedronGeometry(r, 1), h.MAT.leaf, x + dx, dy, z + dz); c.scale.y = .78; }
       col(x, z, .6, .6);
@@ -395,7 +417,13 @@ export function buildExtras(h, T) {
       }
     }
     if (kind === 'mireuk') { // 금산사 미륵전: 3층 법당 · 앞문을 활짝 열어 안에 모신 미륵삼존(가운데 미륵불, 양옆 보살)이 보임
-      const x = -SX, z = -.5;
+      // 실제처럼 앞마당 오른쪽에서 마당(왼쪽)을 바라보게: 서향(坐東向西)
+      const right = T.style.mireukRight, ry = right ? -Math.PI / 2 : 0, gx = right ? L / 2 + 3.0 : -SX, gz = right ? D / 2 + 7.0 : -.5; // 송대 남쪽 계단 앞으로 지나다닐 틈을 둠
+      const G = new THREE.Group(); G.position.set(gx, 0, gz); G.rotation.y = ry; h.site.add(G);
+      const W = (lx, lz) => [gx + lx * Math.cos(ry) + lz * Math.sin(ry), gz - lx * Math.sin(ry) + lz * Math.cos(ry)]; // 미륵전 안 좌표 → 사찰 좌표
+      const add = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = true; m.receiveShadow = true; G.add(m); return m; };
+      const box = (w, hh, d, mat, px, py, pz) => add(new THREE.BoxGeometry(w, hh, d), mat, px, py, pz);
+      const x = 0, z = 0;
       box(5.2, .5, 4.8, h.MAT.stone, x, .25, z);
       let y = .5; const fl = [[4.6, 4.2, 3.0], [3.7, 3.3, 1.4], [2.9, 2.5, 1.3]];
       fl.forEach(([w, d, hh], i) => {
@@ -410,8 +438,8 @@ export function buildExtras(h, T) {
           box(w * .8, .32, 1.1, R.redCol, x, y + .16, z - d / 2 + .9);
           for (const [dx, k, hh2] of [[0, 'buddhaS', 2.55], [-1.2, 'bosalS', 2.0], [1.2, 'bosalS', 2.0]]) {
             const py = y + .32, pz = z - d / 2 + .9;
-            const ph = standingGwaneum(o => h.site.add(o), x + dx, py, pz, hh2 * .95, 0, R.gold);
-            fig.push({ k, tint: 'gold', lx: x + dx, ly: py, lz: pz, h: hh2, ry: 0, ph: [ph] });
+            const ph = standingGwaneum(o => G.add(o), x + dx, py, pz, hh2 * .95, 0, R.gold);
+            const [fx, fz] = W(x + dx, pz); fig.push({ k, tint: 'gold', lx: fx, ly: py, lz: fz, h: hh2, ry, ph: [ph], parent: G });
           }
         } else box(w, hh, d, R.white, x, y + hh / 2, z);
         for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.18, hh, .18, R.redCol, x + sx * w / 2, y + hh / 2, z + sz * d / 2);
@@ -422,8 +450,15 @@ export function buildExtras(h, T) {
         y += i === 2 ? rh : rh * .4;
       });
       const bd = add(new THREE.PlaneGeometry(1.3, .4), new THREE.MeshStandardMaterial({ map: h.nameTex('미륵전', '#2b1d14', '#f2cf72', 46), roughness: .6 }), x, .5 + 3.0 + (4.2 + 1.6) * .2 * .4 + 1.4 * .62, z + 3.3 / 2 + .06, false);
-      col(x, z, 2.6, 2.4);
-      (out.spots || (out.spots = [])).push({ lx: x, lz: z + 2.8, r: 3.2, name: '금산사 미륵전', story: '3층 법당 안에 서 계신 미륵삼존 · 문을 활짝 열어 두었어요' });
+      if (right) col(gx, gz, 2.4, 2.6); else col(gx, gz, 2.6, 2.4);
+      const [sx0, sz0] = W(0, 3.2); (out.spots || (out.spots = [])).push({ lx: sx0, lz: sz0, r: 3.2, name: '금산사 미륵전', story: '3층 법당 안에 서 계신 미륵삼존 · 문을 활짝 열어 두었어요' });
+      out.mireuk = { x: gx, z: gz, ry, front: W(0, 3.4), sign: W(-2.6, 3.2) };
+    }
+    if (kind === 'cliff') { // 백양사 백학봉: 법당 뒤 숲 위로 우뚝 솟은 흰 바위 봉우리 (멀리 보이는 배경)
+      const z0 = -D / 2 - 30;
+      [[0, 26, 22, 12, 0], [-10, 17, 16, 10, 2], [10, 20, 15, 10, 1.5], [4, 31, 9, 7, -1], [-4, 23, 10, 8, -.5]].forEach(([dx, hh, w, d, dz]) => {
+        const m = add(new THREE.DodecahedronGeometry(1, 1), GR().b, dx, hh * .45 - 2, z0 + dz); m.scale.set(w / 2, hh / 2, d / 2); m.castShadow = false; m.userData.far = true;
+      });
     }
     if (kind === 'pond') { // 백양사 쌍계루: 연못가 2층 누각
       const x = SX, zP = 1.6;
@@ -438,15 +473,26 @@ export function buildExtras(h, T) {
       col(x, z, 1.6, 1.15);
       const bd = add(new THREE.PlaneGeometry(1.1, .34), new THREE.MeshStandardMaterial({ map: h.nameTex('쌍계루', '#2b1d14', '#f2cf72', 46), roughness: .6 }), x, 2.62, z + 1.18, false);
     }
-    if (kind === 'bridge') { // 선암사 승선교: 개울 위 무지개다리
-      const x = SX, zb = 1.2;
-      const st = add(new THREE.PlaneGeometry(1.5, D + 4), R.water, x, .035, 0, false); st.rotation.x = -Math.PI / 2;
-      for (const sx of [-1, 1]) for (let z = -D / 2 - 1.6; z < D / 2 + 2; z += .9) box(.35, .25, .6, h.MAT.stoneDark, x + sx * .9, .12, z);
-      col(x, 0, 1.0, D / 2 + 2);
-      const arch = add(new THREE.TorusGeometry(1.15, .2, 6, 18, Math.PI), R.granite, x, 0, zb);
-      arch.rotation.y = Math.PI / 2;
-      for (const dz of [-.55, .55]) { const a2 = add(new THREE.TorusGeometry(1.15, .16, 6, 18, Math.PI), R.granite2, x, 0, zb + dz); a2.rotation.y = Math.PI / 2; a2.scale.set(1, 1, 1); }
-      const deck = add(new THREE.TorusGeometry(1.5, .12, 4, 18, Math.PI * .7), R.granite, x, -.35, zb); deck.rotation.y = Math.PI / 2; deck.rotation.z = Math.PI * .15; deck.scale.z = 9;
+    if (kind === 'bridge') { // 선암사 승선교(보물): 개울을 가로지르는 반원 무지개다리 — 아치 너머 위쪽으로 강선루가 보임
+      const x = SX, zb = D / 2 + 3.2, sw = 1.6;
+      const st = add(new THREE.PlaneGeometry(sw, D + 8), R.water, x, .035, .4, false); st.rotation.x = -Math.PI / 2;
+      for (const sx of [-1, 1]) for (let z = -D / 2 - 3.4; z < D / 2 + 4.6; z += .9) if (Math.abs(z - zb) > 1.0) box(.35, .25, .6, h.MAT.stoneDark, x + sx * (sw / 2 + .15), .12, z);
+      col(x, .4, sw / 2 + .1, D / 2 + 4);
+      const r = .95, half = 1.75, sh = new THREE.Shape();             // 홍예: 반원 구멍 + 완만하게 휜 다리 윗면
+      sh.moveTo(-half, 0); sh.lineTo(-half, .28); sh.quadraticCurveTo(0, 2.5, half, .28); sh.lineTo(half, 0); sh.lineTo(r, 0);
+      sh.absarc(0, 0, r, 0, Math.PI, false); sh.lineTo(-half, 0);
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: 1.4, bevelEnabled: false, curveSegments: 20 }); geo.translate(0, 0, -.7);
+      add(geo, R.granite, x, -.04, zb);
+      for (const sz of [-1, 1]) add(new THREE.TorusGeometry(r + .09, .09, 4, 20, Math.PI), R.granite2, x, -.04, zb + sz * .71); // 홍예석 테두리
+      const dh = add(new THREE.ConeGeometry(.09, .26, 6), R.granite2, x, r - .12, zb + .3); dh.rotation.x = Math.PI * .6;     // 아치 꼭대기에 매달린 용머리
+      const zk = zb - 4.0, kw = 2.5, kd = 1.8;                         // 강선루: 개울 위로 다리를 뻗은 2층 누각
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) { box(.22, 1.7, .22, h.MAT.stone, x + sx * kw / 2, .85, zk + sz * kd / 2); box(.17, 1.25, .17, R.redCol, x + sx * kw / 2, 2.32, zk + sz * kd / 2); }
+      box(kw + .5, .14, kd + .5, R.wood, x, 1.72, zk);
+      for (const sz of [-1, 1]) box(kw + .4, .28, .05, R.lattice, x, 1.94, zk + sz * (kd / 2 + .22));
+      box(kw + .3, .22, kd + .3, R.band, x, 2.95, zk);
+      const m = add(hipRoofGeo(THREE, kw + 1.9, kd + 1.7, 1.1, 1.0, .28), R.roofTile, x, 3.06, zk); m.receiveShadow = false;
+      add(new THREE.PlaneGeometry(.95, .3), new THREE.MeshStandardMaterial({ map: h.nameTex('강선루', '#2b1d14', '#f2cf72', 46), roughness: .6 }), x, 2.72, zk + kd / 2 + .17, false);
+      out.bridge = { zb, zk };
     }
     if (kind === 'gyedan') { // 통도사 금강계단: 대웅전 뒤 2단 돌 단과 종 모양 사리탑
       const x = 0, z = -D / 2 - 5.6;
@@ -460,20 +506,71 @@ export function buildExtras(h, T) {
       col(x, z, 3.1, 3.1);
       out.backYard = 9;
     }
-    if (kind === 'bangdeung') { // 금산사 금강계단(방등계단) + 오층석탑: 법당 뒤 송대 — 2단 네모 돌단 가운데 종 모양 사리탑, 그 남쪽에 고려 오층석탑
-      const x = -(L / 4 + 1.2), zc = -D / 2 - 7.6, zt = -D / 2 - 3.3;
-      box(5.6, .42, 5.6, R.granite2, x, .21, zc); box(4.0, .4, 4.0, R.granite, x, .62, zc);
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) { box(.34, .95, .34, h.MAT.stoneDark, x + sx * 2.62, .47, zc + sz * 2.62); add(new THREE.SphereGeometry(.2, 10, 8), h.MAT.stoneDark, x + sx * 2.62, 1.06, zc + sz * 2.62); } // 네 귀 사천왕 돌기둥 자리
-      for (let i = 0; i < 16; i++) { const t = (i + .5) / 16 * 4 - 2; for (const sz of [-1, 1]) box(.26, .22, .04, R.granite2, x + t * 1.0, .6, zc + sz * 2.02); for (const sx of [-1, 1]) box(.04, .22, .26, R.granite2, x + sx * 2.02, .6, zc + t * 1.0); } // 기단 벽 돋을새김
-      for (let i = 0; i < 3; i++) box(1.2, .14 * (i + 1), .36, R.granite2, x, .07 * (i + 1), zc + 2.8 + (2 - i) * .34); // 남쪽 돌계단
-      add(new THREE.CylinderGeometry(.78, .9, .28, 16), R.granite2, x, .96, zc);
-      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, pt = add(new THREE.SphereGeometry(.2, 8, 6), R.granite, x + Math.sin(a) * .7, 1.12, zc + Math.cos(a) * .7); pt.scale.set(1, .4, 1); } // 연꽃 받침
-      const bell = add(new THREE.SphereGeometry(.6, 20, 14), R.granite, x, 1.78, zc); bell.scale.set(1, 1.38, 1); // 석종
-      add(new THREE.CylinderGeometry(.12, .2, .32, 10), R.granite2, x, 2.7, zc); add(new THREE.SphereGeometry(.15, 10, 8), R.granite2, x, 2.95, zc);
-      col(x, zc, 2.85, 2.85);
-      stoneTiers(h, x, zt, 5, .95); col(x, zt, 1.3, 1.3);
-      (out.spots || (out.spots = [])).push({ lx: x + 3.6, lz: zc + 1.2, r: 3.4, name: '금산사 금강계단 · 오층석탑', story: '법당 뒤 송대에 계단과 고려 오층석탑이 나란히 있어요' });
-      out.bangdeung = { x, zc, zt };
+    if (kind === 'bangdeung') { // 금산사 송대: 대적광전 오른쪽·미륵전 북쪽의 높은 터 위, 2단 네모 돌단 가운데 종 모양 사리탑(금강계단) + 그 남쪽 고려 오층석탑
+      const x = L / 2 + 3.15, tz0 = -D / 2 - 1.0, tz1 = D / 2 + 1.7, TH = .9, zc = -D / 2 + 2.7, zt = D / 2 - 1.5;
+      box(5.5, TH, tz1 - tz0, R.granite2, x, TH / 2, (tz0 + tz1) / 2);                           // 송대 (막돌 축대)
+      for (let i = 0; i < 9; i++) for (const sz of [tz0, tz1]) box(.62, .26, .06, h.MAT.stoneDark, x - 2.5 + i * .62, .2 + (i % 2) * .3, sz + (sz > 0 ? .03 : -.03)); // 축대 돌 줄눈
+      for (const [sz, dir] of [[tz1, 1], [tz0, -1]]) for (let i = 0; i < 3; i++) box(1.8, TH * (i + 1) / 4, .34, R.granite, x, TH * (i + 1) / 8, sz + dir * (.17 + (2 - i) * .34)); // 남·북 돌계단
+      const up = { ...h, add: (geo, m, px, py, pz, sh) => add(geo, m, px, py + TH, pz, sh), box: (w, hh, d, m, px, py, pz) => add(new THREE.BoxGeometry(w, hh, d), m, px, py + TH, pz) };
+      up.box(5.0, .42, 5.0, R.granite2, x, .21, zc); up.box(3.6, .4, 3.6, R.granite, x, .62, zc);
+      for (let i = 0; i < 14; i++) { const t = (i + .5) / 14 * 3.6 - 1.8; for (const sz of [-1, 1]) up.box(.22, .22, .04, R.granite2, x + t, .6, zc + sz * 1.82); for (const sx of [-1, 1]) up.box(.04, .22, .22, R.granite2, x + sx * 1.82, .6, zc + t); } // 기단 벽 돋을새김
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) { // 아래 단 돌난간 + 네 귀 사천왕 석상
+        const cx = x + sx * 2.3, cz = zc + sz * 2.3;
+        up.add(new THREE.CylinderGeometry(.2, .26, .9, 10), R.granite, cx, .87, cz);                         // 갑옷 입은 몸
+        up.add(new THREE.SphereGeometry(.15, 10, 8), R.granite, cx, 1.42, cz); up.add(new THREE.CylinderGeometry(.1, .14, .16, 8), R.granite2, cx, 1.6, cz); // 머리 · 투구
+        for (const s2 of [-1, 1]) { const a = up.add(new THREE.CylinderGeometry(.06, .07, .5, 6), R.granite, cx + s2 * .24, 1.05, cz); a.rotation.z = s2 * .4; }
+        up.add(new THREE.CylinderGeometry(.24, .28, .1, 10), R.granite2, cx, .47, cz);
+      }
+      for (const sz of [-1, 1]) { up.box(4.3, .06, .07, R.granite2, x, .74, zc + sz * 2.3); up.box(.07, .06, 4.3, R.granite2, x + sz * 2.3, .74, zc); }
+      for (let i = 0; i < 3; i++) up.box(1.2, .14 * (i + 1), .36, R.granite2, x, .07 * (i + 1), zc + 2.8 + (2 - i) * .34); // 계단 남쪽 오르는 돌계단
+      up.add(new THREE.CylinderGeometry(.78, .9, .28, 16), R.granite2, x, .96, zc);
+      for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, pt = up.add(new THREE.SphereGeometry(.2, 8, 6), R.granite, x + Math.sin(a) * .7, 1.12, zc + Math.cos(a) * .7); pt.scale.set(1, .4, 1); } // 연꽃 받침
+      const bell = up.add(new THREE.SphereGeometry(.6, 20, 14), R.granite, x, 1.78, zc); bell.scale.set(1, 1.38, 1); // 석종
+      up.add(new THREE.CylinderGeometry(.12, .2, .32, 10), R.granite2, x, 2.7, zc); up.add(new THREE.SphereGeometry(.15, 10, 8), R.granite2, x, 2.95, zc);
+      col(x, zc, 2.6, 2.6);
+      stoneTiers(up, x, zt, 5, .95); col(x, zt, 1.3, 1.3);
+      (out.spots || (out.spots = [])).push({ lx: x - .2, lz: zt + 2.4, r: 3.2, name: '금산사 금강계단 · 오층석탑', story: '대적광전 오른쪽 높은 터(송대)에 금강계단과 고려 오층석탑이 나란히 있어요' });
+      out.bangdeung = { x, zc, zt, TH };
+    }
+    if (kind === 'hyodae') { // 화엄사 효대: 각황전 왼쪽 뒤 높은 터 — 국보 사사자 삼층석탑(가운데 합장한 스님상) + 탑을 향해 공양하는 인물상을 품은 석등
+      const x = -(L / 2 + 3.1), zc = -D / 2 - 3.4, TH = 1.0;
+      box(5.2, TH, 5.6, R.granite2, x, TH / 2, zc); box(5.4, .12, 5.8, R.granite, x, TH + .06, zc);
+      for (let i = 0; i < 4; i++) box(1.6, TH * (i + 1) / 5, .32, R.granite, x, TH * (i + 1) / 10, zc + 2.8 + .16 + (3 - i) * .32); // 남쪽 돌계단
+      const up = { ...h, add: (geo, m, px, py, pz, sh) => add(geo, m, px, py + TH + .12, pz, sh), box: (w, hh, d, m, px, py, pz) => add(new THREE.BoxGeometry(w, hh, d), m, px, py + TH + .12, pz), site: h.site };
+      const tz = zc - .9; lion3(up, x, tz, { monk: true, s: 1.05 }); col(x, tz, 1.4, 1.4);
+      const lz = tz + 2.5, Y = TH + .12; // 석등: 간주 자리에 무릎 꿇은 공양상
+      add(new THREE.CylinderGeometry(.42, .48, .18, 8), R.granite2, x, Y + .09, lz);
+      add(new THREE.CylinderGeometry(.08, .1, .34, 8), R.granite, x, Y + .36, lz); add(new THREE.SphereGeometry(.12, 10, 8), R.granite, x, Y + .6, lz); // 공양상 (탑을 바라봄)
+      for (const sx of [-1, 1]) add(new THREE.CylinderGeometry(.06, .06, .6, 6), R.granite2, x + sx * .32, Y + .48, lz);
+      add(new THREE.CylinderGeometry(.42, .36, .14, 8), R.granite2, x, Y + .85, lz); box(.36, .42, .36, R.granite, x, Y + 1.13, lz); box(.24, .2, .4, h.MAT.fire, x, Y + 1.13, lz);
+      add(new THREE.ConeGeometry(.46, .3, 8), R.granite2, x, Y + 1.49, lz); add(new THREE.SphereGeometry(.08, 8, 6), R.granite2, x, Y + 1.7, lz);
+      col(x, lz, .5, .5);
+      (out.spots || (out.spots = [])).push({ lx: x + 1.8, lz: lz + .6, r: 3.0, name: '화엄사 사사자 삼층석탑', story: '네 마리 돌사자가 받친 국보 석탑 · 가운데에 합장한 스님상이 서 있어요' });
+      out.hyodae = { x, zc, lz };
+      out.backYard = Math.max(out.backYard || 0, 6.5);
+    }
+    if (kind === 'magokDaeung') { // 마곡사 대웅보전: 대광보전 뒤 높은 터 위의 2층 법당 (아래층 정면 5칸, 위층 3칸, 팔작지붕)
+      const z = -D / 2 - 10.0, TH = 5.0, w = 10.2, d = 6.6, h1 = 3.3, w2 = 7.0, d2 = 4.4, h2 = 2.5, NS = 10; // 높은 축대 위라 앞마당에서도 대광보전 지붕 너머로 위층이 보임
+      box(w + 3.4, TH, d + 4.6, R.granite2, 0, TH / 2, z); box(w + 3.6, .12, d + 4.8, R.granite, 0, TH + .06, z); // 법당 앞에 걸어 다닐 너른 터
+      { const zf = z + (d + 4.6) / 2, sd = 1.7, sr = (TH + .12) / (NS + 1), sl = .55; // 축대 앞면을 따라 양쪽에서 올라가는 돌계단 + 가운데 참
+        box(2.0, TH + .12, sd, R.granite2, 0, (TH + .12) / 2, zf + sd / 2);
+        for (const sx of [-1, 1]) for (let i = 0; i < NS; i++) { const hh = sr * (i + 1); box(sl, hh, sd, R.granite, sx * (1.0 + (NS - 1 - i) * sl + sl / 2), hh / 2, zf + sd / 2); } }
+      const y0 = TH + .12;
+      box(w, h1, d, R.white, 0, y0 + h1 / 2, z);
+      for (let i = 0; i <= 5; i++) for (const sz of [-1, 1]) box(.22, h1, .22, R.redCol, -w / 2 + w * i / 5, y0 + h1 / 2, z + sz * d / 2);
+      for (let i = 0; i < 5; i++) box(w / 5 - .4, h1 - .6, .06, R.lattice, -w / 2 + w * (i + .5) / 5, y0 + (h1 - .6) / 2 + .1, z + d / 2 + .03); // 꽃살문
+      box(w + .1, .3, d + .1, R.band, 0, y0 + h1 - .15, z);
+      const r1 = add(hipRoofGeo(THREE, w + 2.2, d + 2.2, 1.2, w - d * .6, .3), R.roofTile, 0, y0 + h1, z); r1.receiveShadow = false;
+      const y1 = y0 + h1 + .55;
+      box(w2, h2, d2, R.white, 0, y1 + h2 / 2, z);
+      for (let i = 0; i <= 3; i++) for (const sz of [-1, 1]) box(.2, h2, .2, R.redCol, -w2 / 2 + w2 * i / 3, y1 + h2 / 2, z + sz * d2 / 2);
+      for (let i = 0; i < 3; i++) box(w2 / 3 - .5, h2 * .5, .06, R.lattice, -w2 / 2 + w2 * (i + .5) / 3, y1 + h2 * .45, z + d2 / 2 + .03);
+      box(w2 + .1, .28, d2 + .1, R.band, 0, y1 + h2 - .14, z);
+      const r2 = add(hipRoofGeo(THREE, w2 + 2.2, d2 + 2.2, (d2 + 2.2) * .38, Math.max(.6, w2 - d2 * .8), .32), R.roofTile, 0, y1 + h2, z); r2.receiveShadow = false;
+      add(new THREE.PlaneGeometry(1.5, .45), new THREE.MeshStandardMaterial({ map: h.nameTex('대웅보전', '#2b1d14', '#f2cf72', 46), roughness: .6 }), 0, y1 + h2 * .78, z + d2 / 2 + .12, false);
+      col(0, z, w / 2 + .3, d / 2 + .3);
+      (out.spots || (out.spots = [])).push({ lx: 2.6, lz: z + (d + 4.6) / 2 + 2.4, r: 3.4, name: '마곡사 대웅보전', story: '대광보전 뒤 높은 터에 선 2층 법당이에요' });
+      out.backYard = Math.max(out.backYard || 0, 16);
     }
     if (kind === 'janggyeong') { // 해인사 장경판전: 팔만대장경을 모신 긴 맞배 건물 두 채 (살창)
       for (const [z, name] of [[-D / 2 - 4.2, '수다라장'], [-D / 2 - 9.0, '법보전']]) {
