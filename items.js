@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=11';
-import { R, standingGwaneum, stoneTiers } from './regional.js?v=29';
+import { R, standingGwaneum, stoneTiers } from './regional.js?v=30';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const glow = (c, e = .25) => M(c, { emissive: c, emissiveIntensity: e });
@@ -300,8 +300,8 @@ export function buildItems(h, T) {
       signpost(h, ...toSite(g, -2.6, 1.9), RIGHT, '판전', '추사 김정희가 생애 마지막에 쓴 현판');
       spot(g, 0, 2.2, 3.4, '봉은사 판전', '추사 김정희가 세상을 떠나기 며칠 전에 쓴 ‘판전’ 현판이 걸려 있어요');
     }
-    if (kind === 'yongjuBell') { // 용주사 동종: 작은 종각에 모신 국보 범종 (치지 않고 보기만)
-      const g = grp(h, -FX, FZ, LEFT), P = parts();
+    if (kind === 'yongjuBell') { // 용주사 범종각: 국보 동종을 모신 한 칸 종각 (치지 않고 보기만) · 삼문과 천보루 사이 앞마당 왼쪽, 오른쪽 법고각과 마주 봄
+      const g = grp(h, -FX, D / 2 + 15.0, LEFT), P = parts();
       P.box(2.8, .25, 2.8, h.MAT.stone, 0, .125, 0);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.1, .11, 2.4, 8, R.redCol, sx * 1.15, 1.45, sz * 1.15);
       P.box(2.5, .16, .16, R.redCol, 0, 2.5, 0); P.box(2.5, .12, 2.5, R.band, 0, 2.62, 0);
@@ -322,7 +322,7 @@ export function buildItems(h, T) {
       spot(g, 0, 2.2, 3.4, '용주사 동종', '국보 · 하늘을 나는 비천상과 삼존상이 새겨진 범종이에요');
     }
     if (kind === 'hyohaeng') { // 용주사 효행 이야기: 부모은중경 열 가지 은혜 판
-      const g = grp(h, FX, FZ, RIGHT), P = parts();
+      const g = grp(h, 7.7, YZ1 + 3.3, -Math.PI / 4), P = parts(); // 부모은중경탑 곁, 들어오는 길을 비스듬히 바라봄
       const B = boardTex('효행 이야기', ['*정조가 아버지 사도세자를 위해 세운 효심의 절', '*부모은중경 — 부모님의 열 가지 은혜',
         '1  아이를 품어 지키고 보호해 주신 은혜', '2  낳으실 때 큰 고통을 겪으신 은혜', '3  자식을 낳고 근심을 잊으신 은혜', '4  쓴 것은 삼키고 단 것은 먹여 주신 은혜', '5  마른자리 아기 누이고 젖은 자리 누우신 은혜',
         '6  젖을 먹여 길러 주신 은혜', '7  더러운 것을 씻어 주신 은혜', '8  먼 길 떠나면 걱정하시는 은혜', '9  자식 위해 궂은일도 마다 않으신 은혜', '10 끝까지 가엾이 여기시는 은혜'], { size: 31, gap: 50 });
@@ -332,8 +332,100 @@ export function buildItems(h, T) {
       P.flush(g);
       mesh(g, new THREE.PlaneGeometry(bw, bh), new THREE.MeshStandardMaterial({ map: B.tex, roughness: .7 }), 0, .6 + bh / 2, .0, false);
       const r = mesh(g, gableRoofGeo(THREE, bw + .7, .9, .32, .08), R.roofTile, 0, .65 + bh + .08, 0); r.receiveShadow = false;
-      colG(h, g, 0, 0, bw / 2 + .1, .2);
-      spot(g, 0, 1.4, 3.0, '용주사 효행 이야기', '정조가 아버지 사도세자를 위해 세운 절 · 부모은중경의 열 가지 은혜를 읽어 보세요');
+      h.col(7.7, YZ1 + 3.3, 1.0, 1.0);
+      spot(g, 0, 1.4, 2.4, '용주사 효행 이야기', '정조가 아버지 사도세자를 위해 세운 절 · 부모은중경의 열 가지 은혜를 읽어 보세요');
+    }
+    if (kind === 'yongjuDrum') { // 용주사 법고각: 범종각과 마주 보는 한 칸 전각 · 예불 때 치는 큰 북
+      const g = grp(h, FX, D / 2 + 15.0, RIGHT), P = parts();
+      P.box(2.8, .25, 2.8, h.MAT.stone, 0, .125, 0);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.1, .11, 2.4, 8, R.redCol, sx * 1.15, 1.45, sz * 1.15);
+      P.box(2.5, .16, .16, R.redCol, 0, 2.5, 0); P.box(2.5, .12, 2.5, R.band, 0, 2.62, 0);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.box(.08, .5, .08, R.lattice, sx * 1.15, .5, sz * .6), P.box(.08, .5, .08, R.lattice, sx * .6, .5, sz * 1.15);
+      for (const [a, b] of [[[-1.15, 1.15], [1.15, 1.15]], [[-1.15, -1.15], [1.15, -1.15]], [[-1.15, -1.15], [-1.15, 1.15]], [[1.15, -1.15], [1.15, 1.15]]]) { const cx = (a[0] + b[0]) / 2, cz = (a[1] + b[1]) / 2, len = Math.hypot(b[0] - a[0], b[1] - a[1]); P.box(a[0] === b[0] ? .07 : len, .07, a[0] === b[0] ? len : .07, R.lattice, cx, .72, cz); } // 낮은 난간
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.box(.09, 1.05, .09, R.wood, sx * .55, .77, sz * .3); // 북 받침 틀
+      for (const sz of [-1, 1]) P.box(1.25, .09, .09, R.wood, 0, 1.25, sz * .3);
+      P.flush(g);
+      const roof = mesh(g, hipRoofGeo(THREE, 3.6, 3.6, 1.1, .4, .3), R.roofTile, 0, 2.68, 0); roof.receiveShadow = false;
+      const drumY = 1.82, body = new THREE.CylinderGeometry(.6, .6, .62, 28); body.rotateX(Math.PI / 2); // 북통: 붉은 몸통, 가죽 면이 앞(길 쪽)을 봄
+      mesh(g, body, M('#a3352b'), 0, drumY, 0);
+      const skin = M('#eadcbc', { side: THREE.DoubleSide }), gold = M('#d9a441');
+      for (const sz of [-1, 1]) { const f = mesh(g, new THREE.CircleGeometry(.57, 28), skin, 0, drumY, sz * .315, false); if (sz < 0) f.rotation.y = Math.PI;
+        mesh(g, new THREE.TorusGeometry(.6, .035, 6, 28), gold, 0, drumY, sz * .28, false);
+        const tg = new THREE.CircleGeometry(.2, 20, 0, Math.PI), tb = new THREE.CircleGeometry(.2, 20, Math.PI, Math.PI); // 태극
+        const a = mesh(g, tg, M('#c0392b', { side: THREE.DoubleSide }), 0, drumY, sz * .322, false), b = mesh(g, tb, M('#2c5aa0', { side: THREE.DoubleSide }), 0, drumY, sz * .322, false);
+        if (sz < 0) { a.rotation.y = Math.PI; b.rotation.y = Math.PI; } }
+      plate(h, g, '법고각', .9, 0, 2.38, 1.36, { px: 42 });
+      colG(h, g, 0, 0, 1.5, 1.5);
+      spot(g, 0, 2.2, 3.0, '용주사 법고각', '범종각과 마주 보는 한 칸 전각 · 예불 때 치는 큰 북(법고)을 모셨어요');
+    }
+    if (kind === 'yongjuApproach') { // 용주사 삼문 바깥: 홍살문(cheonbo) 왼쪽 고려 오층석탑 · 오른쪽 부모은중경탑 (실제로는 그 앞에 천왕문과 효행박물관이 있으나 가운데 순례 마당과 가까워 담지 않음)
+      const r1 = stoneTiers(h, -4.4, YZ1 + 4.6, 5, .95); h.col(-4.4, YZ1 + 4.6, r1, r1); // 고려 오층석탑 (홍살문 왼쪽)
+      const r2 = stoneTiers(h, 4.4, YZ1 + 4.6, 3, .9, false, { slim: .9 }); h.col(4.4, YZ1 + 4.6, r2, r2); // 부모은중경탑 (1981, 홍살문 오른쪽)
+      signpost(h, -4.4, YZ1 + 6.5, 0, '오층석탑', '고려 때 화강암 탑 · 높이 4.5m', 1.25);
+      signpost(h, 4.4, YZ1 + 6.5, 0, '부모은중경탑', '부모님 은혜를 새긴 삼층탑', 1.25);
+      spotAt(-4.4, YZ1 + 7.2, 1.8, '용주사 오층석탑', '홍살문 왼쪽, 효행박물관 앞에 선 고려 때 오층석탑이에요');
+      spotAt(4.4, YZ1 + 7.2, 1.8, '용주사 부모은중경탑', '부모은중경의 글귀를 새긴 삼층석탑 · 2020년 호성전 화재 뒤 이 자리로 옮겼어요');
+    }
+    if (kind === 'yongjuUpper') { // 용주사 대웅보전 둘레: 왼쪽 시방칠등각(옛 칠성각) · 그 너머 천불전(옛 향로전 자리, 동쪽으로 문), 오른쪽 호성전(사도세자 제각)
+      { const g = grp(h, -(YX - 5.4), 1.9, 0); // 시방칠등각: 대웅보전과 천불전 사이
+        smallHall(h, g, { w: 3.0, d: 2.2, hh: 1.65, gable: true, roofH: .9, plaque: '시방칠등각', plaqueW: 1.25 });
+        colG(h, g, 0, 0, 1.75, 1.35);
+        spot(g, 0, 2.0, 2.4, '용주사 시방칠등각', '옛 칠성각 · 칠성탱화와 산신·독성탱화를 모신 맞배지붕 전각이에요'); }
+      { const w = 3.4, d = 2.6, hh = 1.95, g = grp(h, -(YX - 1.9), -2.6, LEFT); // 천불전: 동쪽을 뺀 세 면에 아홉 층 단 + 가운데 삼세불
+        smallHall(h, g, { w, d, hh, roofH: 1.0, open: 2.6, plaque: '천불전', plaqueW: 1.0 });
+        colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        const NT = 9, ty = t => .42 + t * .165, P = parts();
+        for (let t = 0; t < NT; t++) P.box(w - .4, .07, .2, R.wood, 0, ty(t), -d / 2 + .25);
+        for (const sx of [-1, 1]) for (let t = 0; t < NT; t++) P.box(.2, .07, d - .65, R.wood, sx * (w / 2 - .26), ty(t), -.08);
+        P.box(1.3, .32, .5, R.redCol, 0, .46, -d / 2 + .8); P.flush(g);
+        const one = mergeGeometries([new THREE.ConeGeometry(.04, .06, 8).translate(0, .03, 0), new THREE.SphereGeometry(.019, 8, 6).translate(0, .078, 0)]), pts = [];
+        for (let t = 0; t < NT; t++) for (let i = 0; i < 32; i++) pts.push([-w / 2 + .3 + i * (w - .6) / 31, ty(t) + .035, -d / 2 + .25]);
+        for (const sx of [-1, 1]) for (let t = 0; t < NT; t++) for (let i = 0; i < 13; i++) pts.push([sx * (w / 2 - .26), ty(t) + .035, -d / 2 + .45 + i * (d - 1.05) / 12]);
+        const im = new THREE.InstancedMesh(one, k.buddhaW, pts.length), m4 = new THREE.Matrix4();
+        pts.forEach(([px, py, pz], i) => { m4.makeTranslation(px, py, pz); im.setMatrixAt(i, m4); }); g.add(im);
+        for (const [dx, kk] of [[-.42, 'biro'], [0, 'sakya'], [.42, 'amita']]) { // 가운데 삼세불 (석가모니·비로자나·아미타)
+          const ph = new THREE.Group(); ph.position.set(dx, .62, -d / 2 + .8); g.add(ph); mesh(ph, new THREE.SphereGeometry(.15, 12, 8), R.gold, 0, .14, 0).scale.set(1.2, .9, .9); mesh(ph, new THREE.SphereGeometry(.09, 12, 8), R.gold, 0, .34, 0);
+          const [fx, fz] = toSite(g, dx, -d / 2 + .8); h.fig.push({ k: kk, tint: 'gold', lx: fx, ly: .62, lz: fz, h: dx ? .52 : .58, ry: g.rotation.y, ph: [ph] }); }
+        spot(g, 0, 2.3, 2.8, '용주사 천불전', '옛 향로전 자리에 1993년 지은 법당 · 세 면의 아홉 층 단에 작은 부처님 천 분을 모셨어요'); }
+      { const w = 3.6, d = 2.6, g = grp(h, YX - 5.0, -.4, 0); // 호성전: 사도세자·혜경궁 홍씨·정조·효의왕후의 위패
+        smallHall(h, g, { w, d, hh: 1.85, roofH: 1.05, open: 2.0, plaque: '호성전', plaqueW: 1.0 });
+        colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        const P = parts(), z0 = -d / 2 + .55;
+        P.box(1.7, .5, .5, R.redCol, 0, .55, z0); P.box(1.8, .05, .56, R.wood, 0, .82, z0);
+        for (let i = 0; i < 4; i++) { const x = -.54 + i * .36; P.box(.15, .44, .05, M('#2b2420'), x, 1.07, z0); P.box(.2, .07, .09, R.gold, x, 1.3, z0); P.box(.2, .05, .1, R.wood, x, .86, z0); } // 위패 넷
+        P.flush(g);
+        spot(g, 0, 2.2, 2.6, '용주사 호성전', '정조가 아버지 사도세자의 위패를 모시려고 대웅보전 곁에 지은 전각이에요'); }
+    }
+    if (kind === 'yonghwagak') { // 봉녕사 용화각: 대적광전 오른쪽 · 1970년대 법당 터를 닦다 땅속에서 나온 고려 후기 석조삼존불 (모래가 많은 돌이라 많이 닳음, 연꽃 대좌는 또렷)
+      const w = 3.4, d = 2.6, hh = 2.0, g = grp(h, YX - 4.0, -1.0, 0);
+      smallHall(h, g, { w, d, hh, roofH: 1.05, open: 2.6, plaque: '용화각', plaqueW: 1.0 });
+      colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+      const sand = M('#b9a689', { roughness: 1 }), sand2 = M('#a79478', { roughness: 1 }), P = parts(), zz = -d / 2 + .62, y0 = .62;
+      P.box(2.7, .32, .86, h.MAT.stone, 0, .46, zz);                                  // 불단
+      const seat = (x, r) => { P.cyl(r * .78, r * .92, .16, 16, sand2, x, y0 + .08, zz); // 연꽃 대좌 (꽃잎은 또렷하게)
+        for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; P.ball(r * .26, sand, x + Math.sin(a) * r * .9, y0 + .15, zz + Math.cos(a) * r * .9, 1, .55, 1, 1); }
+        return y0 + .2; };
+      { const yb = seat(0, .46); // 본존: 앉은 모습 · 오른손은 무릎, 왼손은 가슴 (닳아서 윤곽만)
+        P.ball(.38, sand, 0, yb + .14, zz + .04, 1.25, .42, .82, 1);
+        P.ball(.27, sand, 0, yb + .5, zz - .02, 1.02, 1.5, .78, 1);
+        P.ball(.15, sand2, 0, yb + .96, zz, 1, 1.08, .95, 1); P.ball(.07, sand2, 0, yb + 1.1, zz - .01, 1, 1, 1, 0);
+        P.ball(.07, sand2, .24, yb + .2, zz + .26, 1, .8, 1.2, 0); P.ball(.07, sand2, -.08, yb + .55, zz + .18, 1, .8, .9, 0); }
+      for (const sx of [-1, 1]) { const x = sx * .92, yb = seat(x, .28); // 좌우 협시: 선 모습 (형체가 많이 닳음)
+        P.ball(.18, sand, x, yb + .46, zz, 1, 2.5, .78, 1);
+        P.ball(.11, sand2, x, yb + 1.0, zz, 1, 1.1, .95, 1); }
+      P.flush(g);
+      spot(g, 0, 2.3, 2.8, '봉녕사 용화각 석조삼존불', '1970년대 땅속에서 나온 고려 후기 돌부처님 세 분 · 많이 닳았지만 연꽃 대좌는 또렷해요');
+    }
+    if (kind === 'yaksaBojeon') { // 봉녕사 약사보전: 대적광전 왼쪽
+      const g = grp(h, -(YX - 4.0), -.6, 0);
+      smallHall(h, g, { w: 3.4, d: 2.6, hh: 1.9, roofH: 1.05, plaque: '약사보전', plaqueW: 1.1 });
+      colG(h, g, 0, 0, 2.0, 1.6);
+      spot(g, 0, 2.2, 2.6, '봉녕사 약사보전', '대적광전 왼쪽 · 아픈 이를 낫게 해 주는 약사여래를 모신 전각이에요');
+    }
+    if (kind === 'hyangha') { // 봉녕사 향하당(종무소): 마당 오른쪽 앞 · 곁 담장을 따라 능소화
+      const g = grp(h, YX - 1.75, D / 2 + 10.4, RIGHT);
+      smallHall(h, g, { w: 4.6, d: 2.4, hh: 1.9, gable: true, roofH: .95, plaque: '향하당', plaqueW: 1.0 });
+      colG(h, g, 0, 0, 2.6, 1.5);
     }
     if (kind === 'lotusPond') { // 봉선사 연꽃단지: 길 양옆 연못에 연잎과 분홍 연꽃
       const P = parts();
@@ -579,13 +671,26 @@ export function buildItems(h, T) {
       signpost(h, -2.9, zc + 2.45, 0, '극락교', '태화천을 건너 북원으로', 1.4);
       spotAt(0, zc, 3.6, '마곡사 극락교 · 태화천', '태화천을 사이에 두고 남원과 북원으로 나뉜 절이에요 · 극락교를 건너면 북원이에요');
     }
-    if (kind === 'cheonbo') { // 용주사: 홍살문 → 삼문(일주문 자리) → 천보루 아래 통로 → 대웅보전 (정조가 궁궐처럼 지은 왕실 원찰)
+    if (kind === 'cheonbo') { // 용주사: 홍살문 → 삼문(양옆 줄행랑) → 세존 사리탑 → 천보루 아래 통로 → 대웅보전 (정조가 궁궐처럼 지은 왕실 원찰)
+      const zc = D / 2 + 11.0, wallW = M('#efe6d2');
       hongsalmun(h, YZ1 + 6.5);
-      signpost(h, 3.3, YZ1 + 5.3, -Math.PI / 2, '홍살문', '신성한 곳임을 알리는 붉은 문', 1.3);
-      spotAt(0, YZ1 + 6.5, 3.2, '용주사 홍살문', '왕릉이나 궁궐 앞에 세우는 붉은 홍살문이 절 앞에 서 있어요');
-      cheonboru(h, D / 2 + 15.2);
-      signpost(h, -2.9, D / 2 + 17.95, 0, '천보루 · 보물', '아래로 걸어 들어가는 2층 누각', 1.45);
-      spotAt(0, D / 2 + 17.6, 3.4, '용주사 천보루', '1790년 정조 때 세운 2층 누각 · 아래 통로를 지나면 대웅보전이에요');
+      signpost(h, -3.3, YZ1 + 8.7, .55, '홍살문', '신성한 곳임을 알리는 붉은 문', 1.3);
+      spotAt(0, YZ1 + 6.5, 2.4, '용주사 홍살문', '왕릉이나 궁궐 앞에 세우는 붉은 홍살문이 절 앞에 서 있어요');
+      cheonboru(h, zc);
+      signpost(h, -3.3, zc + 2.75, 0, '천보루 · 보물', '아래로 걸어 들어가는 2층 누각', 1.45);
+      signpost(h, 3.3, zc + 2.75, 0, '세존 사리탑', '부처님 사리를 모셨다는 고려 오층석탑', 1.45);
+      spotAt(0, zc + 2.3, 2.0, '용주사 천보루', '1790년 정조 때 세운 2층 누각 · 아래 통로를 지나면 대웅보전이에요');
+      spotAt(0, YZ1 - 1.1, 1.9, '용주사 세존 사리탑', '삼문과 천보루 사이에 선 고려 오층석탑 · 부처님 사리를 모셨다고 전해져요');
+      for (const sx of [-1, 1]) { // 삼문 양옆 줄행랑: 담장 안쪽에 붙은 긴 맞배지붕 행랑 (집마다 따로 합침)
+        const xa = 4.25, xb = YX - .35, ln = xb - xa, cx = sx * (xa + xb) / 2, z = YZ1 - .95, n = Math.max(3, Math.round(ln / 1.6)), P = parts();
+        P.box(ln, .25, 1.8, h.MAT.stone, cx, .125, z);
+        P.box(ln, 1.9, 1.5, wallW, cx, 1.2, z + .05);
+        for (let i = 0; i <= n; i++) P.cyl(.09, .1, 1.95, 8, R.redCol, sx * (xa + ln * i / n), 1.22, z - .78);
+        for (let i = 0; i < n; i++) P.box(ln / n * .42, .46, .05, R.lattice, sx * (xa + ln * (i + .5) / n), 1.55, z - .72); // 작은 창
+        P.box(ln + .1, .16, 1.75, R.band, cx, 2.2, z);
+        const rr = gableRoofGeo(THREE, ln + .4, 2.6, .8, .08); rr.translate(cx, 2.28, z); P.put(rr, R.roofTile);
+        P.flush(h.site); h.col(cx, z, ln / 2, .9);
+      }
     }
     if (kind === 'firRoad') { // 월정사 전나무숲길: 일주문 밖 길 양옆으로 곧게 자란 전나무
       const Pc = parts(), tr = [], zMax = YZ1 + Math.max(9, (h.RG || 20) - 10.5);
@@ -683,7 +788,7 @@ export function buildItems(h, T) {
       spotAt(cx, zb - dep / 2 - 1.6, 3.4, '송광사 침계루', '계곡을 베고 선 2층 누각 · 스님들이 공부하던 강학 공간이에요');
     }
     if (kind === 'yongjuWings') { // 용주사: 천보루 양옆 7칸 행각 + 동쪽 나유타료(승당)·서쪽 만수리실(선당)이 대웅보전까지 ㅁ자로 마당을 감쌈
-      const zc = D / 2 + 15.2, wall = M('#efe6d2');
+      const zc = D / 2 + 11.0, wall = M('#efe6d2'); // 천보루 자리 (cheonbo와 같게)
       for (const sx of [-1, 1]) { // 집마다 따로 합쳐야 부딪힘 상자가 마당을 덮지 않음
         let P = parts();
         const xa = 6.0, xb = YX - 2.9, cx = sx * (xa + xb) / 2, ln = xb - xa; // 행각
@@ -703,7 +808,7 @@ export function buildItems(h, T) {
         h.col(cx, zc, ln / 2, 1.3); h.col(bx, bzc, 1.45, bl / 2);
         const g = grp(h, bx - sx * 1.3, bzc, sx > 0 ? -Math.PI / 2 : Math.PI / 2); plate(h, g, sx > 0 ? '나유타료' : '만수리실', 1.3, 0, 2.35, 0, { px: 44 });
       }
-      spotAt(YX - 4.4, D / 2 + 9.5, 3.0, '용주사 나유타료 · 만수리실', '천보루 양옆 행각에 이어 승당·선당이 마당을 ㅁ자로 감싸요');
+      spotAt(YX - 4.4, D / 2 + 7.4, 2.6, '용주사 나유타료 · 만수리실', '천보루 양옆 행각에 이어 승당·선당이 마당을 ㅁ자로 감싸요');
     }
     if (kind === 'manseru') { // 선운사 만세루 (보물): 대웅보전 앞 정면 9칸 맞배지붕 강당 — 다듬지 않은 굵은 나무 기둥, 대웅보전 쪽은 활짝 열림
       const zc = D / 2 + 14.6, w = Math.min(13.5, 2 * YX - 12), d = 3.6, hh = 3.0, nat = M('#8a6a4a'), P = parts();
@@ -774,7 +879,7 @@ export function buildItems(h, T) {
       P.flush(h.site, { noOcc: true });
       spotAt(x - 1.6, D / 2 - 1, 2.6, '봉녕사 능소화', '여름이면 담장을 타고 주황빛 능소화가 피어요');
     }
-    if (kind === 'hyangTree') { // 봉녕사 향나무 (약 800년): 대웅전 앞뜰 · 용이 기어가듯 비틀린 줄기와 가지가 낮고 넓게 퍼지고, 버팀목이 가지를 받침
+    if (kind === 'hyangTree') { // 봉녕사 향나무 (800년 넘음): 대적광전 앞뜰 · 용이 기어가듯 비틀린 줄기와 가지가 낮고 넓게 퍼지고, 버팀목이 가지를 받침
       const x = L / 4 + 2.4, z = D / 2 + 3.5, P = parts(), Pf = parts();
       let p = V(x, 0, z), a = rnd() * 6;
       for (let i = 0; i < 4; i++) { a += 1.2; const q = V(p.x + Math.cos(a) * .32 - .12, p.y + .38, p.z + Math.sin(a) * .32); P.limb(k.bark2, p, q, .42 - i * .04, .38 - i * .04, 8); p = q; } // 굵고 비틀린 밑동

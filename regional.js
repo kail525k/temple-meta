@@ -314,7 +314,7 @@ export function buildPagoda(h, type, PZ) {
   else if (type === 'stone5') r = stoneTiers(h, 0, PZ, 5, 1.05, true);
   else if (type === 'stone7') r = stoneTiers(h, 0, PZ, 7, 1.1);
   else if (type === 'lion') r = lion3(h, 0, PZ);
-  else if (type === 'stone5p') r = stoneTiers(h, 0, PZ, 5, 1.0); // 화강암 상륜 오층석탑 (용주사)
+  else if (type === 'stone5p') r = stoneTiers(h, 0, PZ, 5, .82); // 화강암 상륜 오층석탑 (용주사 세존 사리탑, 높이 약 4m)
   else if (type === 'stone6') { stoneTiers(h, 0, PZ, 6, 1.12, false, { single: true, slim: .78, flat: true }); stoneRail(h, 0, PZ, 1.75); r = 1.85; } // 선운사 육층석탑: 단층기단 · 얇고 평평한 지붕돌 · 돌난간
   else if (type === 'twin3') { // 직지사 대웅전 앞 동·서 삼층석탑 (도천사터에서 옮겨 옴) · 둘레 돌난간
     x = -3.9; for (const sx of [-1, 1]) { stoneTiers(h, sx * 3.9, PZ, 3, .98, false, { slim: .9 }); stoneRail(h, sx * 3.9, PZ, 1.6); }

@@ -4,13 +4,13 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
 import { buildHall } from './hall.js?v=11';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=29';
-import { buildItems, buildLantern, buildGate } from './items.js?v=6';
-import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=5';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=30';
+import { buildItems, buildLantern, buildGate } from './items.js?v=7';
+import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=6';
 import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
-import { REGIONS } from './temples.js?v=14';
+import { REGIONS } from './temples.js?v=15';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=9';
 import { initStats, addBow, initRanks, flushStats, statsDebug } from './ranks.js?v=1';
@@ -281,7 +281,7 @@ function buildSite(info, T) {
   // 마당과 박석길
   const hyu = st.layout === 'hyuhyu', yg = st.layout === 'yonggung';
   const back = hyu ? 18 : yg ? 6 : ex.includes('janggyeong') ? 12.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('magokDaeung') ? 16 : ex.includes('whiteGwaneum') ? 7.5 : ex.includes('hyodae') ? 6.5 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
-  const YX = L / 2 + 6, YZ0 = -D / 2 - 2 - back, YZ1 = D / 2 + 19;
+  const YX = L / 2 + 6 + (st.sideW || 0), YZ0 = -D / 2 - 2 - back, YZ1 = D / 2 + 19; // sideW: 법당 양옆에 전각이 여럿인 절은 마당을 넓힘
   YARD = { x0: -YX, x1: YX, z0: YZ0, z1: YZ1 };
   const yard = add(new THREE.PlaneGeometry(2 * YX, YZ1 - YZ0), MAT.yard, 0, .02, (YZ0 + YZ1) / 2, false); yard.rotation.x = -Math.PI / 2;
   const path = add(new THREE.PlaneGeometry(2.8, YZ1 - D / 2 - 1.2), MAT.path, 0, .03, (D / 2 + 1.2 + YZ1) / 2, false); path.rotation.x = -Math.PI / 2;
@@ -306,13 +306,13 @@ function buildSite(info, T) {
   }
   // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
   const YG = yg ? yonggungFrame({ L, D, YX, YZ1 }) : null;
-  const PZ = yg ? YG.PZ : D / 2 + 10.5, H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, RG, nameTex, site, fig: [] };
+  const PZ = yg ? YG.PZ : D / 2 + (st.pagodaZ ?? 10.5), H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, RG, nameTex, site, fig: [] };
   if (st.gate) buildGate(H, st.gate, T);
   let lanSpot = null; if (st.lantern && !yg) { const r = buildLantern(H, st.lantern, SL); if (r) lanSpot = { lx: 0, lz: SL, r: 2.6, ...r }; }
   if (hyu) { H.fishX = -6.2; H.fishZ = YZ0 - 7.3; H.fishAt = { lx: -6.2, lz: YZ0 - 2.4 }; H.fishStall = { lx: -9.2, lz: YZ0 + 2.7 }; }
   if (st.sea) T.seaRect = buildSea(H, hyu ? { gap: [-10.2, -2.2, 3.4], side: st.seaSide || 0, clear: { x: -6.2, z: -7.9, rx: 9.6, rz: 4.1 } } : yg ? { gap: YG.gap } : {});
   if (yg && T.seaRect) T.seaRect.inlet = { x0: -YX - 7, x1: -YX + .3, z0: YZ0 - 1, z1: YG.ZB + .5 };
-  let PG = null; if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); PG = pg; const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = Math.max(yg ? 2.0 : 2.7, pg.r + .75); } else T.pagoda = null;
+  let PG = null; if (st.pagoda !== 'none') { const pg = buildPagoda(H, st.pagoda, PZ); PG = pg; const [px, pz] = L2W(pg.x, PZ); T.pagoda = { x: px, z: pz }; T.pagodaR = st.pagodaR || Math.max(yg ? 2.0 : 2.7, pg.r + .75); } else T.pagoda = null;
   // 사찰 상징물 (법당 옆 마당·뒤뜰)
   const exo = buildExtras(H, T), ito = buildItems(H, T); T.spots = [...(exo.spots || []), ...ito.spots, ...(lanSpot ? [lanSpot] : []), ...(st.pagoda === 'octa10' ? [{ lx: 0, lz: PZ + 3, r: 3.2, name: '조계사 팔각십층석탑', story: '부처님 진신사리를 모신 팔각 10층 석탑이에요' }] : [])]; T.site = site; T.bigBuddha = exo.bigBuddha; T.mini = exo.mini; T.fish = exo.fish; T.anim = exo.anim; T.wishStone = exo.wishStone;
   if (hyu) buildHyuhyu(H, T);
@@ -369,7 +369,7 @@ function buildSite(info, T) {
     if (ex.includes('bridge')) { at('선암사 승선교', SXe - 1.4, D / 2 + 5.4, 3.0); sign('선암사 승선교', SXe - 2.4, D / 2 + 5.2, -.5); }
     if ((st.items || []).includes('gaunruSite')) sign('고운사 가운루 터', -(L / 2 - .2), D / 2 + 11.2, .45);
     if (ex.includes('stoneBuddhas')) { at('관음사 돌부처 길', 0, YZ1 - 4, 3.0); sign('관음사 돌부처 길', 3.6, YZ1 - 2.4, -.35); }
-    const HK = { '수덕사': '수덕사 대웅전', '화엄사': '화엄사 각황전', '봉선사': '봉선사 큰법당' }[T.name]; if (HK) sign(HK, -(L / 2 - 1.2), D / 2 + 1.4, 0);
+    const HK = { '수덕사': '수덕사 대웅전', '화엄사': '화엄사 각황전', '봉선사': '봉선사 큰법당', '용주사': '용주사 대웅보전', '봉녕사': '봉녕사 대적광전' }[T.name]; if (HK) sign(HK, -(L / 2 - 1.2), D / 2 + 1.4, 0);
     if (lanSpot && boardKey(lanSpot.name)) sign(boardKey(lanSpot.name), 1.9, SL + .3, -.5);
     T.signs = H.signs || []; }
   { const BA = st.broomAt || {}, bx = (BA.side || 1) * (YX - (BA.inset ?? 1.1)), bz = BA.z != null ? D / 2 + BA.z : Math.min(D / 2 + 5.5, YZ1 - 3), b = gy(bx, bz); // 싸리비 걸이 (운력: 마당 쓸기)
@@ -616,7 +616,7 @@ function layoutRegion(list) {
   const bearing = t => Math.atan2((t.lng - c[1]) * Math.cos(c[0] * Math.PI / 180), -(t.lat - c[0])); // 원점에서 본 방향 (x=동, z=남)
   const order = list.map((t, i) => ({ t, i, b: n > 1 ? bearing(t) : 0 })).sort((p, q) => p.b - q.b);
   const k0 = order.findIndex(o => o.i === 0), step = Math.PI * 2 / Math.max(1, n);
-  const maxHalf = Math.max(...list.map(t => siteSize(t.info).L / 2 + 6));
+  const maxHalf = Math.max(...list.map(t => siteSize(t.info).L / 2 + 6 + ((t.style && t.style.sideW) || 0)));
   RG = n <= 1 ? 16 : Math.max(18, (maxHalf + 3) / Math.sin(Math.min(Math.PI / 2, step / 2))); // 일주문까지 거리 (이웃 담장이 안 겹치게)
   order.forEach((o, j) => {
     const ang = Math.PI + (j - k0) * step; // 0번(가장 큰 사찰)은 북쪽(-z)
@@ -663,6 +663,7 @@ function plantTrees() {
       if (along > 0 && along < RG + 2 && side < 3.2) return false; // 박석길
       setFrame(T); const [lx, lz] = W2L(x, z), Y = T.YARD;
       if (lx > Y.x0 - 2.5 && lx < Y.x1 + 2.5 && lz > Y.z0 - 2.5 && lz < Y.z1 + 2.5) return false;
+      const AP = T.style && T.style.approach; if (AP && Math.abs(lx) < AP[0] && lz > Y.z1 && lz < Y.z1 + AP[1]) return false; // 담장 밖 들어오는 길 (용주사 천왕문·홍살문·박물관)
       const S = T.seaRect; if (S && lz < S.z1 + 1 && lz > S.z0 && Math.abs(lx) < S.x) return false; // 바다
       if (S && S.cove && lx > S.cove.x0 && lx < S.cove.x1 && lz > S.cove.z0 && lz < S.cove.z1) return false; // 모래 해변
       if (S && S.inlet && lx > S.inlet.x0 && lx < S.inlet.x1 && lz > S.inlet.z0 && lz < S.inlet.z1) return false; // 해동용궁사 물길
@@ -2356,6 +2357,7 @@ async function startTogether() {
 
 // 점검용 (주소에 ?dbg 가 있을 때만): 카메라·자세를 고정해 확인
 if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
+  blk: (lx, lz, f = 0) => { const [x, z] = L2W(lx, lz), out = []; for (const i of solidsNear(x, z)) { const o = SOLID.list[i]; if (o.y1 > f + STEP && o.y0 < f + HEAD && solidHit(o, x, z, BODY_R)) { const [ox, oz] = W2L(o.cx, o.cz); out.push({ lx: +ox.toFixed(2), lz: +oz.toFixed(2), hu: +(o.hu || o.r).toFixed(2), hv: +(o.hv || 0).toFixed(2), y0: +o.y0.toFixed(2), y1: +o.y1.toFixed(2) }); } } for (const ob of obstacles) { const dx = x - ob.cx, dz = z - ob.cz, du = dx * ob.c + dz * ob.s, dv = -dx * ob.s + dz * ob.c; if (Math.abs(du) < ob.hu + .36 && Math.abs(dv) < ob.hv + .36) { const [ox, oz] = W2L(ob.cx, ob.cz); out.push({ col: 1, lx: +ox.toFixed(2), lz: +oz.toFixed(2), hu: +ob.hu.toFixed(2), hv: +ob.hv.toFixed(2) }); } } return out; }, // 디버그: 그 자리를 막는 물체
   pos: () => { const p = avatar.position, [lx, lz] = W2L(p.x, p.z); return { lx: +lx.toFixed(2), lz: +lz.toFixed(2), y: +p.y.toFixed(3), feet: +feetY.toFixed(3), grounded, solids: SOLID.list.length }; },
   key: (code, on) => { keys[code] = on; },
   bell: () => BELL && { th: +BELL.theta.toFixed(3), om: +BELL.omega.toFixed(3), hold: bellHold && { ...bellHold }, sway: +BELL.sway.toFixed(3), glow: +BELL.glow.toFixed(2), remote: bellRemoteOn() ? { mode: bellRemote.mode, nick: bellRemote.nick } : null, peerGrip: [...peers.values()].map(P => P.grip ? +P.grip.w.toFixed(2) : null) },
@@ -2384,7 +2386,7 @@ if (/[?&]dbg/.test(location.search) || location.hash === '#dbg') window.__t = {
   walk(on, run) { keys.KeyW = !!on; keys.ShiftLeft = !!run; },
   sweepOK(v = true) { SWEEP_OK = v; },
   goTo(lx, lz) { const [x, z] = L2W(lx, lz); moveTarget = { x, z, t: 0 }; },
-  path(lx, lz, y) { const [x, z] = L2W(lx, lz); goToW(x, z, y ?? feetY); return { tap: DBG.tap, mt: moveTarget && { n: moveTarget.pts.length, len: +moveTarget.rest[0].toFixed(1) } }; },
+  path(lx, lz, y) { const [x, z] = L2W(lx, lz); goToW(x, z, y ?? feetY); return { tap: DBG.tap, mt: moveTarget && { n: moveTarget.pts.length, len: +moveTarget.rest[0].toFixed(1), pts: moveTarget.pts.map(q => W2L(q[0], q[2]).map(v => +v.toFixed(1))) } }; },
   tapAt(nx, ny) { clickMove({ clientX: (nx + 1) / 2 * canvas.clientWidth, clientY: (1 - ny) / 2 * canvas.clientHeight }); return { tap: DBG.tap, mt: moveTarget && { n: moveTarget.pts ? moveTarget.pts.length : 0, len: moveTarget.rest ? +moveTarget.rest[0].toFixed(1) : 0 } }; },
   toBell() { if (!BELL) return false; avatar.position.set(BELL.stand[0], 0, BELL.stand[1]); avatar.rotation.y = Math.atan2(BELL.x - BELL.stand[0], BELL.z - BELL.stand[1]); yaw = avatar.rotation.y + Math.PI; dist = 6; pitch = .24; intro = -1; return true; },
   ws: () => cur && cur.wishStone && { lx: cur.wishStone.lx, lz: cur.wishStone.lz, step: wsStep, anim: wsAnim && wsAnim.kind, t: wsAnim && +wsAnim.t.toFixed(2) },
