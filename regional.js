@@ -4,7 +4,8 @@
 //   통도사 금강계단, 해인사 장경판전, 백양사 쌍계루, 선암사 승선교, 관음사 석불 길, 조계사 노거수 등
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
-import { hipRoofGeo, gableRoofGeo } from './hall.js?v=11';
+import { hipRoofGeo, gableRoofGeo } from './hall.js?v=12';
+import { stripUV, paintBand, paintRoof, ensureUV } from './tex.js?v=1';
 import { createSchool, tankFish } from './fish.js?v=6';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -18,7 +19,8 @@ export const R = {
   rock: M('#a39f96'), rock2: M('#8d8a83'), marble: M('#f1efe9', { roughness: .55 }), rail: M('#f4f1ea'),
   gold: new THREE.MeshStandardMaterial({ color: '#e0b040', metalness: .7, roughness: .3, emissive: '#6a4a08', emissiveIntensity: .5, flatShading: true }),
   fish: M('#3d4a52'), fishFin: M('#c8643a'),
-};
+};paintBand(R.band); paintRoof(R.roofTile); // 단청 띠·기와골 그림 (tex.js)
+
 // 서 있는 하얀 관세음보살 (해수관음·지혜관음): 옷자락 실루엣을 돌려 깎은 모양 + 머리·보관·정병·광배
 export function standingGwaneum(add, x, y, z, H, ry = 0, mat = R.marble) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; add(g);
@@ -70,11 +72,11 @@ export const GR = () => GR_ || (GR_ = { a: graniteMat('#cfc8ba', { lichen: .5, s
 // 여러 조각을 재질별로 하나로 합쳐(그리기 횟수 줄임) 놓음
 function parts() {
   const L = new Map();
-  const put = (geo, mat, px = 0, py = 0, pz = 0) => { geo.translate(px, py, pz); const g = geo.index ? geo.toNonIndexed() : geo; for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k); g.clearGroups(); (L.get(mat) || L.set(mat, []).get(mat)).push(g); return g; };
+  const put = (geo, mat, px = 0, py = 0, pz = 0) => { geo.translate(px, py, pz); const g = ensureUV(geo.index ? geo.toNonIndexed() : geo); for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(k)) g.deleteAttribute(k); g.clearGroups(); (L.get(mat) || L.set(mat, []).get(mat)).push(g); return g; };
   const flat = g => { const n = g.toNonIndexed(); n.computeVertexNormals(); return n; };
   return {
     put,
-    box: (w, hh, d, mat, px, py, pz) => put(new THREE.BoxGeometry(w, hh, d), mat, px, py, pz),
+    box: (w, hh, d, mat, px, py, pz) => { const g = new THREE.BoxGeometry(w, hh, d); if (mat.userData.strip) stripUV(g, w, hh, d); return put(g, mat, px, py, pz); },
     frus: (wt, wb, hh, mat, px, py, pz) => { const g = new THREE.CylinderGeometry(wt * Math.SQRT1_2, wb * Math.SQRT1_2, hh, 4, 1); g.rotateY(Math.PI / 4); return put(flat(g), mat, px, py, pz); },
     cyl: (rt, rb, hh, seg, mat, px, py, pz, faceted = false) => { const g = new THREE.CylinderGeometry(rt, rb, hh, seg); if (seg === 8) g.rotateY(Math.PI / 8); return put(faceted ? flat(g) : g, mat, px, py, pz); },
     flush(h, x, z) { for (const [mat, gs] of L) h.add(mergeGeometries(gs), mat, x, 0, z); },

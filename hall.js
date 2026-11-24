@@ -1,3 +1,4 @@
+import { roofUV, stripUV, paintBand, paintRoof, doorTex } from './tex.js?v=1';
 // 법당 하나 — 앞면이 +z. 계단으로 올라가 안으로 들어가고, 가운데 방석에서 삼배를 올릴 수 있게 내부까지 만든 모델 (위레브)
 // L: 정면 폭, D: 측면 깊이(실제 건물 크기에서 가져옴), buddhas: 불단 위 부처님 수(1 또는 3)
 // roof: 'hip'(팔작) | 'gable'(맞배) | 'cross'(아자 지붕) · stories: 2면 바깥이 2층(중층) · plain: 단청 없는 나무 빛 · sign: 현판 글자 텍스처
@@ -21,9 +22,10 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
   };
   if (plain) { // 단청을 칠하지 않은 옛 나무 빛 (수덕사 대웅전·화엄사 각황전처럼)
     MAT.col.color.set('#7d5a3c'); MAT.band.color.set('#6a4c33'); MAT.bandRed.color.set('#5a3f2a'); MAT.ceil.color.set('#8a6a48'); MAT.wall.color.set('#efe6d2');
-  }
+  } else paintBand(MAT.band); // 단청 띠 그림 (Gemini로 새로 그린 머리초 문양)
+  paintRoof(MAT.roof); // 기와골 그림
   const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
-  const box = (w, h, d, mat, x, y, z, parent) => add(new THREE.BoxGeometry(w, h, d), mat, x, y, z, parent);
+  const box = (w, h, d, mat, x, y, z, parent) => { const geo = new THREE.BoxGeometry(w, h, d); if (mat.userData.strip) stripUV(geo, w, h, d); return add(geo, mat, x, y, z, parent); };
 
   const P = .6, H = 3.9, T = .25, SW = 3.2;
   const ix0 = -L / 2 + .6, ix1 = L / 2 - .6, iz0 = -D / 2 + .6, iz1 = D / 2 - 1.3;
@@ -72,8 +74,14 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
     add(colGeo, MAT.col, fx(i), FY + H / 2, iz1); col(fx(i), iz1, .22, .22);
     add(colGeo, MAT.col, fx(i), FY + H / 2, D / 2 - .35); col(fx(i), D / 2 - .35, .22, .22);
   }
-  // 들어 올린 문짝(들어열개)과 인방
-  for (let i = 0; i < bays; i++) box(IW / bays - .3, .07, 1.5, MAT.lattice, (fx(i) + fx(i + 1)) / 2, FY + H - .5, iz1 + .8);
+  // 가운데 칸은 문짝을 들어 올려(들어열개) 드나들고, 양옆 칸은 꽃살문을 닫아 둠 (Gemini로 새로 그린 꽃살문 그림)
+  const doorM = M(plain ? '#b89270' : '#ffffff', { map: doorTex(), flatShading: false, roughness: .7 });
+  for (let i = 0; i < bays; i++) {
+    const cx = (fx(i) + fx(i + 1)) / 2, bw = IW / bays - .3;
+    if (i === 1) { box(bw, .07, 1.5, MAT.lattice, cx, FY + H - .5, iz1 + .8); continue; }
+    const dh = Math.min(H - .42, bw * 1.4); box(bw, dh, .08, doorM, cx, FY + dh / 2, iz1 + .02); col(cx, iz1, bw / 2, .12);
+    if (H - .42 - dh > .05) box(bw, H - .42 - dh, .06, MAT.wall, cx, FY + dh + (H - .42 - dh) / 2, iz1 + .02); // 문 위 남는 벽
+  }
   box(IW + .5, .32, .3, MAT.col, 0, FY + H - .16, iz1);
   // 단청 띠
   box(L - .2, .42, .3, MAT.band, 0, FY + H + .1, D / 2 - .35);
@@ -267,7 +275,7 @@ export function gableRoofGeo(THREE, Lr, Wr, H, lift) {
     const e0 = [x0, lf(u0), s * hz], e1 = [x1, lf(u1), s * hz], r0 = [x0, H, 0], r1 = [x1, H, 0];
     if (s > 0) pos.push(...e0, ...e1, ...r1, ...e0, ...r1, ...r0); else pos.push(...e1, ...e0, ...r0, ...e1, ...r0, ...r1);
   }
-  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.computeVertexNormals(); return geo;
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.computeVertexNormals(); return roofUV(geo);
 }
 // 처마 끝이 살짝 들린 지붕
 export function hipRoofGeo(THREE, Lr, Wr, H, rl, lift) {
@@ -288,5 +296,5 @@ export function hipRoofGeo(THREE, Lr, Wr, H, rl, lift) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.computeVertexNormals();
-  return geo;
+  return roofUV(geo);
 }

@@ -4,8 +4,9 @@
 // - 모두 코드로 그린 단순한 모양 (실제 사진·도면·글씨를 옮기지 않음, 현판 글씨도 보통 글꼴)
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { hipRoofGeo, gableRoofGeo } from './hall.js?v=11';
-import { R, standingGwaneum, stoneTiers } from './regional.js?v=30';
+import { hipRoofGeo, gableRoofGeo } from './hall.js?v=12';
+import { R, standingGwaneum, stoneTiers } from './regional.js?v=31';
+import { stripUV, ensureUV } from './tex.js?v=1';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const glow = (c, e = .25) => M(c, { emissive: c, emissiveIntensity: e });
@@ -25,10 +26,10 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 // 여러 조각을 재질별로 하나로 합쳐 그리기 횟수를 줄임 (좌표는 놓을 그룹 기준)
 function parts() {
   const L = new Map();
-  const put = (g, mat) => { const n = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(n.attributes)) if (!['position', 'normal', 'uv'].includes(k)) n.deleteAttribute(k); n.clearGroups(); (L.get(mat) || L.set(mat, []).get(mat)).push(n); return n; };
+  const put = (g, mat) => { const n = ensureUV(g.index ? g.toNonIndexed() : g); for (const k of Object.keys(n.attributes)) if (!['position', 'normal', 'uv'].includes(k)) n.deleteAttribute(k); n.clearGroups(); (L.get(mat) || L.set(mat, []).get(mat)).push(n); return n; };
   return {
     put,
-    box: (w, hh, d, mat, x, y, z, ry = 0) => { const g = new THREE.BoxGeometry(w, hh, d); if (ry) g.rotateY(ry); g.translate(x, y, z); return put(g, mat); },
+    box: (w, hh, d, mat, x, y, z, ry = 0) => { const g = new THREE.BoxGeometry(w, hh, d); if (mat.userData.strip) stripUV(g, w, hh, d); if (ry) g.rotateY(ry); g.translate(x, y, z); return put(g, mat); },
     cyl: (rt, rb, hh, seg, mat, x, y, z) => { const g = new THREE.CylinderGeometry(rt, rb, hh, seg); if (seg === 8) g.rotateY(Math.PI / 8); g.translate(x, y, z); return put(g, mat); },
     ball: (r, mat, x, y, z, sx = 1, sy = 1, sz = 1, det = 0) => { const g = new THREE.IcosahedronGeometry(r, det); g.scale(sx, sy, sz); g.translate(x, y, z); return put(g, mat); },
     limb: (mat, a, b, r0, r1, seg = 6) => { const d = V(b.x - a.x, b.y - a.y, b.z - a.z), len = d.length(); const g = new THREE.CylinderGeometry(r1, r0, len, seg); g.translate(0, len / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.normalize())); g.translate(a.x, a.y, a.z); return put(g, mat); },

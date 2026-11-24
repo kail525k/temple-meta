@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
-import { buildHall } from './hall.js?v=11';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=30';
-import { buildItems, buildLantern, buildGate } from './items.js?v=7';
+import { buildHall } from './hall.js?v=12';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=31';
+import { buildItems, buildLantern, buildGate } from './items.js?v=8';
 import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=6';
 import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
@@ -299,9 +299,15 @@ function buildSite(info, T) {
   }
   const SL = D / 2 + 4.4;
   if (!yg && !st.lantern) { // 석등 (법당 바로 앞) — 해동용궁사는 그 자리에 사사자 석탑 · 법주사 쌍사자석등·화엄사 큰 석등은 items.js
-  add(new THREE.CylinderGeometry(.42, .5, .3, 8), MAT.stone, 0, .15, SL); add(new THREE.CylinderGeometry(.12, .14, .95, 8), MAT.stone, 0, .78, SL);
-  box(.62, .14, .62, MAT.stone, 0, 1.3, SL); box(.46, .5, .46, MAT.stone, 0, 1.62, SL); box(.3, .26, .48, MAT.fire, 0, 1.62, SL);
-  add(new THREE.ConeGeometry(.52, .38, 8), MAT.stoneDark, 0, 2.06, SL); add(new THREE.SphereGeometry(.1, 10, 8), MAT.stoneDark, 0, 2.3, SL);
+  const S8 = (rt, rb, h, y, m = MAT.stone) => { const g8 = new THREE.CylinderGeometry(rt, rb, h, 8); g8.rotateY(Math.PI / 8); return add(g8, m, 0, y, SL); }; // 팔각 석등
+  S8(.6, .64, .14, .07, MAT.stoneDark); S8(.46, .54, .2, .24);                                     // 지대석 · 하대석
+  S8(.2, .44, .12, .4);                                                                             // 복련 (아래로 핀 연꽃 받침)
+  S8(.11, .13, .82, .79);                                                                         // 간주석
+  S8(.38, .17, .16, 1.28);                                                                        // 상대석 (위로 핀 연꽃)
+  S8(.25, .25, .44, 1.56); box(.15, .26, .52, MAT.fire, 0, 1.58, SL); box(.52, .26, .15, MAT.fire, 0, 1.58, SL); // 화사석 · 네 창
+  S8(.58, .58, .06, 1.81, MAT.stoneDark); S8(.12, .58, .2, 1.94, MAT.stoneDark);               // 옥개석
+  for (let i = 0; i < 8; i++) { const a = (i + .5) / 8 * Math.PI * 2; add(new THREE.ConeGeometry(.045, .12, 5), MAT.stoneDark, Math.sin(a) * .56, 1.88, SL + Math.cos(a) * .56); } // 귀꽃
+  S8(.07, .09, .1, 2.09, MAT.stoneDark); add(new THREE.SphereGeometry(.085, 10, 8), MAT.stoneDark, 0, 2.22, SL); // 보주
   col(0, SL, .55, .55);
   }
   // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
