@@ -4,8 +4,8 @@
 //   통도사 금강계단, 해인사 장경판전, 백양사 쌍계루, 선암사 승선교, 관음사 석불 길, 조계사 노거수 등
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
-import { hipRoofGeo, gableRoofGeo, paljakGeo } from './hall.js?v=13';
-import { stripUV, paintBand, paintRoof, ensureUV, soffitTex, eaveTex } from './tex.js?v=2';
+import { hipRoofGeo, gableRoofGeo, paljakGeo } from './hall.js?v=14';
+import { stripUV, paintBand, paintRoof, ensureUV, soffitTex, eaveTex } from './tex.js?v=3';
 import { createSchool, tankFish } from './fish.js?v=6';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 

@@ -1,4 +1,4 @@
-import { roofUV, stripUV, paintBand, paintRoof, doorTex, soffitTex, eaveTex, gongpoTex } from './tex.js?v=2';
+import { roofUV, stripUV, paintBand, paintRoof, doorTex, soffitTex, eaveTex, gongpoTex } from './tex.js?v=3';
 // 법당 하나 — 앞면이 +z. 계단으로 올라가 안으로 들어가고, 가운데 방석에서 삼배를 올릴 수 있게 내부까지 만든 모델 (위레브)
 // L: 정면 폭, D: 측면 깊이(실제 건물 크기에서 가져옴), buddhas: 불단 위 부처님 수(1 또는 3)
 // roof: 'hip'(팔작) | 'gable'(맞배) | 'cross'(아자 지붕) · stories: 2면 바깥이 2층(중층) · plain: 단청 없는 나무 빛 · sign: 현판 글자 텍스처
@@ -78,6 +78,14 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
   for (let i = 0; i <= bays; i++) {
     add(colGeo, MAT.col, fx(i), FY + H / 2, iz1); col(fx(i), iz1, .22, .22);
     add(colGeo, MAT.col, fx(i), FY + H / 2, D / 2 - .35); col(fx(i), D / 2 - .35, .22, .22);
+  }
+  // 옆·뒤 벽에도 기둥이 드러남 (벽 줄 위에 반쯤 묻힌 기둥)
+  for (const sx of [-1, 1]) for (let i = 1; i < 3; i++) add(colGeo, MAT.col, sx * (IW / 2 + T / 2), FY + H / 2, iz0 - T / 2 + (iz1 - iz0 + T / 2) * i / 3);
+  for (let i = 0; i <= bays; i++) add(colGeo, MAT.col, fx(i), FY + H / 2, iz0 - T / 2);
+  for (const sx of [-1, 1]) { // 소맷돌: 계단 양옆으로 비스듬히 내려오는 돌
+    const sl = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(1.36, 0), new THREE.Vector2(1.36, .18), new THREE.Vector2(.2, P + .14), new THREE.Vector2(0, P + .14)]);
+    const sg = new THREE.ExtrudeGeometry(sl, { depth: .26, bevelEnabled: false }); sg.rotateY(-Math.PI / 2); sg.translate(sx * (SW / 2 + .13) + .13, 0, D / 2 - .1);
+    add(sg, MAT.stone, 0, 0, 0);
   }
   // 가운데 칸은 문짝을 들어 올려(들어열개) 드나들고, 양옆 칸은 꽃살문을 닫아 둠 (Gemini로 새로 그린 꽃살문 그림)
   const doorM = M(plain ? '#b89270' : '#ffffff', { map: doorTex(), flatShading: false, roughness: .7 });
@@ -378,7 +386,7 @@ export function paljakGeo(THREE, Lr, Wr, H, lift = .6, { brk = .56, push = null,
     }
     let len = 0; const r0 = grid[0];                                     // 처마 끝: 지붕 가장자리에서 아래로 내린 띠
     for (let j = 0; j < F.n; j++) {
-      const A = r0[j].p, B = r0[j + 1].p, l = Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]), EH = .32 * sc;
+      const A = r0[j].p, B = r0[j + 1].p, l = Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]), EH = .44 * sc; // 겹처마(부연 + 서까래) 두께
       quad('eave', [A[0], A[1] - EH, A[2]], [B[0], B[1] - EH, B[2]], [B[0], B[1] + .02, B[2]], [A[0], A[1] + .02, A[2]], [len / RU, 0], [(len + l) / RU, 0], [(len + l) / RU, 1], [len / RU, 1]);
       len += l;
     }

@@ -51,12 +51,16 @@ export const soffitTex = () => canvasTex('soffit', 128, 32, (c, w, h) => {
     c.fillStyle = '#5fae95'; c.fillRect(x + rw * .3, 0, rw * .22, h);   // 둥근 서까래에 비친 빛
   }
 });
-export const eaveTex = () => canvasTex('eave', 128, 64, (c, w, h) => {
+export const eaveTex = () => canvasTex('eave2', 128, 96, (c, w, h) => { // 겹처마: 막새 줄 · 부연 마구리(네모) · 서까래 마구리(둥근 연화)
   c.fillStyle = '#1c3a32'; c.fillRect(0, 0, w, h);
-  c.fillStyle = '#4b535b'; c.fillRect(0, 0, w, 18);                      // 막새 줄
-  for (let x = 8; x < w; x += 16) { c.fillStyle = '#626c75'; c.beginPath(); c.arc(x, 10, 6.5, 0, Math.PI * 2); c.fill(); c.fillStyle = '#3c434a'; c.beginPath(); c.arc(x, 10, 2.5, 0, Math.PI * 2); c.fill(); }
-  for (const cx of [w / 4, w * 3 / 4]) {                                   // 서까래 마구리: 녹·황·적·백 고리 + 가운데 청
-    [[19, '#2f7a63'], [15, '#f0cf62'], [11, '#c8432e'], [7, '#f6efe0'], [3.5, '#2f5f96']].forEach(([r, col]) => { c.fillStyle = col; c.beginPath(); c.arc(cx, 41, r, 0, Math.PI * 2); c.fill(); });
+  c.fillStyle = '#4b535b'; c.fillRect(0, 0, w, 16);                      // 막새 줄
+  for (let x = 8; x < w; x += 16) { c.fillStyle = '#626c75'; c.beginPath(); c.arc(x, 9, 6, 0, Math.PI * 2); c.fill(); c.fillStyle = '#3c434a'; c.beginPath(); c.arc(x, 9, 2.3, 0, Math.PI * 2); c.fill(); }
+  c.fillStyle = '#2b5a4c'; c.fillRect(0, 16, w, 30);                     // 부연 줄 (평고대 그늘)
+  for (const cx of [w / 4, w * 3 / 4]) {
+    c.fillStyle = '#e9c45c'; c.fillRect(cx - 13, 19, 26, 24); c.fillStyle = '#2f7a63'; c.fillRect(cx - 10, 22, 20, 18); // 부연 마구리: 노란 테 + 녹 바탕
+    c.fillStyle = '#f6efe0'; for (const [dx, dy] of [[-5, -4], [5, -4], [-5, 4], [5, 4]]) { c.beginPath(); c.arc(cx + dx, 31 + dy, 2.4, 0, Math.PI * 2); c.fill(); } // 매화점
+    c.fillStyle = '#c8432e'; c.beginPath(); c.arc(cx, 31, 2.6, 0, Math.PI * 2); c.fill();
+    [[19, '#2f7a63'], [15, '#f0cf62'], [11, '#c8432e'], [7, '#f6efe0'], [3.5, '#2f5f96']].forEach(([r, col]) => { c.fillStyle = col; c.beginPath(); c.arc(cx, 71, r, 0, Math.PI * 2); c.fill(); }); // 서까래 마구리
   }
 });
 // 공포 띠 바탕: 평방(아래)·장혀(위) 사이 포벽(주토) + 연꽃 그림 — 공포(첨차·쇠서)는 hall.js에서 입체로 붙임. 4:1 띠
