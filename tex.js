@@ -13,6 +13,10 @@ function load(url, { repeat = true, aniso = 4 } = {}) {
 export const TEX_V = 1;
 export const dancheongTex = () => load('./assets/tex/dancheong.webp?v=' + TEX_V);
 export const roofTex = () => load('./assets/tex/giwa.webp?v=' + TEX_V);
+export const stoneTex = () => load('./assets/tex/gidan.webp?v=' + TEX_V);  // 장대석 2단 (1:1, 한 장 = 기단 높이)
+export const wallTex = () => load('./assets/tex/wall.webp?v=' + TEX_V);    // 기둥 사이 벽 한 칸 (위 벽화 · 아래 회벽 · 하인방)
+export const yardTex = () => load('./assets/tex/yard.webp?v=' + TEX_V);    // 마사토 마당 (1:1 심리스)
+export const pathTex = () => load('./assets/tex/path.webp?v=' + TEX_V);    // 박석 참배길 (1:1 심리스)
 export const doorTex = () => load('./assets/tex/door.webp?v=' + TEX_V, { repeat: false }); // 꽃살 사분합문 두 짝 (1:1.4)
 // 단청 재질: 색을 흰색으로 두고 그림을 그대로 보여 줌. userData.strip → 상자 UV를 띠 비율로 늘림
 export function paintBand(mat) { if (!mat || mat.userData.strip) return mat; mat.map = dancheongTex(); mat.color.set('#ffffff'); mat.userData.strip = true; mat.needsUpdate = true; return mat; }
@@ -51,7 +55,12 @@ export const soffitTex = () => canvasTex('soffit', 128, 32, (c, w, h) => {
     c.fillStyle = '#5fae95'; c.fillRect(x + rw * .3, 0, rw * .22, h);   // 둥근 서까래에 비친 빛
   }
 });
-export const eaveTex = () => canvasTex('eave2', 128, 96, (c, w, h) => { // 겹처마: 막새 줄 · 부연 마구리(네모) · 서까래 마구리(둥근 연화)
+export const eaveTex = (single = false) => single ? canvasTex('eave1', 128, 64, (c, w, h) => { // 홑처마: 막새 줄 + 서까래 마구리
+  c.fillStyle = '#1c3a32'; c.fillRect(0, 0, w, h);
+  c.fillStyle = '#4b535b'; c.fillRect(0, 0, w, 18);
+  for (let x = 8; x < w; x += 16) { c.fillStyle = '#626c75'; c.beginPath(); c.arc(x, 10, 6.5, 0, Math.PI * 2); c.fill(); c.fillStyle = '#3c434a'; c.beginPath(); c.arc(x, 10, 2.5, 0, Math.PI * 2); c.fill(); }
+  for (const cx of [w / 4, w * 3 / 4]) [[19, '#2f7a63'], [15, '#f0cf62'], [11, '#c8432e'], [7, '#f6efe0'], [3.5, '#2f5f96']].forEach(([r, col]) => { c.fillStyle = col; c.beginPath(); c.arc(cx, 41, r, 0, Math.PI * 2); c.fill(); });
+}) : canvasTex('eave2', 128, 96, (c, w, h) => { // 겹처마: 막새 줄 · 부연 마구리(네모) · 서까래 마구리(둥근 연화)
   c.fillStyle = '#1c3a32'; c.fillRect(0, 0, w, h);
   c.fillStyle = '#4b535b'; c.fillRect(0, 0, w, 16);                      // 막새 줄
   for (let x = 8; x < w; x += 16) { c.fillStyle = '#626c75'; c.beginPath(); c.arc(x, 9, 6, 0, Math.PI * 2); c.fill(); c.fillStyle = '#3c434a'; c.beginPath(); c.arc(x, 9, 2.3, 0, Math.PI * 2); c.fill(); }

@@ -3,14 +3,15 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
-import { buildHall } from './hall.js?v=14';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=33';
-import { buildItems, buildLantern, buildGate } from './items.js?v=10';
+import { buildHall } from './hall.js?v=15';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=34';
+import { buildItems, buildLantern, buildGate } from './items.js?v=11';
 import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=6';
 import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
-import { REGIONS } from './temples.js?v=15';
+import { REGIONS } from './temples.js?v=16';
+import { yardTex, pathTex } from './tex.js?v=4';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=9';
 import { initStats, addBow, initRanks, flushStats, statsDebug } from './ranks.js?v=1';
@@ -220,10 +221,11 @@ sun.shadow.bias = -0.0006;
 scene.add(sun, sun.target);
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .85, flatShading: true, ...extra });
 const MAT = {
-  grass: M('#a3c47c'), yard: M('#ecdfc3'), path: M('#d9d1c2'), stone: M('#c9c2b4'), stoneDark: M('#a9a295'), wallCap: M('#4f5b69'),
+  grass: M('#a3c47c'), yard: M('#ffffff', { map: yardTex(), flatShading: false }), path: M('#ffffff', { map: pathTex(), flatShading: false }), stone: M('#c9c2b4'), stoneDark: M('#a9a295'), wallCap: M('#4f5b69'),
   red: M('#9b3b2b'), trunk: M('#7a5536'), leaf: M('#4f8a4b'), leaf2: M('#64a05a'), line: M('#6b4a2a'), fire: new THREE.MeshBasicMaterial({ color: '#ffd27a' }),
   lotus: ['#f6a5b8', '#ffd86a', '#f48c7a', '#a8e0a0', '#ffffff'].map(c => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: .3, roughness: .6, flatShading: true })),
 };
+MAT.yard.userData.tile = 3; MAT.path.userData.tile = 1.4; // 마사토 마당 3m · 박석 길 1.4m마다 그림 한 장 (Gemini·ChatGPT로 새로 그림)
 const ENV = REGION.env || {};
 const H_GOLD = new THREE.MeshStandardMaterial({ color: '#e2b347', metalness: .65, roughness: .3, emissive: '#6a4a08', emissiveIntensity: .55, flatShading: true });
 if (ENV.grass) MAT.grass.color.set(ENV.grass);
@@ -263,13 +265,17 @@ function parseAltar(a) {
   if (!a) return null; const ws = a.trim().split(/\s+/), mid = ws.length % 2 ? (ws.length - 1) / 2 : -1;
   return ws.map((w, i) => { const [k, sc] = w.split(':'); return { k, s: sc ? +sc : i === mid ? 1 : /^(sakya|amita|yaksa|biro)$/.test(k) ? .86 : .8 }; });
 }
+// 바닥 그림을 실제 크기대로 반복 (재질의 userData.tile m마다 한 장)
+function tileUV(geo, w, d, mat) { const t = mat.userData.tile; if (!t) return geo; const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / t, uv.getY(i) * d / t); return geo; }
 function siteSize(info) { return { L: clamp(info.width * .92, 11, 18), D: clamp(info.depth * .92, 10, 14.5) }; }
 function buildSite(info, T) {
   const { L, D } = siteSize(info);
   setFrame(T);
   dbg('hall.' + T.name, `${T.hallName} 정면 ${L.toFixed(1)}m × 측면 ${D.toFixed(1)}m · 실제 방향 ${(info.th * 180 / Math.PI).toFixed(0)}° · ${T.via}`);
   const st = T.style || {}, ex = st.extras || [];
-  hall = buildHall(THREE, { L, D, buddhas: T.buddhas, altar: parseAltar(T.altar), roof: st.roof, stories: st.stories, plain: st.plain, sign: nameTex(T.hallName, '#2b1d14', '#f2cf72', 50) });
+  const autoBays = Math.max(3, Math.min(7, 2 * Math.round((L / 3.6 - 1) / 2) + 1)); // 칸 자료가 없으면 폭으로 어림 (홀수, 한 칸 3.6m쯤)
+  hall = buildHall(THREE, { L, D, buddhas: T.buddhas, altar: parseAltar(T.altar), roof: st.roof, stories: st.stories, plain: st.plain, sign: nameTex(T.hallName, '#2b1d14', '#f2cf72', 50),
+    bays: st.bays || autoBays, sideBays: st.sideBays || 3, gongpo: st.gongpo || 'dapo', eaves: st.eaves || 'double', fade: !!st.fade });
   const site = new THREE.Group(); site.position.set(HX, 0, HZ); site.rotation.y = TH; scene.add(site);
   site.add(hall.group);
   hall.colliders.forEach(addCollider);
@@ -283,8 +289,8 @@ function buildSite(info, T) {
   const back = hyu ? 18 : yg ? 6 : ex.includes('janggyeong') ? 12.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('magokDaeung') ? 16 : ex.includes('whiteGwaneum') ? 7.5 : ex.includes('hyodae') ? 6.5 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
   const YX = L / 2 + 6 + (st.sideW || 0), YZ0 = -D / 2 - 2 - back, YZ1 = D / 2 + 19; // sideW: 법당 양옆에 전각이 여럿인 절은 마당을 넓힘
   YARD = { x0: -YX, x1: YX, z0: YZ0, z1: YZ1 };
-  const yard = add(new THREE.PlaneGeometry(2 * YX, YZ1 - YZ0), MAT.yard, 0, .02, (YZ0 + YZ1) / 2, false); yard.rotation.x = -Math.PI / 2;
-  const path = add(new THREE.PlaneGeometry(2.8, YZ1 - D / 2 - 1.2), MAT.path, 0, .03, (D / 2 + 1.2 + YZ1) / 2, false); path.rotation.x = -Math.PI / 2;
+  const yard = add(tileUV(new THREE.PlaneGeometry(2 * YX, YZ1 - YZ0), 2 * YX, YZ1 - YZ0, MAT.yard), MAT.yard, 0, .02, (YZ0 + YZ1) / 2, false); yard.rotation.x = -Math.PI / 2;
+  const path = add(tileUV(new THREE.PlaneGeometry(2.8, YZ1 - D / 2 - 1.2), 2.8, YZ1 - D / 2 - 1.2, MAT.path), MAT.path, 0, .03, (D / 2 + 1.2 + YZ1) / 2, false); path.rotation.x = -Math.PI / 2;
   // 낮은 담장 + 앞쪽 문
   const GW = st.gate === 'jogye' ? 4.35 : st.gate === 'sammun' ? 3.85 : 1.6; // 일주문 반폭 (범어사 조계문은 돌기둥 넷, 용주사는 삼문)
   const WH = .95, wall = (w, d, x, z) => { box(w, WH, d, MAT.wallStone, x, WH / 2, z); box(w + .2, .18, d + .2, MAT.wallCap, x, WH + .09, z); col(x, z, w / 2 + .05, d / 2 + .05); };
@@ -635,11 +641,11 @@ function layoutRegion(list) {
 function buildCommons() {
   const g = new THREE.Group(); scene.add(g); COMMONS = g;
   const add = (geo, mat, x, y, z, shadow = true) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = shadow; m.receiveShadow = true; g.add(m); return m; };
-  const plaza = add(new THREE.CircleGeometry(8, 40), MAT.yard, 0, .021, 0, false); plaza.rotation.x = -Math.PI / 2;
+  const plaza = add(tileUV(new THREE.CircleGeometry(8, 40), 16, 16, MAT.yard), MAT.yard, 0, .021, 0, false); plaza.rotation.x = -Math.PI / 2;
   const ring = add(new THREE.RingGeometry(8, 8.6, 40), MAT.stone, 0, .025, 0, false); ring.rotation.x = -Math.PI / 2;
   for (const T of temples) {
     const len = RG - 7.6, mid = 7.6 + len / 2;
-    const p = add(new THREE.PlaneGeometry(2.8, len + .4), MAT.path, T.ux * mid, .03, T.uz * mid, false); p.rotation.order = 'YXZ'; p.rotation.y = Math.atan2(T.ux, T.uz); p.rotation.x = -Math.PI / 2;
+    const p = add(tileUV(new THREE.PlaneGeometry(2.8, len + .4), 2.8, len + .4, MAT.path), MAT.path, T.ux * mid, .03, T.uz * mid, false); p.rotation.order = 'YXZ'; p.rotation.y = Math.atan2(T.ux, T.uz); p.rotation.x = -Math.PI / 2;
     // 표지석: 길 입구 오른편, 마당 쪽을 바라봄
     const rx = T.uz, rz = -T.ux, sx = T.ux * 9.6 + rx * 2.3, sz = T.uz * 9.6 + rz * 2.3;
     const st = add(new THREE.BoxGeometry(1.25, 1.05, .28), MAT.stone, sx, .6, sz); st.rotation.y = Math.atan2(-T.ux, -T.uz);

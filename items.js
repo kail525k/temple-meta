@@ -4,9 +4,9 @@
 // - 모두 코드로 그린 단순한 모양 (실제 사진·도면·글씨를 옮기지 않음, 현판 글씨도 보통 글꼴)
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { hipRoofGeo, gableRoofGeo } from './hall.js?v=14';
-import { R, standingGwaneum, stoneTiers, paljakParts } from './regional.js?v=33';
-import { stripUV, ensureUV } from './tex.js?v=3';
+import { hipRoofGeo, gableRoofGeo } from './hall.js?v=15';
+import { R, standingGwaneum, stoneTiers, paljakParts } from './regional.js?v=34';
+import { stripUV, ensureUV } from './tex.js?v=4';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const glow = (c, e = .25) => M(c, { emissive: c, emissiveIntensity: e });

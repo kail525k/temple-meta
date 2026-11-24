@@ -4,8 +4,8 @@
 //   통도사 금강계단, 해인사 장경판전, 백양사 쌍계루, 선암사 승선교, 관음사 석불 길, 조계사 노거수 등
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
-import { hipRoofGeo, gableRoofGeo, paljakGeo } from './hall.js?v=14';
-import { stripUV, paintBand, paintRoof, ensureUV, soffitTex, eaveTex } from './tex.js?v=3';
+import { hipRoofGeo, gableRoofGeo, paljakGeo } from './hall.js?v=15';
+import { stripUV, paintBand, paintRoof, ensureUV, soffitTex, eaveTex } from './tex.js?v=4';
 import { createSchool, tankFish } from './fish.js?v=6';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -681,13 +681,29 @@ export function buildExtras(h, T) {
 export function buildBackdrop(scene, env, RB) {
   const g = new THREE.Group(); scene.add(g);
   const mt = env.mtn || { h: 50 };
-  const mGreen = M('#6f8d5e'), mDark = M('#5d7a52'), mRock = M('#9a9a92'), mSnow = M('#f4f6f8');
-  const n = 34;
-  for (let i = 0; i < n; i++) {
-    const a = i / n * Math.PI * 2 + Math.random() * .12;
-    const hh = mt.h * (.55 + Math.random() * .5), rad = Math.min(70, hh * (1.1 + Math.random() * .4)), r = RB + 45 + rad + Math.random() * 50; // 산자락이 사찰 마당·바다를 덮지 않게
-    const c = new THREE.Mesh(new THREE.ConeGeometry(rad, hh, 7, 1), i % 2 ? mGreen : mDark); c.position.set(Math.sin(a) * r, hh / 2 - 2, Math.cos(a) * r); c.rotation.y = Math.random() * 3; g.add(c);
-    if (mt.rock && hh > mt.h * .8) { const top = new THREE.Mesh(new THREE.ConeGeometry(rad * .28, hh * .26, 6), mt.snow ? mSnow : mRock); top.position.set(c.position.x, hh - 2 - hh * .13 + .5, c.position.z); top.rotation.y = c.rotation.y; g.add(top); }
+  // 한국 산: 뾰족한 원뿔 대신 겹겹이 이어진 둥근 능선 세 줄 (가까운 줄은 짙은 숲, 먼 줄일수록 옅게) + 가까운 능선 위 나무 덩어리
+  const rnd = (() => { let s = 1234567; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+  const ridge = (r0, w, H, c0, c1, seg = 180) => {
+    const wav = [2, 3, 5, 7, 11, 17].map((k, i) => [k, rnd() * 6.283, 1 / (1 + i * .9)]), amp = wav.reduce((a, w) => a + w[2], 0);
+    const hAt = a => H * (.5 + .5 * (wav.reduce((s, [k, ph, am]) => s + am * Math.sin(k * a + ph), 0) / amp + 1) / 2 * 1.1);
+    const NR = 7, pos = [], col = [], ca = new THREE.Color(c0), cb = new THREE.Color(c1), cr = new THREE.Color(mt.snow ? '#e9edf0' : '#9c9a90'), cc = new THREE.Color();
+    for (let i = 0; i <= seg; i++) { const a = i / seg * Math.PI * 2, hh = hAt(a);
+      for (let j = 0; j <= NR; j++) { const t = j / NR, prof = Math.pow(Math.sin(Math.PI * Math.min(1, t / .9)), 1.25), y = -3 + (hh + 3) * prof * (t < .5 ? 1 : 1 - (t - .5) * .35), r = r0 + w * t;
+        pos.push(Math.sin(a) * r, y, Math.cos(a) * r);
+        cc.copy(ca).lerp(cb, Math.min(1, y / (H * 1.05))); if (mt.rock && H > mt.h * .8 && y > H * .9) cc.lerp(cr, Math.min(.65, (y - H * .9) / (H * .25))); /* 높은 능선 꼭대기만 바위·눈빛 */ col.push(cc.r, cc.g, cc.b); } }
+    const idx = []; for (let i = 0; i < seg; i++) for (let j = 0; j < NR; j++) { const a = i * (NR + 1) + j, b = a + NR + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95, flatShading: false, side: THREE.DoubleSide })); m.userData.far = true; g.add(m);
+    return { hAt, r0, w };
+  };
+  const near = ridge(RB + 52, 70, mt.h * .5, '#4f6d45', '#5f7f50');
+  ridge(RB + 125, 110, mt.h * .85, '#6c8a68', '#7f9a7a');
+  ridge(RB + 230, 160, mt.h * 1.2, '#93a99a', '#a8baae');
+  { // 가까운 능선을 덮은 숲 (나무 덩어리 실루엣)
+    const N = 520, im = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), M('#3f5f3a'), N), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+    for (let i = 0; i < N; i++) { const a = rnd() * Math.PI * 2, t = .15 + rnd() * .5, hh = near.hAt(a), prof = Math.pow(Math.sin(Math.PI * t / .9), 1.25), y = -3 + (hh + 3) * prof * (t < .5 ? 1 : 1 - (t - .5) * .35), r = near.r0 + near.w * t, s = 2.2 + rnd() * 2.4;
+      im.setMatrixAt(i, m4.compose(v.set(Math.sin(a) * r, y + s * .4, Math.cos(a) * r), q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 6), sc.set(s, s * (.9 + rnd() * .5), s))); }
+    im.userData.far = true; g.add(im);
   }
   if (mt.halla) { // 한라산: 남쪽으로 넓고 완만한 큰 산 + 작은 오름들
     const hm = new THREE.Mesh(new THREE.ConeGeometry(200, 95, 12, 1), M('#5f7f55')); hm.position.set(0, 45, RB + 260); g.add(hm);
@@ -1026,7 +1042,7 @@ function zodiac(h, x, y, z, ry, i) {
 }
 export function buildYonggung(h, T, F) {
   const { add, box, col, L, D, YX, YZ0, YZ1, MAT } = h, { TY, ZC0, ZC1, ZB, ZS1, ZT1, HXc, HZc, HR, HY, HS1 } = F, fig = h.fig || (h.fig = []);
-  const plane = (w, d, mat, x, y, z) => { const p = add(new THREE.PlaneGeometry(w, d), mat, x, y, z, false); p.rotation.x = -Math.PI / 2; p.receiveShadow = true; return p; };
+  const plane = (w, d, mat, x, y, z) => { const geo = new THREE.PlaneGeometry(w, d), t = mat.userData && mat.userData.tile; if (t) { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / t, uv.getY(i) * d / t); } const p = add(geo, mat, x, y, z, false); p.rotation.x = -Math.PI / 2; p.receiveShadow = true; return p; };
   const sign = (text, x, y, z, w = 1.5, ry = 0, fs = 40) => { const p = add(new THREE.PlaneGeometry(w, w * .27), new THREE.MeshStandardMaterial({ map: h.nameTex(text, '#2b1d14', '#f2cf72', fs), roughness: .6 }), x, y, z, false); p.rotation.y = ry; return p; };
   const post = (x, y, z, hh = .8) => add(new THREE.CylinderGeometry(.04, .05, hh, 6), MAT.trunk, x, y + hh / 2, z);
   const rail = (x0, z0, x1, z1, y = 0) => { // 흰 돌난간
