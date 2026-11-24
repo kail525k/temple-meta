@@ -8,6 +8,7 @@ import { hipRoofGeo, gableRoofGeo, paljakGeo } from './hall.js?v=16';
 import { stripUV, paintBand, paintRoof, ensureUV, soffitTex, eaveTex } from './tex.js?v=5';
 import { createSchool, tankFish } from './fish.js?v=6';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { reliefStatue } from './relief.js?v=1';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 export const R = {
@@ -529,12 +530,9 @@ export function buildExtras(h, T) {
       const up = { ...h, add: (geo, m, px, py, pz, sh) => add(geo, m, px, py + TH, pz, sh), box: (w, hh, d, m, px, py, pz) => add(new THREE.BoxGeometry(w, hh, d), m, px, py + TH, pz) };
       up.box(5.0, .42, 5.0, R.granite2, x, .21, zc); up.box(3.6, .4, 3.6, R.granite, x, .62, zc);
       for (let i = 0; i < 14; i++) { const t = (i + .5) / 14 * 3.6 - 1.8; for (const sz of [-1, 1]) up.box(.22, .22, .04, R.granite2, x + t, .6, zc + sz * 1.82); for (const sx of [-1, 1]) up.box(.04, .22, .22, R.granite2, x + sx * 1.82, .6, zc + t); } // 기단 벽 돋을새김
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) { // 아래 단 돌난간 + 네 귀 사천왕 석상
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) { // 아래 단 네 귀 사천왕 석상 (Gemini로 새로 만든 화강암 석상 그림 → 입체 부조) · 바깥쪽을 바라봄
         const cx = x + sx * 2.3, cz = zc + sz * 2.3;
-        up.add(new THREE.CylinderGeometry(.2, .26, .9, 10), R.granite, cx, .87, cz);                         // 갑옷 입은 몸
-        up.add(new THREE.SphereGeometry(.15, 10, 8), R.granite, cx, 1.42, cz); up.add(new THREE.CylinderGeometry(.1, .14, .16, 8), R.granite2, cx, 1.6, cz); // 머리 · 투구
-        for (const s2 of [-1, 1]) { const a = up.add(new THREE.CylinderGeometry(.06, .07, .5, 6), R.granite, cx + s2 * .24, 1.05, cz); a.rotation.z = s2 * .4; }
-        up.add(new THREE.CylinderGeometry(.24, .28, .1, 10), R.granite2, cx, .47, cz);
+        reliefStatue(h.site, './assets/tex/kings/s1.webp', { x: cx, y: TH + .42, z: cz, ry: Math.atan2(sx, sz), h: 1.4, depth: .1, glow: .06, backTint: 0x8a8780, mirror: sx * sz < 0 });
       }
       for (const sz of [-1, 1]) { up.box(4.3, .06, .07, R.granite2, x, .74, zc + sz * 2.3); up.box(.07, .06, 4.3, R.granite2, x + sz * 2.3, .74, zc); }
       for (let i = 0; i < 3; i++) up.box(1.2, .14 * (i + 1), .36, R.granite2, x, .07 * (i + 1), zc + 2.8 + (2 - i) * .34); // 계단 남쪽 오르는 돌계단

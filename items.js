@@ -5,8 +5,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=16';
-import { R, standingGwaneum, stoneTiers, paljakParts } from './regional.js?v=35';
+import { R, standingGwaneum, stoneTiers, paljakParts } from './regional.js?v=36';
 import { stripUV, ensureUV } from './tex.js?v=5';
+import { reliefStatue } from './relief.js?v=1';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const glow = (c, e = .25) => M(c, { emissive: c, emissiveIntensity: e });
@@ -282,73 +283,26 @@ function cheonboru(h, zc) {
   const g = grp(h, 0, zc + 1.82); plate(h, g, '천보루', 1.7, 0, yu + uh - .2, 0, { px: 46 });
   const gi = grp(h, 0, zc - 1.82, Math.PI); plate(h, gi, '홍제루', 1.7, 0, yu + uh - .2, 0, { px: 46 });
 }
-// 사천왕 (코드로 그린 단순한 모양): 바위 자리에 앉아 악귀를 밟고, 손에 든 지물(칼 · 비파 · 용과 여의주 · 삼지창과 보탑)
-// P에 합쳐 넣음 · (x, z)에 놓고 ry 쪽을 바라봄 (그림 기준 앞 = +z)
-function guardianKing(P, x, z, ry, s, { armor, face, hold }) {
-  const MX = new THREE.Matrix4().makeRotationY(ry).scale(V(s, s, s)).setPosition(x, 0, z), k = K();
-  const xf = (g, mat) => { g.applyMatrix4(MX); P.put(g, mat); };
-  const box = (w, hh, d, mat, px, py, pz) => xf(new THREE.BoxGeometry(w, hh, d).translate(px, py, pz), mat);
-  const ball = (r, mat, px, py, pz, sx = 1, sy = 1, sz = 1, det = 1) => xf(new THREE.IcosahedronGeometry(r, det).scale(sx, sy, sz).translate(px, py, pz), mat);
-  const cyl = (rt, rb, hh, seg, mat, px, py, pz) => xf(new THREE.CylinderGeometry(rt, rb, hh, seg).translate(px, py, pz), mat);
-  const limb = (mat, a, b, r0, r1) => { const d = V(b[0] - a[0], b[1] - a[1], b[2] - a[2]), len = d.length(); const g = new THREE.CylinderGeometry(r1, r0, len, 7); g.translate(0, len / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.normalize())); g.translate(...a); xf(g, mat); };
-  const AR = M(armor), FC = M(face), GD = R.gold, DK = k.dark, demon = M('#4a3a34'), WH = M('#f3eee2'), RD = M('#b8322a');
-  box(1.0, .56, .78, M('#7b6a58'), 0, .28, -.12);                                 // 바위 자리
-  ball(.3, demon, 0, .2, .42, 1.5, .55, 1.0); ball(.13, demon, .33, .3, .5, 1, 1, 1); // 밟힌 악귀
-  for (const sx of [-1, 1]) {
-    limb(AR, [sx * .15, .72, -.05], [sx * .2, .64, .3], .13, .12);                // 넓적다리
-    limb(AR, [sx * .2, .64, .3], [sx * .23, .32, .44], .1, .085);                 // 정강이
-    ball(.095, DK, sx * .23, .3, .5, 1, .7, 1.5, 0);                              // 신
-    ball(.15, GD, sx * .34, 1.53, 0, 1.25, .8, 1.15, 0);                          // 어깨 갑옷
-  }
-  cyl(.31, .4, .44, 10, AR, 0, .74, .02); box(.36, .4, .05, GD, 0, .66, .36);    // 갑옷 치마 · 앞 드리개
-  cyl(.27, .3, .12, 10, GD, 0, .99, 0);                                           // 허리띠
-  ball(.3, AR, 0, 1.3, 0, 1.15, 1.25, .8);                                        // 몸통 갑옷
-  xf(new THREE.CylinderGeometry(.11, .11, .03, 14).rotateX(Math.PI / 2).translate(0, 1.36, .24), GD); // 가슴 호심경
-  cyl(.08, .09, .12, 8, FC, 0, 1.67, 0);
-  ball(.19, FC, 0, 1.85, .02, 1, 1.1, .95);                                       // 머리
-  for (const sx of [-1, 1]) { ball(.048, WH, sx * .072, 1.89, .175, 1, 1, .7, 0); ball(.024, DK, sx * .072, 1.89, .208, 1, 1, 1, 0); box(.11, .028, .03, DK, sx * .08, 1.95, .17); } // 부릅뜬 눈 · 눈썹
-  box(.17, .035, .035, DK, 0, 1.775, .185); box(.09, .03, .02, RD, 0, 1.735, .175); // 수염 · 입
-  cyl(.17, .2, .12, 10, GD, 0, 2.03, 0);                                          // 보관
-  for (const [px, pz, hh] of [[0, .13, .22], [-.12, .08, .16], [.12, .08, .16]]) xf(new THREE.ConeGeometry(.05, hh, 5).translate(px, 2.1 + hh / 2, pz), GD);
-  const arm = (sh, el, hd) => { limb(AR, sh, el, .085, .075); limb(FC, el, hd, .065, .055); ball(.07, FC, ...hd, 1, 1, 1, 0); };
-  if (hold === 'sword') { // 칼을 세워 든 모습
-    arm([.36, 1.5, 0], [.5, 1.28, .18], [.36, 1.42, .38]); arm([-.36, 1.5, 0], [-.5, 1.22, .12], [-.3, 1.02, .36]);
-    box(.06, .95, .016, M('#cfd4d8', { metalness: .6, roughness: .3 }), .36, 1.95, .38); box(.26, .05, .07, GD, .36, 1.48, .38); box(.045, .22, .045, M('#5a3a22'), .36, 1.36, .38);
-  } else if (hold === 'lute') { // 비파를 비스듬히 안은 모습
-    const lu = M('#8a5a32');
-    xf(new THREE.IcosahedronGeometry(.2, 1).scale(1, 1.35, .32).rotateZ(.75).translate(-.08, 1.18, .34), lu);
-    xf(new THREE.BoxGeometry(.06, .55, .04).rotateZ(.75).translate(.2, 1.48, .34), lu);
-    arm([.36, 1.5, 0], [.46, 1.3, .2], [.3, 1.56, .36]); arm([-.36, 1.5, 0], [-.42, 1.12, .16], [-.12, 1.16, .42]);
-  } else if (hold === 'dragon') { // 오른손에 용, 왼손에 여의주
-    arm([.36, 1.5, 0], [.52, 1.42, .1], [.46, 1.72, .32]); arm([-.36, 1.5, 0], [-.5, 1.2, .16], [-.34, 1.36, .4]);
-    const curve = new THREE.CatmullRomCurve3([V(.3, 1.05, .3), V(.58, 1.3, .2), V(.36, 1.55, .42), V(.6, 1.8, .3), V(.42, 2.02, .38)]);
-    xf(new THREE.TubeGeometry(curve, 28, .05, 6), M('#3f7a5a')); ball(.085, M('#3f7a5a'), .42, 2.06, .44, 1.2, .9, 1.4, 0);
-    ball(.075, glow('#f6f0dc', .45), -.34, 1.47, .42, 1, 1, 1, 1);
-  } else { // 삼지창과 보탑
-    arm([.36, 1.5, 0], [.5, 1.3, .14], [.44, 1.36, .36]); arm([-.36, 1.5, 0], [-.52, 1.6, .1], [-.38, 1.86, .3]);
-    cyl(.022, .022, 2.4, 6, M('#5a3a22'), .44, 1.35, .36); for (const dx of [-.08, 0, .08]) box(.025, dx ? .16 : .22, .025, GD, .44 + dx, 2.62 + (dx ? 0 : .03), .36); box(.2, .03, .03, GD, .44, 2.54, .36);
-    for (let i = 0; i < 4; i++) box(.2 - i * .035, .045, .2 - i * .035, GD, -.38, 1.96 + i * .075, .3); cyl(.008, .02, .12, 6, GD, -.38, 2.3, .3); // 작은 보탑
-  }
-}
 // 용주사 천왕문: 정면 3칸 맞배지붕 · 가운데 칸으로 지나가고, 양옆 칸에 사천왕 네 분 (1980년 이후 새로 지음)
 // 가운데 길을 막지 않도록 왼쪽·오른쪽 칸을 따로 합치고, 길 위를 가로지르는 것은 모두 머리보다 높게
 function cheonwangmun(h, zc) {
-  const xs = [-4.2, -1.6, 1.6, 4.2], hc = 3.0, D2 = 3.6, wallW = K().wallW, k = K();
+  const xs = [-4.2, -1.6, 1.6, 4.2], hc = 3.5, D2 = 3.6, wallW = K().wallW, k = K();
   for (const x of xs) for (const z of [-D2 / 2, 0, D2 / 2]) { if (Math.abs(x) > 4 && !z) continue; // 기둥: 하나씩 (부딪힘 상자가 길을 덮지 않게)
     mesh(h.site, new THREE.BoxGeometry(.42, .26, .42), R.granite2, x, .13, zc + z); mesh(h.site, new THREE.CylinderGeometry(.15, .16, hc - .26, 10), R.redCol, x, .26 + (hc - .26) / 2, zc + z); }
   mesh(h.site, new THREE.BoxGeometry(3.0, .025, D2 + 1.0), h.MAT.stone, 0, .045, zc, false);                   // 가운데 길 박석 (밟고 지나감)
-  const kings = [[{ armor: '#3a6390', face: '#e3c9a4', hold: 'sword' }, { armor: '#a33b2f', face: '#b54a3c', hold: 'dragon' }],
-                 [{ armor: '#3f7a52', face: '#eee6d6', hold: 'pagoda' }, { armor: '#b98a33', face: '#4b6478', hold: 'lute' }]];
+  // 사천왕 (Gemini로 새로 만든 채색 목조상 그림 → 입체 부조) · 들어서며 오른쪽(동): 앞 지국천왕(칼)·뒤 증장천왕(용과 여의주) / 왼쪽(서): 앞 다문천왕(비파)·뒤 광목천왕(삼지창과 보탑)
+  const kings = [['k4', 'k3'], ['k1', 'k2']], KD = './assets/tex/kings/';
   for (const sx of [-1, 1]) {
     const P = parts(), cx = sx * 2.9, bw = 2.6;
     P.box(bw + .5, .3, D2 + .5, h.MAT.stone, cx, .15, zc);                                    // 기단
     P.box(bw, .35, D2 - .1, R.wood, cx, .47, zc);                                             // 사천왕을 모신 단
     P.box(.14, hc, D2, wallW, sx * 4.2, hc / 2, zc);                                          // 바깥 벽
-    for (const sz of [-1, 1]) { P.box(bw, hc, .14, wallW, cx, hc / 2, zc + sz * D2 / 2);       // 앞뒤 벽 + 높은 살창
-      P.box(bw * .6, .5, .05, R.lattice, cx, hc - .55, zc + sz * (D2 / 2 + .08)); }
+    for (const sz of [-1, 1]) { const wz = zc + sz * D2 / 2;                                   // 앞뒤: 아래는 화방벽, 위는 붉은 홍살 (밖에서도 사천왕이 들여다보임)
+      P.box(bw, 1.05, .16, wallW, cx, .525, wz); P.box(bw, .1, .18, R.redCol, cx, 1.1, wz); P.box(bw, .12, .18, R.redCol, cx, hc - .06, wz);
+      for (let bx = cx - bw / 2 + .12; bx <= cx + bw / 2 - .11; bx += .13) P.box(.045, hc - 1.27, .06, R.redCol, bx, (1.15 + hc - .12) / 2, wz); }
     for (let z = -D2 / 2 + .3; z <= D2 / 2 - .29; z += .55) P.box(.07, .95, .07, R.redCol, sx * 1.66, .475, zc + z); // 길 쪽 붉은 난간
     for (const y of [.5, .92]) P.box(.06, .07, D2 - .4, R.redCol, sx * 1.66, y, zc);
-    kings[sx < 0 ? 0 : 1].forEach((o, i) => guardianKing(P, sx * 3.05, zc + (i ? -.86 : .86), sx < 0 ? Math.PI / 2 : -Math.PI / 2, 1.08, o));
+    kings[sx < 0 ? 0 : 1].forEach((n, i) => reliefStatue(h.site, KD + n + '.webp', { x: sx * 3.0, y: .645, z: zc + (i ? -.86 : .86), ry: -sx * Math.PI / 2 + sx * (i ? -.42 : .42), h: 2.68, depth: .13 })); // 가운데 길을 보되, 앞 두 분은 들어오는 쪽·뒤 두 분은 나가는 쪽으로 살짝 돌아섬
     P.flush(h.site);
     h.col(cx + sx * .05, zc, 1.38, D2 / 2 + .1);
   }
