@@ -282,6 +282,91 @@ function cheonboru(h, zc) {
   const g = grp(h, 0, zc + 1.82); plate(h, g, '천보루', 1.7, 0, yu + uh - .2, 0, { px: 46 });
   const gi = grp(h, 0, zc - 1.82, Math.PI); plate(h, gi, '홍제루', 1.7, 0, yu + uh - .2, 0, { px: 46 });
 }
+// 사천왕 (코드로 그린 단순한 모양): 바위 자리에 앉아 악귀를 밟고, 손에 든 지물(칼 · 비파 · 용과 여의주 · 삼지창과 보탑)
+// P에 합쳐 넣음 · (x, z)에 놓고 ry 쪽을 바라봄 (그림 기준 앞 = +z)
+function guardianKing(P, x, z, ry, s, { armor, face, hold }) {
+  const MX = new THREE.Matrix4().makeRotationY(ry).scale(V(s, s, s)).setPosition(x, 0, z), k = K();
+  const xf = (g, mat) => { g.applyMatrix4(MX); P.put(g, mat); };
+  const box = (w, hh, d, mat, px, py, pz) => xf(new THREE.BoxGeometry(w, hh, d).translate(px, py, pz), mat);
+  const ball = (r, mat, px, py, pz, sx = 1, sy = 1, sz = 1, det = 1) => xf(new THREE.IcosahedronGeometry(r, det).scale(sx, sy, sz).translate(px, py, pz), mat);
+  const cyl = (rt, rb, hh, seg, mat, px, py, pz) => xf(new THREE.CylinderGeometry(rt, rb, hh, seg).translate(px, py, pz), mat);
+  const limb = (mat, a, b, r0, r1) => { const d = V(b[0] - a[0], b[1] - a[1], b[2] - a[2]), len = d.length(); const g = new THREE.CylinderGeometry(r1, r0, len, 7); g.translate(0, len / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.normalize())); g.translate(...a); xf(g, mat); };
+  const AR = M(armor), FC = M(face), GD = R.gold, DK = k.dark, demon = M('#4a3a34'), WH = M('#f3eee2'), RD = M('#b8322a');
+  box(1.0, .56, .78, M('#7b6a58'), 0, .28, -.12);                                 // 바위 자리
+  ball(.3, demon, 0, .2, .42, 1.5, .55, 1.0); ball(.13, demon, .33, .3, .5, 1, 1, 1); // 밟힌 악귀
+  for (const sx of [-1, 1]) {
+    limb(AR, [sx * .15, .72, -.05], [sx * .2, .64, .3], .13, .12);                // 넓적다리
+    limb(AR, [sx * .2, .64, .3], [sx * .23, .32, .44], .1, .085);                 // 정강이
+    ball(.095, DK, sx * .23, .3, .5, 1, .7, 1.5, 0);                              // 신
+    ball(.15, GD, sx * .34, 1.53, 0, 1.25, .8, 1.15, 0);                          // 어깨 갑옷
+  }
+  cyl(.31, .4, .44, 10, AR, 0, .74, .02); box(.36, .4, .05, GD, 0, .66, .36);    // 갑옷 치마 · 앞 드리개
+  cyl(.27, .3, .12, 10, GD, 0, .99, 0);                                           // 허리띠
+  ball(.3, AR, 0, 1.3, 0, 1.15, 1.25, .8);                                        // 몸통 갑옷
+  xf(new THREE.CylinderGeometry(.11, .11, .03, 14).rotateX(Math.PI / 2).translate(0, 1.36, .24), GD); // 가슴 호심경
+  cyl(.08, .09, .12, 8, FC, 0, 1.67, 0);
+  ball(.19, FC, 0, 1.85, .02, 1, 1.1, .95);                                       // 머리
+  for (const sx of [-1, 1]) { ball(.048, WH, sx * .072, 1.89, .175, 1, 1, .7, 0); ball(.024, DK, sx * .072, 1.89, .208, 1, 1, 1, 0); box(.11, .028, .03, DK, sx * .08, 1.95, .17); } // 부릅뜬 눈 · 눈썹
+  box(.17, .035, .035, DK, 0, 1.775, .185); box(.09, .03, .02, RD, 0, 1.735, .175); // 수염 · 입
+  cyl(.17, .2, .12, 10, GD, 0, 2.03, 0);                                          // 보관
+  for (const [px, pz, hh] of [[0, .13, .22], [-.12, .08, .16], [.12, .08, .16]]) xf(new THREE.ConeGeometry(.05, hh, 5).translate(px, 2.1 + hh / 2, pz), GD);
+  const arm = (sh, el, hd) => { limb(AR, sh, el, .085, .075); limb(FC, el, hd, .065, .055); ball(.07, FC, ...hd, 1, 1, 1, 0); };
+  if (hold === 'sword') { // 칼을 세워 든 모습
+    arm([.36, 1.5, 0], [.5, 1.28, .18], [.36, 1.42, .38]); arm([-.36, 1.5, 0], [-.5, 1.22, .12], [-.3, 1.02, .36]);
+    box(.06, .95, .016, M('#cfd4d8', { metalness: .6, roughness: .3 }), .36, 1.95, .38); box(.26, .05, .07, GD, .36, 1.48, .38); box(.045, .22, .045, M('#5a3a22'), .36, 1.36, .38);
+  } else if (hold === 'lute') { // 비파를 비스듬히 안은 모습
+    const lu = M('#8a5a32');
+    xf(new THREE.IcosahedronGeometry(.2, 1).scale(1, 1.35, .32).rotateZ(.75).translate(-.08, 1.18, .34), lu);
+    xf(new THREE.BoxGeometry(.06, .55, .04).rotateZ(.75).translate(.2, 1.48, .34), lu);
+    arm([.36, 1.5, 0], [.46, 1.3, .2], [.3, 1.56, .36]); arm([-.36, 1.5, 0], [-.42, 1.12, .16], [-.12, 1.16, .42]);
+  } else if (hold === 'dragon') { // 오른손에 용, 왼손에 여의주
+    arm([.36, 1.5, 0], [.52, 1.42, .1], [.46, 1.72, .32]); arm([-.36, 1.5, 0], [-.5, 1.2, .16], [-.34, 1.36, .4]);
+    const curve = new THREE.CatmullRomCurve3([V(.3, 1.05, .3), V(.58, 1.3, .2), V(.36, 1.55, .42), V(.6, 1.8, .3), V(.42, 2.02, .38)]);
+    xf(new THREE.TubeGeometry(curve, 28, .05, 6), M('#3f7a5a')); ball(.085, M('#3f7a5a'), .42, 2.06, .44, 1.2, .9, 1.4, 0);
+    ball(.075, glow('#f6f0dc', .45), -.34, 1.47, .42, 1, 1, 1, 1);
+  } else { // 삼지창과 보탑
+    arm([.36, 1.5, 0], [.5, 1.3, .14], [.44, 1.36, .36]); arm([-.36, 1.5, 0], [-.52, 1.6, .1], [-.38, 1.86, .3]);
+    cyl(.022, .022, 2.4, 6, M('#5a3a22'), .44, 1.35, .36); for (const dx of [-.08, 0, .08]) box(.025, dx ? .16 : .22, .025, GD, .44 + dx, 2.62 + (dx ? 0 : .03), .36); box(.2, .03, .03, GD, .44, 2.54, .36);
+    for (let i = 0; i < 4; i++) box(.2 - i * .035, .045, .2 - i * .035, GD, -.38, 1.96 + i * .075, .3); cyl(.008, .02, .12, 6, GD, -.38, 2.3, .3); // 작은 보탑
+  }
+}
+// 용주사 천왕문: 정면 3칸 맞배지붕 · 가운데 칸으로 지나가고, 양옆 칸에 사천왕 네 분 (1980년 이후 새로 지음)
+// 가운데 길을 막지 않도록 왼쪽·오른쪽 칸을 따로 합치고, 길 위를 가로지르는 것은 모두 머리보다 높게
+function cheonwangmun(h, zc) {
+  const xs = [-4.2, -1.6, 1.6, 4.2], hc = 3.0, D2 = 3.6, wallW = K().wallW, k = K();
+  for (const x of xs) for (const z of [-D2 / 2, 0, D2 / 2]) { if (Math.abs(x) > 4 && !z) continue; // 기둥: 하나씩 (부딪힘 상자가 길을 덮지 않게)
+    mesh(h.site, new THREE.BoxGeometry(.42, .26, .42), R.granite2, x, .13, zc + z); mesh(h.site, new THREE.CylinderGeometry(.15, .16, hc - .26, 10), R.redCol, x, .26 + (hc - .26) / 2, zc + z); }
+  mesh(h.site, new THREE.BoxGeometry(3.0, .025, D2 + 1.0), h.MAT.stone, 0, .045, zc, false);                   // 가운데 길 박석 (밟고 지나감)
+  const kings = [[{ armor: '#3a6390', face: '#e3c9a4', hold: 'sword' }, { armor: '#a33b2f', face: '#b54a3c', hold: 'dragon' }],
+                 [{ armor: '#3f7a52', face: '#eee6d6', hold: 'pagoda' }, { armor: '#b98a33', face: '#4b6478', hold: 'lute' }]];
+  for (const sx of [-1, 1]) {
+    const P = parts(), cx = sx * 2.9, bw = 2.6;
+    P.box(bw + .5, .3, D2 + .5, h.MAT.stone, cx, .15, zc);                                    // 기단
+    P.box(bw, .35, D2 - .1, R.wood, cx, .47, zc);                                             // 사천왕을 모신 단
+    P.box(.14, hc, D2, wallW, sx * 4.2, hc / 2, zc);                                          // 바깥 벽
+    for (const sz of [-1, 1]) { P.box(bw, hc, .14, wallW, cx, hc / 2, zc + sz * D2 / 2);       // 앞뒤 벽 + 높은 살창
+      P.box(bw * .6, .5, .05, R.lattice, cx, hc - .55, zc + sz * (D2 / 2 + .08)); }
+    for (let z = -D2 / 2 + .3; z <= D2 / 2 - .29; z += .55) P.box(.07, .95, .07, R.redCol, sx * 1.66, .475, zc + z); // 길 쪽 붉은 난간
+    for (const y of [.5, .92]) P.box(.06, .07, D2 - .4, R.redCol, sx * 1.66, y, zc);
+    kings[sx < 0 ? 0 : 1].forEach((o, i) => guardianKing(P, sx * 3.05, zc + (i ? -.86 : .86), sx < 0 ? Math.PI / 2 : -Math.PI / 2, 1.08, o));
+    P.flush(h.site);
+    h.col(cx + sx * .05, zc, 1.38, D2 / 2 + .1);
+  }
+  const Q = parts(), top = hc + .3, W = 8.4;                                                  // 길 위로 지나가는 것 (모두 머리 위)
+  for (const z of [-D2 / 2, 0, D2 / 2]) Q.box(W + .3, .3, .3, R.band, 0, hc + .15, zc + z);
+  for (const x of xs) Q.box(.3, .3, D2 + .3, R.band, x, hc + .15, zc);
+  for (const x of xs) for (const sz of [-1, 1]) Q.box(.2, .18, .5, R.band, x, hc - .02, zc + sz * (D2 / 2 + .18)); // 익공
+  Q.box(3.2, .2, .22, R.redCol, 0, 2.45, zc);                                                 // 문 위 인방 + 홍살
+  for (let x = -1.4; x <= 1.41; x += .2) Q.box(.04, .48, .04, R.redCol, x, 2.75, zc);
+  const roof = gableRoofGeo(THREE, W + 1.8, D2 + 2.8, 1.55, .12); roof.translate(0, top, zc); Q.put(roof, R.roofTile);
+  { const hz = D2 / 2 + .15, rz = (D2 + 2.8) / 2, yAt = z => top + 1.55 * (1 - Math.abs(z) / rz) - .06, sh = new THREE.Shape(); // 양옆 박공 (지붕 아래 세모 벽)
+    sh.moveTo(-hz, hc + .25); sh.lineTo(hz, hc + .25); sh.lineTo(hz, yAt(hz)); sh.lineTo(0, yAt(0)); sh.lineTo(-hz, yAt(-hz)); sh.closePath();
+    for (const sx of [-1, 1]) { const gw = new THREE.ExtrudeGeometry(sh, { depth: .12, bevelEnabled: false }); gw.rotateY(Math.PI / 2); gw.translate(sx * 4.2 - .06, 0, zc); Q.put(gw, wallW); } }
+  Q.box(W + 1.9, .22, .28, h.MAT.stoneDark, 0, top + 1.59, zc);
+  Q.flush(h.site);
+  const gf = grp(h, 0, zc + D2 / 2 + .17); plate(h, gf, '천왕문', 1.5, 0, hc - .2, 0, { px: 50 });
+  return { top };
+}
 // 전나무: 곧은 줄기 (아래는 가지 없이) + 층층이 원뿔 잎
 function firTree(Pc, trunks, h, x, z, s, rnd) {
   const k = K(), th = 2.4 * s;
@@ -304,8 +389,8 @@ export function buildItems(h, T) {
       signpost(h, ...toSite(g, -2.6, 1.9), RIGHT, '판전', '추사 김정희가 생애 마지막에 쓴 현판');
       spot(g, 0, 2.2, 3.4, '봉은사 판전', '추사 김정희가 세상을 떠나기 며칠 전에 쓴 ‘판전’ 현판이 걸려 있어요');
     }
-    if (kind === 'yongjuBell') { // 용주사 범종각: 국보 동종을 모신 한 칸 종각 (치지 않고 보기만) · 삼문과 천보루 사이 앞마당 왼쪽, 오른쪽 법고각과 마주 봄
-      const g = grp(h, -FX, D / 2 + 15.0, LEFT), P = parts();
+    if (kind === 'yongjuBell') { // 용주사 범종각: 국보 동종을 모신 한 칸 종각 (치지 않고 보기만) · 누리집 가람 배치도대로 대웅보전 앞 왼쪽, 오른쪽 법고각과 마주 봄
+      const g = grp(h, -(L / 2 + 2.7), D / 2 + 2.6, LEFT), P = parts();
       P.box(2.8, .25, 2.8, h.MAT.stone, 0, .125, 0);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.1, .11, 2.4, 8, R.redCol, sx * 1.15, 1.45, sz * 1.15);
       P.box(2.5, .16, .16, R.redCol, 0, 2.5, 0); P.box(2.5, .12, 2.5, R.band, 0, 2.62, 0);
@@ -322,7 +407,7 @@ export function buildItems(h, T) {
       for (const sx of [-1, 1]) { const f = mesh(g, new THREE.PlaneGeometry(.22, .34), new THREE.MeshStandardMaterial({ color: '#7d8460', metalness: .5, roughness: .5, side: THREE.DoubleSide }), sx * .44, 1.15, .02, false); f.rotation.y = sx * 1.2; } // 비천상 자리
       plate(h, g, '용주사 동종', 1.1, 0, 2.38, 1.36, { px: 40 });
       colG(h, g, 0, 0, 1.5, 1.5);
-      signpost(h, ...toSite(g, 1.9, 1.7), LEFT, '국보 · 용주사 동종', '하늘을 나는 비천상이 새겨진 범종');
+      signpost(h, ...toSite(g, -1.9, 1.7), LEFT, '국보 · 용주사 동종', '하늘을 나는 비천상이 새겨진 범종');
       spot(g, 0, 2.2, 3.4, '용주사 동종', '국보 · 하늘을 나는 비천상과 삼존상이 새겨진 범종이에요');
     }
     if (kind === 'hyohaeng') { // 용주사 효행 이야기: 부모은중경 열 가지 은혜 판
@@ -339,8 +424,8 @@ export function buildItems(h, T) {
       h.col(7.7, YZ1 + 3.3, 1.0, 1.0);
       spot(g, 0, 1.4, 2.4, '용주사 효행 이야기', '정조가 아버지 사도세자를 위해 세운 절 · 부모은중경의 열 가지 은혜를 읽어 보세요');
     }
-    if (kind === 'yongjuDrum') { // 용주사 법고각: 범종각과 마주 보는 한 칸 전각 · 예불 때 치는 큰 북
-      const g = grp(h, FX, D / 2 + 15.0, RIGHT), P = parts();
+    if (kind === 'yongjuDrum') { // 용주사 법고각: 대웅보전을 사이에 두고 범종각과 마주 보는 한 칸 전각 · 예불 때 치는 큰 북
+      const g = grp(h, L / 2 + 2.7, D / 2 + 2.6, RIGHT), P = parts();
       P.box(2.8, .25, 2.8, h.MAT.stone, 0, .125, 0);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.1, .11, 2.4, 8, R.redCol, sx * 1.15, 1.45, sz * 1.15);
       P.box(2.5, .16, .16, R.redCol, 0, 2.5, 0); P.box(2.5, .12, 2.5, R.band, 0, 2.62, 0);
@@ -360,9 +445,15 @@ export function buildItems(h, T) {
         if (sz < 0) { a.rotation.y = Math.PI; b.rotation.y = Math.PI; } }
       plate(h, g, '법고각', .9, 0, 2.38, 1.36, { px: 42 });
       colG(h, g, 0, 0, 1.5, 1.5);
-      spot(g, 0, 2.2, 3.0, '용주사 법고각', '범종각과 마주 보는 한 칸 전각 · 예불 때 치는 큰 북(법고)을 모셨어요');
+      spot(g, 0, 2.2, 3.0, '용주사 법고각', '대웅보전을 사이에 두고 범종각과 마주 보는 한 칸 전각 · 예불 때 치는 큰 북(법고)을 모셨어요');
     }
-    if (kind === 'yongjuApproach') { // 용주사 삼문 바깥: 홍살문(cheonbo) 왼쪽 고려 오층석탑 · 오른쪽 부모은중경탑 (실제로는 그 앞에 천왕문과 효행박물관이 있으나 가운데 순례 마당과 가까워 담지 않음)
+    if (kind === 'yongjuCheonwang') { // 용주사 천왕문: 홍살문 앞(바깥), 순례 마당에서 들어오는 길 위
+      const zc = YZ1 + 11.8;
+      cheonwangmun(h, zc);
+      signpost(h, -5.7, zc + 2.6, 0, '천왕문', '사천왕 네 분이 절을 지키는 문', 1.35);
+      spotAt(0, zc + 2.4, 2.6, '용주사 천왕문', '절에 들어서며 처음 만나는 문 · 양옆에 사천왕 네 분을 모셨어요');
+    }
+    if (kind === 'yongjuApproach') { // 용주사 삼문 바깥: 홍살문(cheonbo) 왼쪽 고려 오층석탑 · 오른쪽 부모은중경탑 (그 앞 천왕문은 yongjuCheonwang)
       const r1 = stoneTiers(h, -4.4, YZ1 + 4.6, 5, .95); h.col(-4.4, YZ1 + 4.6, r1, r1); // 고려 오층석탑 (홍살문 왼쪽)
       const r2 = stoneTiers(h, 4.4, YZ1 + 4.6, 3, .9, false, { slim: .9 }); h.col(4.4, YZ1 + 4.6, r2, r2); // 부모은중경탑 (1981, 홍살문 오른쪽)
       signpost(h, -4.4, YZ1 + 6.5, 0, '오층석탑', '고려 때 화강암 탑 · 높이 4.5m', 1.25);
@@ -370,7 +461,7 @@ export function buildItems(h, T) {
       spotAt(-4.4, YZ1 + 7.2, 1.8, '용주사 오층석탑', '홍살문 왼쪽, 효행박물관 앞에 선 고려 때 오층석탑이에요');
       spotAt(4.4, YZ1 + 7.2, 1.8, '용주사 부모은중경탑', '부모은중경의 글귀를 새긴 삼층석탑 · 2020년 호성전 화재 뒤 이 자리로 옮겼어요');
     }
-    if (kind === 'yongjuUpper') { // 용주사 대웅보전 둘레: 왼쪽 시방칠등각(옛 칠성각) · 그 너머 천불전(옛 향로전 자리, 동쪽으로 문), 오른쪽 호성전(사도세자 제각)
+    if (kind === 'yongjuUpper') { // 용주사 대웅보전 둘레 (누리집 가람 배치도): 왼쪽 시방칠등각(옛 칠성각) · 그 너머 천불전(옛 향로전 자리, 동쪽으로 문), 오른쪽 호성전(사도세자 제각) · 그 오른쪽 지장전
       { const g = grp(h, -(YX - 5.4), 1.9, 0); // 시방칠등각: 대웅보전과 천불전 사이
         smallHall(h, g, { w: 3.0, d: 2.2, hh: 1.65, gable: true, roofH: .9, plaque: '시방칠등각', plaqueW: 1.25 });
         colG(h, g, 0, 0, 1.75, 1.35);
@@ -391,7 +482,7 @@ export function buildItems(h, T) {
           const ph = new THREE.Group(); ph.position.set(dx, .62, -d / 2 + .8); g.add(ph); mesh(ph, new THREE.SphereGeometry(.15, 12, 8), R.gold, 0, .14, 0).scale.set(1.2, .9, .9); mesh(ph, new THREE.SphereGeometry(.09, 12, 8), R.gold, 0, .34, 0);
           const [fx, fz] = toSite(g, dx, -d / 2 + .8); h.fig.push({ k: kk, tint: 'gold', lx: fx, ly: .62, lz: fz, h: dx ? .52 : .58, ry: g.rotation.y, ph: [ph] }); }
         spot(g, 0, 2.3, 2.8, '용주사 천불전', '옛 향로전 자리에 1993년 지은 법당 · 세 면의 아홉 층 단에 작은 부처님 천 분을 모셨어요'); }
-      { const w = 3.6, d = 2.6, g = grp(h, YX - 5.0, -.4, 0); // 호성전: 사도세자·혜경궁 홍씨·정조·효의왕후의 위패
+      { const w = 3.6, d = 2.6, g = grp(h, YX - 7.5, -.4, 0); // 호성전: 사도세자·혜경궁 홍씨·정조·효의왕후의 위패 (오른쪽 곁에 지장전)
         smallHall(h, g, { w, d, hh: 1.85, roofH: 1.05, open: 2.0, plaque: '호성전', plaqueW: 1.0 });
         colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         const P = parts(), z0 = -d / 2 + .55;
@@ -399,6 +490,21 @@ export function buildItems(h, T) {
         for (let i = 0; i < 4; i++) { const x = -.54 + i * .36; P.box(.15, .44, .05, M('#2b2420'), x, 1.07, z0); P.box(.2, .07, .09, R.gold, x, 1.3, z0); P.box(.2, .05, .1, R.wood, x, .86, z0); } // 위패 넷
         P.flush(g);
         spot(g, 0, 2.2, 2.6, '용주사 호성전', '정조가 아버지 사도세자의 위패를 모시려고 대웅보전 곁에 지은 전각이에요'); }
+      { const w = 3.3, d = 2.4, hh = 1.75, g = grp(h, YX - 2.65, -.4, 0); // 지장전: 정면 3칸·측면 2칸 맞배지붕 · 가운데 칸에만 문 · 지장삼존과 명부시왕
+        smallHall(h, g, { w, d, hh, gable: true, roofH: .95, open: 1.15, plaque: '지장전', plaqueW: 1.0 });
+        colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        const P = parts(), z0 = -d / 2 + .5, y0 = .3, gold = R.gold, robe = M('#8a3a2c'), robe2 = M('#3f6a5a'), skin = M('#e6c9a0'), hat = k.dark;
+        P.box(1.5, .42, .45, R.redCol, 0, y0 + .21, z0);                                                     // 불단
+        P.ball(.2, gold, 0, y0 + .58, z0 + .04, 1.25, .62, .9); P.ball(.14, gold, 0, y0 + .82, z0, 1.05, 1.25, .8); // 지장보살: 민머리 스님 모습
+        P.ball(.085, M('#4d6b66'), 0, y0 + 1.03, z0 + .01, 1, 1.08, 1); P.cyl(.007, .007, .62, 5, gold, .2, y0 + .78, z0 + .08); // 석장
+        for (const sx of [-1, 1]) { const x = sx * .52; // 도명존자(스님) · 무독귀왕(관복)
+          P.cyl(.07, .1, .48, 8, sx < 0 ? robe : robe2, x, y0 + .66, z0 + .06); P.ball(.065, sx < 0 ? M('#d6b88f') : skin, x, y0 + .96, z0 + .06);
+          if (sx > 0) P.box(.1, .06, .1, hat, x, y0 + 1.04, z0 + .06); }
+        for (const sx of [-1, 1]) { P.box(.32, .2, d - .75, R.wood, sx * (w / 2 - .26), y0 + .1, .05); // 양옆 벽을 따라 앉은 명부시왕 다섯 분씩
+          for (let i = 0; i < 5; i++) { const z = -d / 2 + .52 + i * .33, x = sx * (w / 2 - .26);
+            P.cyl(.06, .08, .26, 8, i % 2 ? robe2 : robe, x, y0 + .33, z); P.ball(.05, skin, x, y0 + .51, z); P.box(.1, .055, .07, hat, x, y0 + .58, z); } }
+        P.flush(g);
+        spot(g, 0, 2.1, 2.4, '용주사 지장전', '지장보살과 저승의 열 왕(명부시왕)을 모신 전각 · 1894년 만의사에서 옮겨 온 존상들이에요'); }
     }
     if (kind === 'yonghwagak') { // 봉녕사 용화각: 대적광전 오른쪽 · 1970년대 법당 터를 닦다 땅속에서 나온 고려 후기 석조삼존불 (모래가 많은 돌이라 많이 닳음, 연꽃 대좌는 또렷)
       const w = 3.4, d = 2.6, hh = 2.0, g = grp(h, YX - 4.0, -1.0, 0);
