@@ -3,15 +3,15 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
-import { buildHall } from './hall.js?v=15';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=34';
-import { buildItems, buildLantern, buildGate } from './items.js?v=11';
+import { buildHall } from './hall.js?v=16';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=35';
+import { buildItems, buildLantern, buildGate } from './items.js?v=12';
 import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=6';
 import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
-import { REGIONS } from './temples.js?v=16';
-import { yardTex, pathTex } from './tex.js?v=4';
+import { REGIONS } from './temples.js?v=17';
+import { yardTex, pathTex } from './tex.js?v=5';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=9';
 import { initStats, addBow, initRanks, flushStats, statsDebug } from './ranks.js?v=1';
@@ -275,7 +275,7 @@ function buildSite(info, T) {
   const st = T.style || {}, ex = st.extras || [];
   const autoBays = Math.max(3, Math.min(7, 2 * Math.round((L / 3.6 - 1) / 2) + 1)); // 칸 자료가 없으면 폭으로 어림 (홀수, 한 칸 3.6m쯤)
   hall = buildHall(THREE, { L, D, buddhas: T.buddhas, altar: parseAltar(T.altar), roof: st.roof, stories: st.stories, plain: st.plain, sign: nameTex(T.hallName, '#2b1d14', '#f2cf72', 50),
-    bays: st.bays || autoBays, sideBays: st.sideBays || 3, gongpo: st.gongpo || 'dapo', eaves: st.eaves || 'double', fade: !!st.fade });
+    bays: st.bays || autoBays, sideBays: st.sideBays || 3, gongpo: st.gongpo || 'dapo', eaves: st.eaves || 'double', fade: !!st.fade, base: st.base || .95 });
   const site = new THREE.Group(); site.position.set(HX, 0, HZ); site.rotation.y = TH; scene.add(site);
   site.add(hall.group);
   hall.colliders.forEach(addCollider);

@@ -4,8 +4,8 @@
 //   통도사 금강계단, 해인사 장경판전, 백양사 쌍계루, 선암사 승선교, 관음사 석불 길, 조계사 노거수 등
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
-import { hipRoofGeo, gableRoofGeo, paljakGeo } from './hall.js?v=15';
-import { stripUV, paintBand, paintRoof, ensureUV, soffitTex, eaveTex } from './tex.js?v=4';
+import { hipRoofGeo, gableRoofGeo, paljakGeo } from './hall.js?v=16';
+import { stripUV, paintBand, paintRoof, ensureUV, soffitTex, eaveTex } from './tex.js?v=5';
 import { createSchool, tankFish } from './fish.js?v=6';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -330,6 +330,10 @@ export function buildPagoda(h, type, PZ) {
   else if (type === 'twin3') { // 직지사 대웅전 앞 동·서 삼층석탑 (도천사터에서 옮겨 옴) · 둘레 돌난간
     x = -3.9; for (const sx of [-1, 1]) { stoneTiers(h, sx * 3.9, PZ, 3, .98, false, { slim: .9 }); stoneRail(h, sx * 3.9, PZ, 1.6); }
     r = 1.7;
+  }
+  else if (type === 'twin3n') { // 선암사 대웅전 앞 동·서 삼층석탑 (보물) — 난간 없이 좌우로
+    x = -3.6; for (const sx of [-1, 1]) { stoneTiers(h, sx * 3.6, PZ, 3, .95, false, { slim: .9 }); if (sx > 0) col(3.6, PZ, 1.3, 1.3); }
+    r = 1.3;
   }
   else if (type === 'hex') r = hexSlate(h, 0, PZ);
   else if (type === 'octa9s') { r = octa9(h, 0, PZ); offeringBosal(h, 0, PZ + 2.25, Math.PI); r = 2.75; } // 월정사: 탑 남쪽에서 탑을 향해 공양하는 보살좌상

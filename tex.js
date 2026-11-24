@@ -84,5 +84,16 @@ export const gongpoTex = () => canvasTex('gongpo', 512, 128, (c, w, h) => {
     c.fillStyle = '#d0452f'; c.beginPath(); c.arc(cx, cy, 4, 0, Math.PI * 2); c.fill();
   }
 });
+// 바랜 단청: 원래 그림을 채도를 낮추고 흙빛을 돌게 다시 그린 판 (그림이 늦게 불러와지면 다 불러온 뒤 그림)
+export function faded(src) {
+  const key = 'fade:' + src.uuid; if (cache[key]) return cache[key];
+  const cv = document.createElement('canvas'); cv.width = cv.height = 4;
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = src.wrapS; t.wrapT = src.wrapT;
+  const go = (n = 0) => { const img = src.image, w = img && (img.naturalWidth || img.width), h = img && (img.naturalHeight || img.height);
+    if (!w || (img.complete === false)) { if (n < 100) setTimeout(() => go(n + 1), 150); return; }
+    const c2 = document.createElement('canvas'); c2.width = w; c2.height = h; const c = c2.getContext('2d'); c.filter = 'saturate(38%) sepia(22%) brightness(94%) contrast(92%)'; c.drawImage(img, 0, 0, w, h);
+    t.image = c2; t.needsUpdate = true; };
+  go(); return (cache[key] = t);
+}
 // 합치는 부품(parts)에 UV가 없는 도형이 섞이면 합치기가 실패하므로 빈 UV를 채움
 export function ensureUV(g) { if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; }

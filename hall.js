@@ -1,10 +1,10 @@
-import { roofUV, stripUV, paintBand, paintRoof, doorTex, soffitTex, eaveTex, gongpoTex, stoneTex, wallTex } from './tex.js?v=4';
+import { roofUV, stripUV, paintBand, paintRoof, doorTex, soffitTex, eaveTex, gongpoTex, stoneTex, wallTex, faded } from './tex.js?v=5';
 // 법당 하나 — 앞면이 +z. 계단으로 올라가 안으로 들어가고, 가운데 방석에서 삼배를 올릴 수 있게 내부까지 만든 모델 (위레브)
 // L: 정면 폭, D: 측면 깊이(실제 건물 크기에서 가져옴), buddhas: 불단 위 부처님 수(1 또는 3)
 // roof: 'hip'(팔작) | 'gable'(맞배) | 'cross'(아자 지붕) · stories: 2면 바깥이 2층(중층) · plain: 단청 없는 나무 빛 · sign: 현판 글자 텍스처
 // altar: 불단 위 존상 [{k, s}] (보는 사람 기준 왼쪽→오른쪽) — k: sakya·amita·yaksa·biro(앉은 부처), bosal(앉은 보살), bosalS(선 보살), disciple(선 제자), chunsu(천수관음), buddhaS(선 부처)
 // bays: 정면 칸 수(홀수) · sideBays: 측면 칸 수 · gongpo: 'dapo'(다포)|'jusim'(주심포)|'ik'(익공) · eaves: 'double'(겹처마)|'single'(홑처마) · fade: 단청이 바래 옅어짐
-export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, roof: roofType = 'hip', stories = 1, plain = false, sign = null, bays: baysIn = 3, sideBays = 3, gongpo = 'dapo', eaves = 'double', fade = false } = {}) {
+export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, roof: roofType = 'hip', stories = 1, plain = false, sign = null, bays: baysIn = 3, sideBays = 3, gongpo = 'dapo', eaves = 'double', fade = false, base = .95 } = {}) {
   const g = new THREE.Group();
   const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
   const MAT = {
@@ -32,8 +32,8 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
   MAT.gidan = M(fade ? '#e4dccd' : '#ffffff', { map: stoneTex(), flatShading: false });
   MAT.wallP = M(plain ? '#efe4cf' : fade ? '#e8dccb' : '#ffffff', { map: wallTex(), flatShading: false }); // 벽 한 칸 그림 (위 벽화 · 아래 회벽)
   MAT.gongpo = gongpo === 'dapo' ? M(plain ? '#c9a27a' : '#ffffff', { map: gongpoTex() }) : M(plain ? '#8a6a48' : '#7d3527'); MAT.gongpo.userData.strip = gongpo === 'dapo'; // 다포는 포벽 그림, 주심포·익공은 민 벽
-  if (fade && !plain) { // 오래되어 바랜 단청: 그림 위에 흙빛을 얹고 기둥도 옅은 주홍으로
-    for (const k of ['band', 'under', 'eave', 'gongpo']) MAT[k].color.set(k === 'gongpo' && gongpo !== 'dapo' ? '#8a5a48' : '#d2c3a8');
+  if (fade && !plain) { // 오래되어 바랜 단청: 그림의 채도를 낮춘 바랜 판으로 바꾸고 흙빛을 얹음, 기둥도 옅은 주홍으로
+    for (const k of ['band', 'under', 'eave', 'gongpo']) { if (MAT[k].map) MAT[k].map = faded(MAT[k].map); MAT[k].color.set(k === 'gongpo' && gongpo !== 'dapo' ? '#8a5a48' : '#ddd3c2'); }
     MAT.col.color.set('#8e4a3a'); MAT.bandRed.color.set('#a8604a'); MAT.gable.color.set('#7a4a3a');
   }
   const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
@@ -47,7 +47,7 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
       const t = axis === 'x' ? p.getZ(i) + z : p.getX(i) + x; uv.setXY(i, (t - o0) / per, (p.getY(i) + h / 2) / h); }
     return add(geo, MAT.wallP, x, y, z); };
 
-  const P = .6, H = 3.9, T = .25, SW = 3.2;
+  const P = base, H = 3.9, T = .25, SW = 3.2, NST = Math.max(3, Math.round(P / .19)), SL = NST * .34; // 기단 높이 P(장대석), 계단 NST단 · 길이 SL
   const ix0 = -L / 2 + .6, ix1 = L / 2 - .6, iz0 = -D / 2 + .6, iz1 = D / 2 - 1.3;
   const IW = ix1 - ix0, ID = iz1 - iz0, FY = P + .05;
   const bays = Math.max(1, baysIn % 2 ? baysIn : baysIn + 1), fx = i => ix0 + IW * i / bays; // 정면 칸: 가운데 칸이 드나드는 어간이 되게 홀수
@@ -56,8 +56,8 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
   const col = (cx, cz, hx, hz) => colliders.push({ cx, cz, hx, hz });
 
   // 기단 + 앞 계단 (계단으로만 오르내림)
-  tbox(L, P, D, MAT.gidan, 0, P / 2, 0, P * 2); // 장대석 2단 기단 (Gemini로 새로 그린 돌 그림)
-  for (let i = 0; i < 3; i++) tbox(SW, P * (3 - i) / 4, .42, MAT.gidan, 0, P * (3 - i) / 8, D / 2 + .21 + i * .42, P * 2);
+  tbox(L, P, D, MAT.gidan, 0, P / 2, 0, 1.2); // 한 장 = 1.2m (장대석 네 줄, 한 줄 30cm) // 장대석 2단 기단 (Gemini로 새로 그린 돌 그림)
+  for (let i = 0; i < NST; i++) { const hh = P * (NST - i) / (NST + 1); tbox(SW, hh, .34, MAT.gidan, 0, hh / 2, D / 2 + .17 + i * .34, .6 * 2); }
   const sideW = L / 2 - IW / 2 - T;
   for (const sx of [-1, 1]) {
     col(sx * (IW / 2 + T + sideW / 2), 0, sideW / 2 + .05, D / 2);                       // 옆 기단
@@ -100,7 +100,7 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
   for (const sx of [-1, 1]) for (let i = 1; i < sideBays; i++) { const z = iz0 - T / 2 + (D / 2 - .35 - iz0 + T / 2) * i / sideBays; if (z < iz1 - .3) add(colGeo, MAT.col, sx * (IW / 2 + T / 2), FY + H / 2, z); }
   for (let i = 0; i <= bays; i++) add(colGeo, MAT.col, fx(i), FY + H / 2, iz0 - T / 2);
   for (const sx of [-1, 1]) { // 소맷돌: 계단 양옆으로 비스듬히 내려오는 돌
-    const sl = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(1.36, 0), new THREE.Vector2(1.36, .18), new THREE.Vector2(.2, P + .14), new THREE.Vector2(0, P + .14)]);
+    const sl = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(SL + .1, 0), new THREE.Vector2(SL + .1, .2), new THREE.Vector2(.2, P + .14), new THREE.Vector2(0, P + .14)]);
     const sg = new THREE.ExtrudeGeometry(sl, { depth: .26, bevelEnabled: false }); sg.rotateY(-Math.PI / 2); sg.translate(sx * (SW / 2 + .13) + .13, 0, D / 2 - .1);
     add(sg, MAT.stone, 0, 0, 0);
   }
@@ -144,7 +144,7 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
     const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); bg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); bg.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     add(bg, MAT.band, 0, 0, 0).castShadow = false; }
   const hipRoof = (lr, wr, rh, y, opt = {}) => { // 팔작지붕 (opt.skirt: 중층 아래 띠 지붕, opt.hip: 합각 없는 우진각)
-    const G = paljakGeo(THREE, lr, wr, rh, Math.min(1.05, wr * .085), { single: eaves === 'single', ...opt });
+    const G = paljakGeo(THREE, lr, wr, rh, Math.min(.85, wr * .07), { single: eaves === 'single', ...opt });
     add(G.roof, MAT.roof, 0, y, 0).receiveShadow = false;
     const u = add(G.under, MAT.under, 0, y, 0); u.castShadow = false; u.receiveShadow = false;
     add(G.eave, MAT.eave, 0, y, 0).castShadow = false;
@@ -181,16 +181,16 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
   } else if (roofType === 'cross' || roofType === 'tee') { // tee: 정(丁)자 지붕 — 앞으로만 맞배가 튀어나옴 (통도사 대웅전) // 아(亞)자 지붕: 팔작 큰 지붕 네 면 가운데에 맞배 지붕이 한 칸씩 튀어나옴 (송광사 대웅보전)
     const G = hipRoof(Lr, Wr, RH, R0, { hip: roofType === 'cross' });
     signY = Math.min(signY, R0 + G.y(Wr / 2 - signZ - .14) - .16 - signW * .15);
-    const pw = Math.min(L * .3, 5.2), pd = 1.1, ph = RH * .52, py = R0 + RH * .24;
+    const pw = Math.min(L * .3, 5.2), pd = .2, ph = RH * .5, py = R0 - .05; // 앞(·옆) 지붕 면에서 솟아난 맞배 — 처마 높이에서 시작해 큰 지붕 속으로 묻힘
     for (const sz of roofType === 'tee' ? [1] : [-1, 1]) { // 앞·뒤로 튀어나온 맞배
       const ln = Wr / 2 + pd, geo = gableRoofGeo(THREE, ln, pw, ph, .18); geo.rotateY(Math.PI / 2);
       const m = add(geo, MAT.roof, 0, py, sz * ln / 2); m.receiveShadow = false;
       box(.4, .36, ln, MAT.ridge, 0, py + ph + .1, sz * ln / 2);
       const tri = new THREE.Shape([new THREE.Vector2(-pw / 2 + .5, 0), new THREE.Vector2(pw / 2 - .5, 0), new THREE.Vector2(0, ph - .3)]);
-      const gw = new THREE.Mesh(new THREE.ShapeGeometry(tri), M('#6e4b33', { side: THREE.DoubleSide })); /* 박공면: 나무 널판(풍판) */ gw.position.set(0, py + .05, sz * (ln - .35)); g.add(gw);
+      const gw = new THREE.Mesh(new THREE.ShapeGeometry(tri), M('#6e4b33', { side: THREE.DoubleSide })); /* 박공면: 나무 널판(풍판) */ gw.position.set(0, py + .12, sz * (ln - .3)); g.add(gw);
     }
     if (roofType === 'cross') for (const sx of [-1, 1]) { // 양옆으로 튀어나온 맞배
-      const ln = Lr / 2 + pd * .8, pw2 = Math.min(D * .42, 5.4), geo = gableRoofGeo(THREE, ln, pw2, ph * .9, .18);
+      const ln = Lr / 2 + pd, pw2 = Math.min(D * .42, 5.4), geo = gableRoofGeo(THREE, ln, pw2, ph * .9, .18);
       const m = add(geo, MAT.roof, sx * ln / 2, py, 0); m.receiveShadow = false;
       box(ln, .36, .4, MAT.ridge, sx * ln / 2, py + ph * .9 + .1, 0);
     }
@@ -278,7 +278,7 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
 
   const heightAt = (lx, lz) => {
     if (Math.abs(lx) <= L / 2 && lz >= -D / 2 && lz <= D / 2) return FY;
-    if (Math.abs(lx) <= SW / 2 + .2 && lz > D / 2 && lz < D / 2 + 1.26) return FY * (1 - (lz - D / 2) / 1.26);
+    if (Math.abs(lx) <= SW / 2 + .2 && lz > D / 2 && lz < D / 2 + SL) return FY * (1 - (lz - D / 2) / SL);
     return 0;
   };
   const isInside = (lx, lz) => lx > ix0 && lx < ix1 && lz > iz0 && lz < iz1 + .3;
