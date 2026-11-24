@@ -330,7 +330,7 @@ function firTree(Pc, trunks, h, x, z, s, rnd) {
 }
 export function buildItems(h, T) {
   const list = (T.style && T.style.items) || [], out = { spots: [] }; if (!list.length) return out;
-  const { L, D, YX, YZ1 } = h, k = K(), rnd = rng(T.name);
+  const { L, D, YX, YZ1 } = h, IX = h.IX ?? YX, k = K(), rnd = rng(T.name);
   const SX = L / 2 + 3.25, FZ = D / 2 + 10.4, FX = L / 4 + 4.6; // 법당 옆 마당 가운데 · 앞마당 양옆(탑 높이) 자리
   const spot = (g, ox, oz, r, name, story) => { const [lx, lz] = toSite(g, ox, oz); out.spots.push({ lx, lz, r, name, story }); };
   const spotAt = (lx, lz, r, name, story) => out.spots.push({ lx, lz, r, name, story });
@@ -407,20 +407,90 @@ export function buildItems(h, T) {
       signpost(h, -5.7, zc + 2.6, 0, '천왕문', '사천왕 네 분이 절을 지키는 문', 1.35);
       spotAt(0, zc + 2.4, 2.6, '용주사 천왕문', '절에 들어서며 처음 만나는 문 · 양옆에 사천왕 네 분을 모셨어요');
     }
-    if (kind === 'yongjuApproach') { // 용주사 삼문 바깥: 홍살문(cheonbo) 왼쪽 고려 오층석탑 · 오른쪽 부모은중경탑 (그 앞 천왕문은 yongjuCheonwang)
-      const r1 = stoneTiers(h, -4.4, YZ1 + 4.6, 5, .95); h.col(-4.4, YZ1 + 4.6, r1, r1); // 고려 오층석탑 (홍살문 왼쪽)
-      const r2 = stoneTiers(h, 4.4, YZ1 + 4.6, 3, .9, false, { slim: .9 }); h.col(4.4, YZ1 + 4.6, r2, r2); // 부모은중경탑 (1981, 홍살문 오른쪽)
-      signpost(h, -4.4, YZ1 + 6.5, 0, '오층석탑', '고려 때 화강암 탑 · 높이 4.5m', 1.25);
-      signpost(h, 4.4, YZ1 + 6.5, 0, '부모은중경탑', '부모님 은혜를 새긴 삼층탑', 1.25);
-      spotAt(-4.4, YZ1 + 7.2, 1.8, '용주사 오층석탑', '홍살문 왼쪽, 효행박물관 앞에 선 고려 때 오층석탑이에요');
-      spotAt(4.4, YZ1 + 7.2, 1.8, '용주사 부모은중경탑', '부모은중경의 글귀를 새긴 삼층석탑 · 2020년 호성전 화재 뒤 이 자리로 옮겼어요');
+    if (kind === 'yongjuApproach') { // 용주사 들어오는 길 왼쪽 효행박물관 앞: 남쪽(천왕문 쪽) 고려 오층석탑 · 북쪽(삼문 쪽) 부모은중경탑 — 2020년 호성전 화재 뒤 박물관 옆으로 옮김
+      const r1 = stoneTiers(h, -6.2, YZ1 + 8.4, 5, .95); h.col(-6.2, YZ1 + 8.4, r1, r1); // 고려 오층석탑 (효행박물관 앞 왼쪽)
+      const r2 = stoneTiers(h, -6.2, YZ1 + 3.6, 3, .9, false, { slim: .9 }); h.col(-6.2, YZ1 + 3.6, r2, r2); // 부모은중경탑 (1981, 효행박물관 앞 오른쪽)
+      signpost(h, -4.55, YZ1 + 9.2, 0, '오층석탑', '고려 때 화강암 탑 · 높이 4.5m', 1.25);
+      signpost(h, -4.55, YZ1 + 4.9, 0, '부모은중경탑', '부모님 은혜를 새긴 삼층탑', 1.25);
+      spotAt(-4.9, YZ1 + 8.4, 1.8, '용주사 오층석탑', '효행박물관 앞 왼쪽에 선 고려 때 오층석탑이에요');
+      spotAt(-4.9, YZ1 + 3.6, 1.8, '용주사 부모은중경탑', '부모은중경의 글귀를 새긴 삼층석탑 · 2020년 호성전 화재 뒤 효행박물관 옆으로 옮겼어요');
+    }
+    if (kind === 'yongjuMore') { // 용주사 누리집 가람 배치도·전각 안내에 있으나 빠졌던 곳 (2026.11)
+      const two = (g, { w, d, h1 = 2.6, h2 = 2.3, plaque, low }) => { // 2층 전각: 아래층은 벽과 창, 위층은 팔작지붕 법당
+        const P = parts(), y0 = .3; P.box(w + .5, y0, d + .5, h.MAT.stone, 0, y0 / 2, 0); P.box(w, h1, d, k.wallW, 0, y0 + h1 / 2, 0);
+        for (let i = 0; i < 4; i++) P.box(w * .16, h1 * .42, .05, R.lattice, -w * .36 + i * w * .24, y0 + h1 * .55, d / 2 + .02);
+        P.box(1.1, h1 * .72, .05, k.dark, 0, y0 + h1 * .36, d / 2 + .03);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.09, .1, h1, 8, R.redCol, sx * w / 2, y0 + h1 / 2, sz * d / 2);
+        P.box(w + .1, .16, d + .1, R.band, 0, y0 + h1 - .08, 0); P.flush(g);
+        paljakMesh(g, w + 1.1, d + 1.1, .42, y0 + h1 + .02);                                      // 아래층 처마
+        const g2 = new THREE.Group(); g2.position.y = y0 + h1 + .05; g.add(g2);
+        smallHall(h, g2, { w: w - 1.2, d: d - 1.1, hh: h2, roofH: 1.25, plaque, plaqueW: 1.3 });
+        if (low) plate(h, g, low, .9, 0, y0 + h1 * .82, d / 2 + .06, { px: 44 });
+      };
+      const shed = (g, { w, d, hh = 1.9, plaque }) => smallHall(h, g, { w, d, hh, gable: true, roofH: .8, plaque, plaqueW: Math.min(1.1, w * .4) });
+      // ── 안마당 동쪽 바깥: 관음전(2층, 1층 종무소) · 접견실 · 수각 · 해우소
+      { const w = 10, d = 4.4, g = grp(h, YX - 3.3, 4.5, RIGHT); two(g, { w, d, plaque: '관음전', low: '종무소' }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        signpost(h, YX - 6.6, 10.2, RIGHT, '관음전 · 종무소', '2층 관음전 · 1층 종무소(문의)', 1.4);
+        spot(g, 0, 3.4, 3.2, '용주사 관음전', '2층에 관세음보살을 모신 전각 · 1층은 종무소예요'); }
+      { const g = grp(h, YX - 3.3, 12.3, RIGHT); shed(g, { w: 3.6, d: 3.0, plaque: '접견실' }); colG(h, g, 0, 0, 2.1, 1.8); }
+      { const g = grp(h, YX - 1.6, 15.6, RIGHT), P = parts(); // 수각: 돌확에 약수가 흐르는 작은 정자
+        P.box(1.8, .5, .8, R.granite, 0, .25, -.1); P.box(1.5, .06, .55, glow('#7fb6c8', .35), 0, .48, -.1);
+        P.cyl(.03, .03, .6, 6, M('#7d6a3c'), 0, .82, -.42); for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.07, .08, 1.9, 8, R.redCol, sx * .95, .95, sz * .7);
+        P.flush(g); mesh(g, gableRoofGeo(THREE, 2.6, 2.1, .6, .08), R.roofTile, 0, 1.9, 0); plate(h, g, '수각', .7, 0, 1.75, .76, { px: 44 }); colG(h, g, 0, 0, 1.1, .9); }
+      { const g = grp(h, YX - 3.3, 19.3, RIGHT); shed(g, { w: 3.6, d: 2.6, plaque: '해우소' }); colG(h, g, 0, 0, 2.1, 1.6); }
+      // ── 안마당 서쪽 바깥: 요사채 · 천보루 왼쪽 앞 불음각(1985 범종)
+      { const w = 11, d = 4.2, g = grp(h, -(YX - 3.2), 13.6, LEFT); smallHall(h, g, { w, d, hh: 2.1, gable: true, roofH: 1.1, plaque: '요사채', plaqueW: 1.2 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3); }
+      { const g = grp(h, -9.6, D / 2 + 14.8, LEFT), P = parts();
+        P.box(2.6, .25, 2.6, h.MAT.stone, 0, .125, 0); // 천보루 행각과 삼문 줄행랑 사이에 끼므로 조금 작게
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.11, .12, 2.6, 8, R.redCol, sx * 1.05, 1.55, sz * 1.05);
+        P.box(2.3, .16, .16, R.redCol, 0, 2.7, 0); P.box(2.3, .12, 2.3, R.band, 0, 2.82, 0); P.flush(g);
+        paljakMesh(g, 3.3, 3.3, 1.15, 2.88);
+        const S = 1.0, prof = [[0, 0], [.6, 0], [.59, .05], [.55, .16], [.5, .48], [.46, .86], [.42, 1.08], [.36, 1.18], [.22, 1.24], [0, 1.25]].map(([r, y]) => new THREE.Vector2(r * S, y * S));
+        const bm = new THREE.MeshStandardMaterial({ color: '#6b5a3a', metalness: .6, roughness: .4 });
+        mesh(g, new THREE.LatheGeometry(prof, 40), bm, 0, .55, 0); mesh(g, new THREE.TorusGeometry(.13, .04, 6, 14), bm, 0, .55 + 1.25 * S + .14, 0);
+        mesh(g, new THREE.CylinderGeometry(.02, .02, .3, 6), R.lattice, 0, 2.45, 0);
+        const dang = new THREE.CylinderGeometry(.07, .07, 1.1, 10); dang.rotateZ(Math.PI / 2); mesh(g, dang, R.wood, -1.15, 1.2, 0); // 당목
+        plate(h, g, '불음각', .95, 0, 2.6, 1.22, { px: 44 }); colG(h, g, 0, 0, 1.4, 1.4);
+        signpost(h, ...toSite(g, -1.9, 2.0), LEFT, '불음각', '아침저녁 예불 때 울리는 범종 (1985)', 1.4);
+        spot(g, 0, 2.4, 3.4, '용주사 불음각', '천보루 왼쪽 앞 · 아침저녁 예불 때 울리는 큰 범종을 모셨어요'); }
+      // ── 대웅보전 뒤: 전강대종사 사리탑 (2005, 높이 7m 삼층석탑 · 법천사 지광국사탑을 본뜸) — 크기를 줄여 나타냄
+      { const x = IX - 10.4, z = -11.2, P = parts(), G = R.granite, G2 = R.granite2, g = grp(h, x, z, 0);
+        P.box(3.6, .25, 3.6, G2, 0, .125, 0); P.box(3.0, .35, 3.0, G, 0, .42, 0);
+        P.box(2.5, .55, 2.5, G, 0, .87, 0); for (const sx of [-1, 1]) for (const sz of [-.5, .5]) { P.box(.5, .3, .04, G2, sz * 1.6, .87, sx * 1.26); P.box(.04, .3, .5, G2, sx * 1.26, .87, sz * 1.6); } // 기단 면 조각
+        P.box(2.7, .16, 2.7, G2, 0, 1.22, 0); P.box(2.1, .5, 2.1, G, 0, 1.55, 0); P.box(2.4, .14, 2.4, G2, 0, 1.87, 0);
+        let y = 1.94; [[1.15, .95, 2.2], [.95, .5, 1.85], [.8, .45, 1.6]].forEach(([b, hh, rw], i) => {     // 탑신 3층 + 지붕돌
+          P.box(b, hh, b, G, 0, y + hh / 2, 0); if (!i) for (const sx of [-1, 1]) { P.box(.4, .5, .03, G2, 0, y + hh / 2, sx * b / 2); P.box(.03, .5, .4, G2, sx * b / 2, y + hh / 2, 0); } // 1층 팔상성도 면
+          y += hh; P.box(rw, .16, rw, G2, 0, y + .08, 0); P.box(rw * .72, .14, rw * .72, G2, 0, y + .23, 0); y += .3; });
+        P.cyl(.16, .24, .25, 8, G, 0, y + .12, 0); P.ball(.2, G2, 0, y + .42, 0, 1, .8, 1); P.cyl(.05, .08, .7, 8, G, 0, y + .85, 0); P.ball(.1, G2, 0, y + 1.25, 0); // 상륜
+        P.flush(g); h.col(x, z, 1.9, 1.9);
+        signpost(h, x - 3.0, z + 1.6, 0, '전강대종사 사리탑', '2005년 · 높이 7m 삼층석탑', 1.5);
+        spotAt(x - 2.4, z + 2.6, 3.2, '용주사 전강대종사 사리탑', '중앙선원 조실이던 전강 스님의 사리를 모신 삼층석탑(2005)이에요'); }
+      // ── 뒷담 너머 소나무 숲: 중앙선원 (1986, 스님들이 정진하는 선원 · 들어갈 수 없음)
+      { const z = h.YZ0 - 8.5, g = grp(h, 4, z, 0); smallHall(h, g, { w: 13, d: 5.4, hh: 2.3, roofH: 1.4, plaque: '중앙선원', plaqueW: 1.4 });
+        const g2 = grp(h, 14.4, z + 3.2, RIGHT); smallHall(h, g2, { w: 6, d: 4, hh: 2.0, roofH: 1.1 });
+        colG(h, g, 0, 0, 7, 3); colG(h, g2, 0, 0, 3.3, 2.3);
+        signpost(h, 4, h.YZ0 + 1.3, 0, '중앙선원 (담 너머)', '스님들이 정진하는 선원 · 조용히 지나 주세요', 1.6);
+        spotAt(4, h.YZ0 + 2.4, 3.2, '용주사 중앙선원', '담 너머 소나무 숲속, 스님들이 정진하는 선원이에요 (들어갈 수 없어요)'); }
+      // ── 들어오는 길: 왼쪽 효행박물관 · 해우소, 오른쪽 카페 화산(사천왕문 옆) · 매표소 · 식수대 · 효림당
+      { const w = 11, d = 5.2, g = grp(h, -11.2, YZ1 + 6.5, LEFT); smallHall(h, g, { w, d, hh: 2.5, roofH: 1.4, plaque: '효행박물관', plaqueW: 1.6 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        spot(g, 0, 3.6, 3.4, '용주사 효행박물관', '부모은중경판과 정조의 글 등 성보를 모신 박물관이에요'); }
+      { const g = grp(h, -8.4, YZ1 + 14.2, LEFT); shed(g, { w: 3.6, d: 2.6, plaque: '해우소' }); colG(h, g, 0, 0, 2.1, 1.6); }
+      { const w = 6.5, d = 4.2, zc = YZ1 + 11.8, g = grp(h, 9.6, zc, RIGHT); smallHall(h, g, { w, d, hh: 2.2, gable: true, roofH: 1.0, plaque: '카페 화산', plaqueW: 1.3 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        const P = parts(); for (const dz of [-1.6, 1.6]) { P.cyl(.38, .38, .06, 14, R.wood, 6.3, .72, zc + dz); P.cyl(.05, .06, .72, 8, R.wood, 6.3, .36, zc + dz);
+          for (const dx of [-.62, .62]) P.cyl(.18, .18, .42, 10, M('#9b7a52'), 6.3 + dx, .21, zc + dz); } P.flush(h.site); h.col(6.3, zc, 1, 2.2);
+        signpost(h, 6.2, zc - 3.1, 0, '카페 화산', '사천왕문 옆 쉼터 · 09:00–18:00', 1.4);
+        spot(g, 0, 3.4, 3.0, '용주사 카페 화산', '사천왕문 옆 쉼터 · 주지 스님이 그린 그림도 걸려 있어요'); }
+      { const g = grp(h, 6.3, YZ1 + 7.6, RIGHT); shed(g, { w: 2.0, d: 1.6, hh: 1.9, plaque: '매표소' }); colG(h, g, 0, 0, 1.3, 1.1); }
+      { const P = parts(), x = 5.4, z = YZ1 + 5.0; P.box(1.4, .7, .7, R.granite, x, .35, z); P.box(1.2, .05, .5, glow('#7fb6c8', .35), x, .68, z); // 식수대
+        P.box(.08, .5, .08, M('#8c8c8c', { metalness: .5 }), x, .95, z - .22); P.flush(h.site); h.col(x, z, .8, .45); }
+      { const w = 9, d = 4.6, g = grp(h, 18.4, YZ1 + 6.4, RIGHT); smallHall(h, g, { w, d, hh: 2.2, gable: true, roofH: 1.1, plaque: '효림당', plaqueW: 1.2 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3); }
     }
     if (kind === 'yongjuUpper') { // 용주사 대웅보전 둘레 (누리집 가람 배치도): 왼쪽 시방칠등각(옛 칠성각) · 그 너머 천불전(옛 향로전 자리, 동쪽으로 문), 오른쪽 호성전(사도세자 제각) · 그 오른쪽 지장전
-      { const g = grp(h, -(YX - 5.4), 1.9, 0); // 시방칠등각: 대웅보전과 천불전 사이
+      { const g = grp(h, -(IX - 5.4), 1.9, 0); // 시방칠등각: 대웅보전과 천불전 사이
         smallHall(h, g, { w: 3.0, d: 2.2, hh: 1.65, gable: true, roofH: .9, plaque: '시방칠등각', plaqueW: 1.25 });
         colG(h, g, 0, 0, 1.75, 1.35);
         spot(g, 0, 2.0, 2.4, '용주사 시방칠등각', '옛 칠성각 · 칠성탱화와 산신·독성탱화를 모신 맞배지붕 전각이에요'); }
-      { const w = 3.4, d = 2.6, hh = 1.95, g = grp(h, -(YX - 1.9), -2.6, LEFT); // 천불전: 동쪽을 뺀 세 면에 아홉 층 단 + 가운데 삼세불
+      { const w = 3.4, d = 2.6, hh = 1.95, g = grp(h, -(IX - 1.9), -2.6, LEFT); // 천불전: 동쪽을 뺀 세 면에 아홉 층 단 + 가운데 삼세불
         smallHall(h, g, { w, d, hh, roofH: 1.0, open: 2.6, plaque: '천불전', plaqueW: 1.0 });
         colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         const NT = 9, ty = t => .42 + t * .165, P = parts();
@@ -436,7 +506,7 @@ export function buildItems(h, T) {
           const ph = new THREE.Group(); ph.position.set(dx, .62, -d / 2 + .8); g.add(ph); mesh(ph, new THREE.SphereGeometry(.15, 12, 8), R.gold, 0, .14, 0).scale.set(1.2, .9, .9); mesh(ph, new THREE.SphereGeometry(.09, 12, 8), R.gold, 0, .34, 0);
           const [fx, fz] = toSite(g, dx, -d / 2 + .8); h.fig.push({ k: kk, tint: 'gold', lx: fx, ly: .62, lz: fz, h: dx ? .52 : .58, ry: g.rotation.y, ph: [ph] }); }
         spot(g, 0, 2.3, 2.8, '용주사 천불전', '옛 향로전 자리에 1993년 지은 법당 · 세 면의 아홉 층 단에 작은 부처님 천 분을 모셨어요'); }
-      { const w = 3.6, d = 2.6, g = grp(h, YX - 7.5, -.4, 0); // 호성전: 사도세자·혜경궁 홍씨·정조·효의왕후의 위패 (오른쪽 곁에 지장전)
+      { const w = 3.6, d = 2.6, g = grp(h, IX - 7.5, -.4, 0); // 호성전: 사도세자·혜경궁 홍씨·정조·효의왕후의 위패 (오른쪽 곁에 지장전)
         smallHall(h, g, { w, d, hh: 1.85, roofH: 1.05, open: 2.0, plaque: '호성전', plaqueW: 1.0 });
         colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         const P = parts(), z0 = -d / 2 + .55;
@@ -444,7 +514,7 @@ export function buildItems(h, T) {
         for (let i = 0; i < 4; i++) { const x = -.54 + i * .36; P.box(.15, .44, .05, M('#2b2420'), x, 1.07, z0); P.box(.2, .07, .09, R.gold, x, 1.3, z0); P.box(.2, .05, .1, R.wood, x, .86, z0); } // 위패 넷
         P.flush(g);
         spot(g, 0, 2.2, 2.6, '용주사 호성전', '정조가 아버지 사도세자의 위패를 모시려고 대웅보전 곁에 지은 전각이에요'); }
-      { const w = 3.3, d = 2.4, hh = 1.75, g = grp(h, YX - 2.65, -.4, 0); // 지장전: 정면 3칸·측면 2칸 맞배지붕 · 가운데 칸에만 문 · 지장삼존과 명부시왕
+      { const w = 3.3, d = 2.4, hh = 1.75, g = grp(h, IX - 2.65, -.4, 0); // 지장전: 정면 3칸·측면 2칸 맞배지붕 · 가운데 칸에만 문 · 지장삼존과 명부시왕
         smallHall(h, g, { w, d, hh, gable: true, roofH: .95, open: 1.15, plaque: '지장전', plaqueW: 1.0 });
         colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         const P = parts(), z0 = -d / 2 + .5, y0 = .3, gold = R.gold, robe = M('#8a3a2c'), robe2 = M('#3f6a5a'), skin = M('#e6c9a0'), hat = k.dark;
@@ -746,7 +816,7 @@ export function buildItems(h, T) {
       spotAt(0, zc + 2.3, 2.0, '용주사 천보루', '1790년 정조 때 세운 2층 누각 · 아래 통로를 지나면 대웅보전이에요');
       spotAt(0, YZ1 - 1.1, 1.9, '용주사 세존 사리탑', '삼문과 천보루 사이에 선 고려 오층석탑 · 부처님 사리를 모셨다고 전해져요');
       for (const sx of [-1, 1]) { // 삼문 양옆 줄행랑: 담장 안쪽에 붙은 긴 맞배지붕 행랑 (집마다 따로 합침)
-        const xa = 4.25, xb = YX - .35, ln = xb - xa, cx = sx * (xa + xb) / 2, z = YZ1 - .95, n = Math.max(3, Math.round(ln / 1.6)), P = parts();
+        const xa = 4.25, xb = IX - .35, ln = xb - xa, cx = sx * (xa + xb) / 2, z = YZ1 - .95, n = Math.max(3, Math.round(ln / 1.6)), P = parts();
         P.box(ln, .25, 1.8, h.MAT.stone, cx, .125, z);
         P.box(ln, 1.9, 1.5, wallW, cx, 1.2, z + .05);
         for (let i = 0; i <= n; i++) P.cyl(.09, .1, 1.95, 8, R.redCol, sx * (xa + ln * i / n), 1.22, z - .78);
@@ -855,14 +925,14 @@ export function buildItems(h, T) {
       const zc = D / 2 + 11.0, wall = M('#efe6d2'); // 천보루 자리 (cheonbo와 같게)
       for (const sx of [-1, 1]) { // 집마다 따로 합쳐야 부딪힘 상자가 마당을 덮지 않음
         let P = parts();
-        const xa = 6.0, xb = YX - 2.9, cx = sx * (xa + xb) / 2, ln = xb - xa; // 행각
+        const xa = 6.0, xb = IX - 2.9, cx = sx * (xa + xb) / 2, ln = xb - xa; // 행각
         P.box(ln, .3, 2.6, h.MAT.stone, cx, .15, zc); P.box(ln, 2.2, 2.2, wall, cx, 1.4, zc);
         for (let i = 0; i <= 7; i++) for (const sz of [-1, 1]) P.cyl(.1, .11, 2.2, 8, R.redCol, sx * (xa + ln * i / 7), 1.4, zc + sz * 1.1);
         for (let i = 0; i < 7; i++) P.box(ln / 7 - .4, .7, .05, R.lattice, sx * (xa + ln * (i + .5) / 7), 1.75, zc - 1.12);
         P.box(ln + .1, .2, 2.3, R.band, cx, 2.45, zc);
         const r1 = gableRoofGeo(THREE, ln + .6, 3.6, 1.1, .1); r1.translate(cx, 2.55, zc); P.put(r1, R.roofTile);
         P.flush(h.site); P = parts();
-        const bz0 = D / 2 + 3.2, bz1 = zc + 1.3, bx = sx * (YX - 1.45), bl = bz1 - bz0, bzc = (bz0 + bz1) / 2; // 나유타료·만수리실 (마당 양옆 긴 집)
+        const bz0 = D / 2 + 3.2, bz1 = zc + 1.3, bx = sx * (IX - 1.45), bl = bz1 - bz0, bzc = (bz0 + bz1) / 2; // 나유타료·만수리실 (마당 양옆 긴 집)
         P.box(2.9, .35, bl, h.MAT.stone, bx, .175, bzc); P.box(2.5, 2.3, bl - .3, wall, bx, 1.5, bzc);
         for (let i = 0; i <= 8; i++) for (const sx2 of [-1, 1]) P.cyl(.1, .11, 2.3, 8, R.wood, bx + sx2 * 1.25, 1.5, bz0 + .15 + (bl - .3) * i / 8);
         for (let i = 0; i < 8; i++) P.box(.05, 1.1, (bl - .3) / 8 - .45, R.lattice, bx - sx * 1.27, 1.45, bz0 + .15 + (bl - .3) * (i + .5) / 8); // 마당 쪽 창호
@@ -872,7 +942,7 @@ export function buildItems(h, T) {
         h.col(cx, zc, ln / 2, 1.3); h.col(bx, bzc, 1.45, bl / 2);
         const g = grp(h, bx - sx * 1.3, bzc, sx > 0 ? -Math.PI / 2 : Math.PI / 2); plate(h, g, sx > 0 ? '나유타료' : '만수리실', 1.3, 0, 2.35, 0, { px: 44 });
       }
-      spotAt(YX - 4.4, D / 2 + 7.4, 2.6, '용주사 나유타료 · 만수리실', '천보루 양옆 행각에 이어 승당·선당이 마당을 ㅁ자로 감싸요');
+      spotAt(IX - 4.4, D / 2 + 7.4, 2.6, '용주사 나유타료 · 만수리실', '천보루 양옆 행각에 이어 승당·선당이 마당을 ㅁ자로 감싸요');
     }
     if (kind === 'manseru') { // 선운사 만세루 (보물): 대웅보전 앞 정면 9칸 맞배지붕 강당 — 다듬지 않은 굵은 나무 기둥, 대웅보전 쪽은 활짝 열림
       const zc = D / 2 + 14.6, w = Math.min(13.5, 2 * YX - 12), d = 3.6, hh = 3.0, nat = M('#8a6a4a'), P = parts();

@@ -5,12 +5,12 @@ import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
 import { buildHall } from './hall.js?v=16';
 import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=36';
-import { buildItems, buildLantern, buildGate } from './items.js?v=14';
-import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=7';
+import { buildItems, buildLantern, buildGate } from './items.js?v=15';
+import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=8';
 import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
-import { REGIONS } from './temples.js?v=18';
+import { REGIONS } from './temples.js?v=19';
 import { yardTex, pathTex } from './tex.js?v=5';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=9';
@@ -286,8 +286,9 @@ function buildSite(info, T) {
 
   // 마당과 박석길
   const hyu = st.layout === 'hyuhyu', yg = st.layout === 'yonggung';
-  const back = hyu ? 18 : yg ? 6 : ex.includes('janggyeong') ? 12.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('magokDaeung') ? 16 : ex.includes('whiteGwaneum') ? 7.5 : ex.includes('hyodae') ? 6.5 : 0; // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘
+  const back = st.back ?? (hyu ? 18 : yg ? 6 : ex.includes('janggyeong') ? 12.5 : ex.includes('flatRock') ? 9 : ex.includes('gyedan') ? 9 : ex.includes('magokDaeung') ? 16 : ex.includes('whiteGwaneum') ? 7.5 : ex.includes('hyodae') ? 6.5 : 0); // 뒤뜰에 상징물이 있으면 마당을 뒤로 넓힘 (st.back 으로 직접 정할 수도)
   const YX = L / 2 + 6 + (st.sideW || 0), YZ0 = -D / 2 - 2 - back, YZ1 = D / 2 + 19; // sideW: 법당 양옆에 전각이 여럿인 절은 마당을 넓힘
+  const IX = st.inW != null ? L / 2 + 6 + st.inW : YX; // inW: 바깥 담장보다 좁은 안마당(용주사 ㅁ자 행각)의 반폭
   YARD = { x0: -YX, x1: YX, z0: YZ0, z1: YZ1 };
   const yard = add(tileUV(new THREE.PlaneGeometry(2 * YX, YZ1 - YZ0), 2 * YX, YZ1 - YZ0, MAT.yard), MAT.yard, 0, .02, (YZ0 + YZ1) / 2, false); yard.rotation.x = -Math.PI / 2;
   const path = add(tileUV(new THREE.PlaneGeometry(2.8, YZ1 - D / 2 - 1.2), 2.8, YZ1 - D / 2 - 1.2, MAT.path), MAT.path, 0, .03, (D / 2 + 1.2 + YZ1) / 2, false); path.rotation.x = -Math.PI / 2;
@@ -318,7 +319,7 @@ function buildSite(info, T) {
   }
   // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
   const YG = yg ? yonggungFrame({ L, D, YX, YZ1 }) : null;
-  const PZ = yg ? YG.PZ : D / 2 + (st.pagodaZ ?? 10.5), H = { THREE, add, box, col, MAT, L, D, YX, YZ0, YZ1, SL, PZ, RG, nameTex, site, fig: [] };
+  const PZ = yg ? YG.PZ : D / 2 + (st.pagodaZ ?? 10.5), H = { THREE, add, box, col, MAT, L, D, YX, IX, YZ0, YZ1, SL, PZ, RG, nameTex, site, fig: [] };
   if (st.gate) buildGate(H, st.gate, T);
   let lanSpot = null; if (st.lantern && !yg) { const r = buildLantern(H, st.lantern, SL); if (r) lanSpot = { lx: 0, lz: SL, r: 2.6, ...r }; }
   if (hyu) { H.fishX = -6.2; H.fishZ = YZ0 - 7.3; H.fishAt = { lx: -6.2, lz: YZ0 - 2.4 }; H.fishStall = { lx: -9.2, lz: YZ0 + 2.7 }; }
@@ -676,6 +677,7 @@ function plantTrees() {
       setFrame(T); const [lx, lz] = W2L(x, z), Y = T.YARD;
       if (lx > Y.x0 - 2.5 && lx < Y.x1 + 2.5 && lz > Y.z0 - 2.5 && lz < Y.z1 + 2.5) return false;
       const AP = T.style && T.style.approach; if (AP && Math.abs(lx) < AP[0] && lz > Y.z1 && lz < Y.z1 + AP[1]) return false; // 담장 밖 들어오는 길 (용주사 천왕문·홍살문·박물관)
+      const CB = T.style && T.style.clearBack; if (CB && lx > CB[0] && lx < CB[1] && lz < Y.z0 && lz > Y.z0 - CB[2]) return false; // 담장 뒤 빈터 (용주사 중앙선원)
       const S = T.seaRect; if (S && lz < S.z1 + 1 && lz > S.z0 && Math.abs(lx) < S.x) return false; // 바다
       if (S && S.cove && lx > S.cove.x0 && lx < S.cove.x1 && lz > S.cove.z0 && lz < S.cove.z1) return false; // 모래 해변
       if (S && S.inlet && lx > S.inlet.x0 && lx < S.inlet.x1 && lz > S.inlet.z0 && lz < S.inlet.z1) return false; // 해동용궁사 물길
