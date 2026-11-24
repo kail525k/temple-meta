@@ -4,9 +4,9 @@
 // - 모두 코드로 그린 단순한 모양 (실제 사진·도면·글씨를 옮기지 않음, 현판 글씨도 보통 글꼴)
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { hipRoofGeo, gableRoofGeo } from './hall.js?v=12';
-import { R, standingGwaneum, stoneTiers } from './regional.js?v=31';
-import { stripUV, ensureUV } from './tex.js?v=1';
+import { hipRoofGeo, gableRoofGeo } from './hall.js?v=13';
+import { R, standingGwaneum, stoneTiers, paljakParts } from './regional.js?v=32';
+import { stripUV, ensureUV } from './tex.js?v=2';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
 const glow = (c, e = .25) => M(c, { emissive: c, emissiveIntensity: e });
@@ -36,6 +36,9 @@ function parts() {
     flush(parent, { shadow = true, noOcc = false } = {}) { const out = []; for (const [mat, gs] of L) { const m = new THREE.Mesh(mergeGeometries(gs), mat); m.castShadow = shadow; m.receiveShadow = true; if (noOcc) m.userData.noOcc = true; parent.add(m); out.push(m); } L.clear(); return out; },
   };
 }
+// 팔작지붕 붙이기: 그룹에 메시로(paljakMesh) · 합치는 부품에(paljakPut). 반환은 기와 메시
+function paljakMesh(g, Lr, Wr, H, y, x = 0, z = 0) { let roof = null; for (const [geo, mat] of paljakParts(Lr, Wr, H)) { const m = mesh(g, geo, mat, x, y, z, mat !== R.under && mat !== R.eave); m.receiveShadow = mat !== R.under && mat !== R.roofTile; if (mat === R.roofTile) roof = m; } return roof; }
+function paljakPut(P, Lr, Wr, H, x, y, z) { for (const [geo, mat] of paljakParts(Lr, Wr, H)) { geo.translate(x, y, z); P.put(geo, mat); } }
 function grp(h, x, z, ry = 0) { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; h.site.add(g); return g; }
 function mesh(g, geo, mat, x, y, z, shadow = true) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = shadow; m.receiveShadow = true; g.add(m); return m; }
 // 그룹 안 좌표(ox, oz)의 상자를 사찰 좌표 충돌 상자로 (그룹은 0·90·180도로만 돌림)
@@ -84,8 +87,8 @@ function smallHall(h, g, { w, d, hh = 1.8, gable = false, roofH = 1.0, plaque = 
   if (!thatch) { for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.08, .09, hh, 8, R.redCol, sx * w / 2, y0 + hh / 2, sz * d / 2); P.box(w + .06, .14, d + .06, R.band, 0, y0 + hh - .07, 0); }
   P.flush(g);
   const top = y0 + hh, roofMat = thatch ? K().thatch : R.roofTile;
-  const geo = gable ? gableRoofGeo(THREE, w + 1.2, d + 1.6, roofH, .1) : hipRoofGeo(THREE, w + 1.3, d + 1.3, roofH, Math.max(.3, w - d * .7), thatch ? .05 : .26);
-  const roof = mesh(g, geo, roofMat, 0, top, 0); roof.receiveShadow = false;
+  if (!gable && !thatch) paljakMesh(g, w + 1.3, d + 1.3, roofH * 1.12, top);
+  else { const geo = gable ? gableRoofGeo(THREE, w + 1.2, d + 1.6, roofH, .1) : hipRoofGeo(THREE, w + 1.3, d + 1.3, roofH, Math.max(.3, w - d * .7), .05); mesh(g, geo, roofMat, 0, top, 0).receiveShadow = false; }
   if (gable) mesh(g, new THREE.BoxGeometry(w + 1.3, .2, .24), h.MAT.stoneDark, 0, top + roofH + .04, 0);
   if (plaque) plate(h, g, plaque, plaqueW, 0, top - .26, d / 2 + .1, { px: 50 });
   return top;
@@ -190,7 +193,7 @@ function uhwagak(h, zc, deck) {
   const yb = deck + ph;
   P.box(2 * hw + .3, .2, len + .3, R.band, 0, yb + .1, zc); P.box(2 * hw + .5, .14, len + .5, R.redCol, 0, yb + .27, zc);
   for (let z = -2.1; z <= 2.11; z += .42) for (const sx of [-1, 1]) P.box(.5, .12, .14, R.band, sx * (hw + .2), yb + .4, zc + z); // 서까래 끝
-  const roof = hipRoofGeo(THREE, len + 2.0, 2 * hw + 2.2, 1.25, len - .4, .28); roof.rotateY(Math.PI / 2); roof.translate(0, yb + .34, zc); P.put(roof, R.roofTile);
+  paljakPut(P, 2 * hw + 2.2, len + 2.0, 1.35, 0, yb + .34, zc);
   P.flush(h.site);
   const g = grp(h, 0, zc + len / 2 + .2); plate(h, g, '우화각', 1.1, 0, yb - .05, 0, { px: 44 });
 }
@@ -274,7 +277,7 @@ function cheonboru(h, zc) {
   P.box(12.3, .1, .06, R.wood, 0, yu + .55, zc + 1.75); for (let x = -6; x <= 6.01; x += .4) P.box(.04, .5, .04, R.lattice, x, yu + .3, zc + 1.75); // 앞 난간
   P.box(12.4, .24, 3.5, R.band, 0, yu + uh + .12, zc);
   for (let x = -6.2; x <= 6.21; x += .5) for (const dz of [-1, 1]) P.box(.14, .14, .7, R.band, x, yu + uh + .3, zc + dz * 1.95); // 공포
-  const roof = hipRoofGeo(THREE, 14.2, 5.4, 2.0, 8.6, .35); roof.translate(0, yu + uh + .36, zc); P.put(roof, R.roofTile);
+  paljakPut(P, 14.2, 5.4, 2.1, 0, yu + uh + .36, zc);
   P.flush(h.site);
   const g = grp(h, 0, zc + 1.82); plate(h, g, '천보루', 1.7, 0, yu + uh - .2, 0, { px: 46 });
   const gi = grp(h, 0, zc - 1.82, Math.PI); plate(h, gi, '홍제루', 1.7, 0, yu + uh - .2, 0, { px: 46 });
@@ -309,7 +312,7 @@ export function buildItems(h, T) {
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.box(.08, .5, .08, R.lattice, sx * 1.15, .5, sz * .6), P.box(.08, .5, .08, R.lattice, sx * .6, .5, sz * 1.15);
       for (const [a, b] of [[[-1.15, 1.15], [1.15, 1.15]], [[-1.15, -1.15], [1.15, -1.15]], [[-1.15, -1.15], [-1.15, 1.15]], [[1.15, -1.15], [1.15, 1.15]]]) { const cx = (a[0] + b[0]) / 2, cz = (a[1] + b[1]) / 2, len = Math.hypot(b[0] - a[0], b[1] - a[1]); P.box(a[0] === b[0] ? .07 : len, .07, a[0] === b[0] ? len : .07, R.lattice, cx, .72, cz); } // 낮은 난간
       P.flush(g);
-      const roof = mesh(g, hipRoofGeo(THREE, 3.6, 3.6, 1.1, .4, .3), R.roofTile, 0, 2.68, 0); roof.receiveShadow = false;
+      paljakMesh(g, 3.6, 3.6, 1.2, 2.68);
       const S = .95, prof = [[0, 0], [.6, 0], [.59, .05], [.55, .16], [.5, .48], [.46, .86], [.42, 1.08], [.36, 1.18], [.22, 1.24], [0, 1.25]].map(([r, y]) => new THREE.Vector2(r * S, y * S));
       const bellM = new THREE.MeshStandardMaterial({ color: '#5a6246', metalness: .62, roughness: .42 });
       mesh(g, new THREE.LatheGeometry(prof, 40), bellM, 0, .62, 0);
@@ -346,7 +349,7 @@ export function buildItems(h, T) {
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.box(.09, 1.05, .09, R.wood, sx * .55, .77, sz * .3); // 북 받침 틀
       for (const sz of [-1, 1]) P.box(1.25, .09, .09, R.wood, 0, 1.25, sz * .3);
       P.flush(g);
-      const roof = mesh(g, hipRoofGeo(THREE, 3.6, 3.6, 1.1, .4, .3), R.roofTile, 0, 2.68, 0); roof.receiveShadow = false;
+      paljakMesh(g, 3.6, 3.6, 1.2, 2.68);
       const drumY = 1.82, body = new THREE.CylinderGeometry(.6, .6, .62, 28); body.rotateX(Math.PI / 2); // 북통: 붉은 몸통, 가죽 면이 앞(길 쪽)을 봄
       mesh(g, body, M('#a3352b'), 0, drumY, 0);
       const skin = M('#eadcbc', { side: THREE.DoubleSide }), gold = M('#d9a441');
@@ -594,7 +597,7 @@ export function buildItems(h, T) {
       P.box(w, 1.25, d, k.wallW, 0, 2.42, 0); P.box(w * .7, .7, .05, R.lattice, 0, 2.4, d / 2 + .02);
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.08, .09, 1.25, 8, R.redCol, sx * w / 2, 2.42, sz * d / 2);
       P.box(w + .06, .14, d + .06, R.band, 0, 3.0, 0); P.flush(g);
-      const roof = mesh(g, hipRoofGeo(THREE, w + 1.4, d + 1.4, 1.0, w - d * .6, .28), R.roofTile, 0, 3.05, 0); roof.receiveShadow = false;
+      paljakMesh(g, w + 1.4, d + 1.4, 1.1, 3.05);
       plate(h, g, '寶華樓', 1.2, 0, 2.86, d / 2 + .1, { px: 50 });
       for (const sx of [-1, 0, 1]) for (const sz of [-1, 1]) colG(h, g, sx * w / 2, sz * d / 2, .2, .2);
       const gb = grp(h, -FX, FZ, LEFT), Q = parts(); // 불광 현판 (큰 글씨)
@@ -781,7 +784,7 @@ export function buildItems(h, T) {
       for (const sx of [x0, x1]) P.box(.08, uh, dep, M('#efe6d2'), sx, yu + uh / 2, zb);
       P.box(len + .5, .1, .06, R.wood, cx, yu + .55, zb + dep / 2 + .25); for (let x = x1; x <= x0 + .01; x += .4) P.box(.04, .5, .04, R.lattice, x, yu + .3, zb + dep / 2 + .25); // 계곡 쪽 난간
       P.box(len + .6, .26, dep + .3, R.band, cx, yu + uh + .13, zb);
-      const roof = hipRoofGeo(THREE, len + 2.6, dep + 2.4, 1.7, len - dep * .5, .32); roof.translate(cx, yu + uh + .26, zb); P.put(roof, R.roofTile);
+      paljakPut(P, len + 2.6, dep + 2.4, 1.8, cx, yu + uh + .26, zb);
       P.flush(h.site);
       const g = grp(h, cx, zb + dep / 2 + .3); plate(h, g, '침계루', 1.3, 0, yu + uh - .15, 0, { px: 46 });
       h.col(cx, z0 + .5, len / 2 + .3, .9);

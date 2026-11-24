@@ -35,5 +35,41 @@ export function roofUV(geo, su = 1.8, sv = 1.8) {
   }
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return geo;
 }
+// 처마 밑(서까래 + 사이 개판)과 처마 끝(막새 줄 + 서까래 마구리 연화 머리) — 캔버스로 그림. 한 장 가로 = 서까래 두 개
+function canvasTex(key, w, h, draw) {
+  if (cache[key]) return cache[key];
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return (cache[key] = t);
+}
+export const soffitTex = () => canvasTex('soffit', 128, 32, (c, w, h) => {
+  c.fillStyle = '#8c3b2c'; c.fillRect(0, 0, w, h);                       // 개판(주토)
+  for (const x0 of [0, w / 2]) {
+    const rw = w * .3, x = x0 + w / 4 - rw / 2;
+    c.fillStyle = '#1d4339'; c.fillRect(x - 3, 0, rw + 6, h);           // 그늘
+    c.fillStyle = '#3e8a74'; c.fillRect(x, 0, rw, h);                   // 서까래(뇌록)
+    c.fillStyle = '#5fae95'; c.fillRect(x + rw * .3, 0, rw * .22, h);   // 둥근 서까래에 비친 빛
+  }
+});
+export const eaveTex = () => canvasTex('eave', 128, 64, (c, w, h) => {
+  c.fillStyle = '#1c3a32'; c.fillRect(0, 0, w, h);
+  c.fillStyle = '#4b535b'; c.fillRect(0, 0, w, 18);                      // 막새 줄
+  for (let x = 8; x < w; x += 16) { c.fillStyle = '#626c75'; c.beginPath(); c.arc(x, 10, 6.5, 0, Math.PI * 2); c.fill(); c.fillStyle = '#3c434a'; c.beginPath(); c.arc(x, 10, 2.5, 0, Math.PI * 2); c.fill(); }
+  for (const cx of [w / 4, w * 3 / 4]) {                                   // 서까래 마구리: 녹·황·적·백 고리 + 가운데 청
+    [[19, '#2f7a63'], [15, '#f0cf62'], [11, '#c8432e'], [7, '#f6efe0'], [3.5, '#2f5f96']].forEach(([r, col]) => { c.fillStyle = col; c.beginPath(); c.arc(cx, 41, r, 0, Math.PI * 2); c.fill(); });
+  }
+});
+// 공포 띠 바탕: 평방(아래)·장혀(위) 사이 포벽(주토) + 연꽃 그림 — 공포(첨차·쇠서)는 hall.js에서 입체로 붙임. 4:1 띠
+export const gongpoTex = () => canvasTex('gongpo', 512, 128, (c, w, h) => {
+  c.fillStyle = '#7d3527'; c.fillRect(0, 0, w, h);                                // 포벽
+  c.fillStyle = '#15241f'; c.fillRect(0, 0, w, 14);                               // 처마 밑 그늘
+  const bar = (y, hh, col) => { c.fillStyle = col; c.fillRect(0, y, w, hh); c.fillStyle = '#efe6cf'; c.fillRect(0, y + 2, w, 1.5); c.fillRect(0, y + hh - 3.5, w, 1.5); };
+  bar(14, 16, '#2b6656'); bar(104, 24, '#3f8a73');                                // 장혀 · 평방
+  for (let i = 0; i < 6; i++) { const cx = w * (i + .5) / 6, cy = 66;               // 포벽 연꽃
+    c.fillStyle = '#a24a33'; c.beginPath(); c.ellipse(cx, cy, 22, 16, 0, 0, Math.PI * 2); c.fill();
+    for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; c.fillStyle = k % 2 ? '#f1d27a' : '#f4f0e2'; c.beginPath(); c.ellipse(cx + Math.cos(a) * 10, cy + Math.sin(a) * 7, 6, 3.5, a, 0, Math.PI * 2); c.fill(); }
+    c.fillStyle = '#d0452f'; c.beginPath(); c.arc(cx, cy, 4, 0, Math.PI * 2); c.fill();
+  }
+});
 // 합치는 부품(parts)에 UV가 없는 도형이 섞이면 합치기가 실패하므로 빈 UV를 채움
 export function ensureUV(g) { if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; }

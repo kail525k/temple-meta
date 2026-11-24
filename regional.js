@@ -4,8 +4,8 @@
 //   통도사 금강계단, 해인사 장경판전, 백양사 쌍계루, 선암사 승선교, 관음사 석불 길, 조계사 노거수 등
 // 모두 코드로 그린 단순한 모양(실제 사진·도면을 옮기지 않음)
 import * as THREE from 'three';
-import { hipRoofGeo, gableRoofGeo } from './hall.js?v=12';
-import { stripUV, paintBand, paintRoof, ensureUV } from './tex.js?v=1';
+import { hipRoofGeo, gableRoofGeo, paljakGeo } from './hall.js?v=13';
+import { stripUV, paintBand, paintRoof, ensureUV, soffitTex, eaveTex } from './tex.js?v=2';
 import { createSchool, tankFish } from './fish.js?v=6';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -20,6 +20,15 @@ export const R = {
   gold: new THREE.MeshStandardMaterial({ color: '#e0b040', metalness: .7, roughness: .3, emissive: '#6a4a08', emissiveIntensity: .5, flatShading: true }),
   fish: M('#3d4a52'), fishFin: M('#c8643a'),
 };paintBand(R.band); paintRoof(R.roofTile); // 단청 띠·기와골 그림 (tex.js)
+Object.assign(R, { // 팔작지붕 부속 (처마 밑 서까래 · 처마 끝 · 합각벽 · 마루)
+  under: M('#ffffff', { map: soffitTex(), side: THREE.DoubleSide }), eave: M('#ffffff', { map: eaveTex(), side: THREE.DoubleSide }),
+  gable: M('#8a3d2c', { side: THREE.DoubleSide }), ridge: M('#2f343a', { side: THREE.DoubleSide }),
+});
+// 팔작지붕 조각들 [도형, 재질] — 처마 높이 0 기준 (돌리고 옮겨서 쓰기)
+export function paljakParts(Lr, Wr, H, lift = null, opt = {}) {
+  const G = paljakGeo(THREE, Lr, Wr, H, lift ?? Math.min(1.05, Math.min(Lr, Wr) * .085), opt);
+  return [[G.roof, R.roofTile], [G.under, R.under], [G.eave, R.eave], [G.gable, R.gable], [G.board, R.band], [G.ridge, R.ridge]];
+}
 
 // 서 있는 하얀 관세음보살 (해수관음·지혜관음): 옷자락 실루엣을 돌려 깎은 모양 + 머리·보관·정병·광배
 export function standingGwaneum(add, x, y, z, H, ry = 0, mat = R.marble) {

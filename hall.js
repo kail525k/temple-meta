@@ -1,4 +1,4 @@
-import { roofUV, stripUV, paintBand, paintRoof, doorTex } from './tex.js?v=1';
+import { roofUV, stripUV, paintBand, paintRoof, doorTex, soffitTex, eaveTex, gongpoTex } from './tex.js?v=2';
 // 법당 하나 — 앞면이 +z. 계단으로 올라가 안으로 들어가고, 가운데 방석에서 삼배를 올릴 수 있게 내부까지 만든 모델 (위레브)
 // L: 정면 폭, D: 측면 깊이(실제 건물 크기에서 가져옴), buddhas: 불단 위 부처님 수(1 또는 3)
 // roof: 'hip'(팔작) | 'gable'(맞배) | 'cross'(아자 지붕) · stories: 2면 바깥이 2층(중층) · plain: 단청 없는 나무 빛 · sign: 현판 글자 텍스처
@@ -8,7 +8,7 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
   const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
   const MAT = {
     stone: M('#cfc7b6'), wall: M('#f3e6cc'), col: M('#9b3b2b'), band: M('#2e8b74'), bandRed: M('#c2452d'),
-    roof: M('#4f5b69', { side: THREE.DoubleSide }), ridge: M('#2f343a'), floor: M('#b98b5c', { flatShading: false, roughness: .55 }),
+    roof: M('#4f5b69', { side: THREE.DoubleSide }), ridge: M('#2f343a', { side: THREE.DoubleSide }), floor: M('#b98b5c', { flatShading: false, roughness: .55 }),
     ceil: M('#3e7c69', { side: THREE.DoubleSide }), lattice: M('#d6b47a'), altar: M('#8a2a22', { roughness: .5 }),
     trim: new THREE.MeshStandardMaterial({ color: '#d8a848', metalness: .5, roughness: .35 }),
     gold: new THREE.MeshStandardMaterial({ color: '#d9a943', metalness: .5, roughness: .32, emissive: '#5a3c0c', emissiveIntensity: .45 }),
@@ -24,6 +24,11 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
     MAT.col.color.set('#7d5a3c'); MAT.band.color.set('#6a4c33'); MAT.bandRed.color.set('#5a3f2a'); MAT.ceil.color.set('#8a6a48'); MAT.wall.color.set('#efe6d2');
   } else paintBand(MAT.band); // 단청 띠 그림 (Gemini로 새로 그린 머리초 문양)
   paintRoof(MAT.roof); // 기와골 그림
+  // 팔작지붕 부속: 처마 밑 서까래 · 처마 끝 마구리 · 합각벽 (단청 없는 법당은 나무 빛)
+  MAT.under = plain ? M('#6a4c33', { side: THREE.DoubleSide }) : M('#ffffff', { map: soffitTex(), side: THREE.DoubleSide });
+  MAT.eave = plain ? M('#4e3826', { side: THREE.DoubleSide }) : M('#ffffff', { map: eaveTex(), side: THREE.DoubleSide });
+  MAT.gable = M(plain ? '#5e4430' : '#8a3d2c', { side: THREE.DoubleSide });
+  MAT.gongpo = M(plain ? '#c9a27a' : '#ffffff', { map: gongpoTex() }); MAT.gongpo.userData.strip = true; // 다포 공포 띠
   const add = (geo, mat, x, y, z, parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
   const box = (w, h, d, mat, x, y, z, parent) => { const geo = new THREE.BoxGeometry(w, h, d); if (mat.userData.strip) stripUV(geo, w, h, d); return add(geo, mat, x, y, z, parent); };
 
@@ -93,17 +98,39 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
 
   // 지붕: 팔작(처마 끝이 들린 모양) 또는 맞배, 중층이면 아래 지붕 위에 2층 벽과 윗지붕을 한 번 더
   const o = 1.3, Lr = L + 2 * o, Wr = D + 2 * o, RH = Wr * .34, rl = Math.max(.6, Lr - Wr * .95);
-  const R0 = FY + H + .14;
-  const hipRoof = (lr, wr, rh, y, ridge = true) => {
-    const rlx = Math.max(.6, lr - wr * .95);
-    const m = add(hipRoofGeo(THREE, lr, wr, rh, rlx, Math.min(.8, wr * .06)), MAT.roof, 0, y, 0); m.receiveShadow = false;
-    if (ridge) { box(rlx + .5, .42, .5, MAT.ridge, 0, y + rh + .12, 0); for (const sx of [-1, 1]) box(.35, .75, .42, MAT.ridge, sx * (rlx / 2 + .25), y + rh + .35, 0); }
+  const GP = .5, R0 = FY + H + .14 + GP; // 기둥 위 공포 높이만큼 지붕을 띄움
+  // 공포 띠: 기둥 줄(창방 위)에서 처마 밑까지, 네 면
+  { const gy = FY + H + .31, gh = R0 + .12 - gy;
+    box(L - .2, gh, .34, MAT.gongpo, 0, gy + gh / 2, D / 2 - .35); box(L - .2, gh, .34, MAT.gongpo, 0, gy + gh / 2, -D / 2 + .35);
+    for (const sx of [-1, 1]) box(.34, gh, D - .4, MAT.gongpo, sx * (L / 2 - .35), gy + gh / 2, 0);
+    // 공포: 기둥 위(주상포)와 칸마다 둘씩(주간포) — 주두 위로 첨차가 층층이 넓어지고 쇠서가 처마 쪽으로 내밂 (단청 없는 법당은 기둥 위에만)
+    const pos = [], nor = [], uvs = [];
+    const pbox = (w, hh, d, x, y, z, ry) => { const geo = new THREE.BoxGeometry(w, hh, d); stripUV(geo, w, hh, d); geo.rotateY(ry); geo.translate(x, y, z); const n = geo.toNonIndexed(); pos.push(...n.attributes.position.array); nor.push(...n.attributes.normal.array); uvs.push(...n.attributes.uv.array); };
+    const bracket = (x, z, ry) => { const c = Math.cos(ry), sn = Math.sin(ry), P = (lx, lz) => [x + lx * c + lz * sn, z - lx * sn + lz * c];
+      let [px, pz] = P(0, .2); pbox(.3, .14, .3, px, gy + .09, pz, ry);
+      for (let i = 0; i < 3; i++) { const y = gy + .23 + i * .17;
+        [px, pz] = P(0, .23); pbox(.62 + .3 * i, .1, .15, px, y, pz, ry);                          // 첨차
+        const dl = .42 + .26 * i; [px, pz] = P(0, .1 + dl / 2); pbox(.13, .11, dl, px, y + .01, pz, ry); // 쇠서
+      } };
+    const bw = IW / bays, perBay = plain ? 1 : 3;
+    for (const sz of [1, -1]) for (let i = 0; i <= bays * perBay; i++) bracket(fx(0) + bw * i / perBay, sz * (D / 2 - .35), sz > 0 ? 0 : Math.PI);
+    const nS = Math.max(2, Math.round((D - 1.2) / (plain ? 3.2 : 1.25)));
+    for (const sx of [-1, 1]) for (let i = 1; i < nS; i++) bracket(sx * (L / 2 - .35), -(D / 2 - .6) + (D - 1.2) * i / nS, sx * Math.PI / 2);
+    const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); bg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); bg.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    add(bg, MAT.band, 0, 0, 0).castShadow = false; }
+  const hipRoof = (lr, wr, rh, y, opt = {}) => { // 팔작지붕 (opt.skirt: 중층 아래 띠 지붕, opt.hip: 합각 없는 우진각)
+    const G = paljakGeo(THREE, lr, wr, rh, Math.min(1.05, wr * .085), opt);
+    add(G.roof, MAT.roof, 0, y, 0).receiveShadow = false;
+    const u = add(G.under, MAT.under, 0, y, 0); u.castShadow = false; u.receiveShadow = false;
+    add(G.eave, MAT.eave, 0, y, 0).castShadow = false;
+    add(G.gable, MAT.gable, 0, y, 0); add(G.board, MAT.band, 0, y, 0).castShadow = false; add(G.ridge, MAT.ridge, 0, y, 0);
+    return G;
   };
-  let signY = FY + H + .5, signZ = D / 2 - .18, signW = Math.min(2.6, L * .2);
+  let signY = FY + H + .62, signZ = D / 2 + .62, signW = Math.min(2.6, L * .2); // 현판은 공포 앞(쇠서 끝보다 바깥)에 걸림
   if (stories >= 2) {
     // 아래층 지붕(낮게) → 2층 벽 → 윗지붕
     const UL = L - 2.6, UD = D - 2.6, UH = 2.5;
-    hipRoof(Lr, Wr, RH * .5, R0, false);
+    hipRoof(Lr, Wr, RH * .5, R0, { skirt: o + 1.45 }); // 아래 지붕: 처마에서 위층 벽 조금 안쪽까지
     box(UL, UH, UD, MAT.wall, 0, R0 + UH / 2, 0);
     for (let i = 0; i <= 4; i++) { const x = -UL / 2 + UL * i / 4; for (const sz of [-1, 1]) box(.22, UH, .22, MAT.col, x, R0 + UH / 2, sz * (UD / 2 + .02)); }
     for (const sz of [-1, 1]) box(UL + .1, .34, .26, MAT.band, 0, R0 + UH - .1, sz * (UD / 2 + .04));
@@ -112,6 +139,10 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
     signY = R0 + UH * .75; signZ = UD / 2 + .1; signW = Math.min(2.4, UL * .26);
   } else if (roofType === 'gable') {
     const m = add(gableRoofGeo(THREE, Lr, Wr, RH * .92, .25), MAT.roof, 0, R0, 0); m.receiveShadow = false;
+    const ug = roofUV(gableRoofGeo(THREE, Lr - .1, Wr - .06, RH * .92, .25), .8, 1.8); ug.translate(0, -.09, 0); // 처마 밑 서까래
+    const um = add(ug, MAT.under, 0, R0, 0); um.castShadow = false; um.receiveShadow = false;
+    for (const sz of [-1, 1]) { const eg = new THREE.BoxGeometry(Lr, .3, .05), uv = eg.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * Lr / .8); add(eg, MAT.eave, 0, R0 - .14, sz * (Wr / 2 - .02)).castShadow = false; } // 처마 끝
+    signY = Math.min(signY, R0 + RH * .92 * (Wr / 2 - signZ - .14) / (Wr / 2) - .16 - signW * .15);
     box(Lr + .2, .42, .5, MAT.ridge, 0, R0 + RH * .92 + .12, 0);
     for (const sx of [-1, 1]) box(.35, .7, .42, MAT.ridge, sx * (Lr / 2 + .05), R0 + RH * .92 + .3, 0);
     // 박공(옆면 삼각 벽)과 드러난 나무 뼈대
@@ -123,7 +154,8 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
       box(.08, .16, D, MAT.col, sx * (L / 2 - .02), R0 + eY * .9, 0);
     }
   } else if (roofType === 'cross' || roofType === 'tee') { // tee: 정(丁)자 지붕 — 앞으로만 맞배가 튀어나옴 (통도사 대웅전) // 아(亞)자 지붕: 팔작 큰 지붕 네 면 가운데에 맞배 지붕이 한 칸씩 튀어나옴 (송광사 대웅보전)
-    hipRoof(Lr, Wr, RH, R0);
+    const G = hipRoof(Lr, Wr, RH, R0, { hip: roofType === 'cross' });
+    signY = Math.min(signY, R0 + G.y(Wr / 2 - signZ - .14) - .16 - signW * .15);
     const pw = Math.min(L * .3, 5.2), pd = 1.1, ph = RH * .52, py = R0 + RH * .24;
     for (const sz of roofType === 'tee' ? [1] : [-1, 1]) { // 앞·뒤로 튀어나온 맞배
       const ln = Wr / 2 + pd, geo = gableRoofGeo(THREE, ln, pw, ph, .18); geo.rotateY(Math.PI / 2);
@@ -138,13 +170,16 @@ export function buildHall(THREE, { L = 15, D = 13, buddhas = 3, altar = null, ro
       box(ln, .36, .4, MAT.ridge, sx * ln / 2, py + ph * .9 + .1, 0);
     }
   } else {
-    hipRoof(Lr, Wr, RH, R0);
+    const G = hipRoof(Lr, Wr, RH, R0);
+    signY = Math.min(signY, R0 + G.y(Wr / 2 - signZ - .14) - .16 - signW * .15); // 오목한 처마 밑에 현판이 닿지 않게
   }
-  // 현판: 실제 법당 이름 (검은 바탕 금색 글씨)
+  // 현판: 실제 법당 이름 (검은 바탕 금색 글씨) — 처마 끝 띠보다 낮게 걸어야 마당에서 올려다봐도 가리지 않음
+  if (stories < 2) signY = Math.min(signY, R0 - .2 - signW * .15);
   if (sign) {
     const bd = new THREE.Mesh(new THREE.PlaneGeometry(signW, signW * .3), new THREE.MeshStandardMaterial({ map: sign, roughness: .6, emissive: '#ffffff', emissiveMap: sign, emissiveIntensity: .15 }));
-    bd.position.set(0, signY, signZ + .14); g.add(bd);
-    box(signW + .14, signW * .3 + .14, .08, MAT.col, 0, signY, signZ + .08);
+    const sg = new THREE.Group(); sg.position.set(0, signY, signZ + .08); sg.rotation.x = stories >= 2 ? 0 : -.12; g.add(sg); // 위가 앞으로 살짝 기울어짐
+    bd.position.set(0, 0, .06); sg.add(bd);
+    box(signW + .14, signW * .3 + .14, .08, MAT.col, 0, 0, 0, sg);
   }
 
   // 불단(수미단)
@@ -297,4 +332,110 @@ export function hipRoofGeo(THREE, Lr, Wr, H, rl, lift) {
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.computeVertexNormals();
   return roofUV(geo);
+}
+
+// 팔작지붕 (위레브): 아래는 네 면에 처마를 두른 우진각, 위로는 양옆에 세모난 합각벽이 서고 용마루가 길게 뻗음.
+// 물매는 오목하게 휘고(처마 쪽은 눕고 용마루 쪽은 섬), 네 귀는 추녀가 들리며 바깥으로 빠짐(앙곡·안허리곡).
+// 처마 높이 0 기준 도형 묶음: roof(기와) · under(처마 밑 서까래) · eave(처마 끝 막새·서까래 마구리) · gable(합각벽) · board(박공널) · ridge(용마루·내림마루·추녀마루·합각마루)
+// Lr > Wr이면 용마루가 x 방향, 아니면 z 방향(돌려서 만듦). y(d): 처마 끝에서 안쪽으로 d만큼 들어간 곳의 지붕 높이
+export function paljakGeo(THREE, Lr, Wr, H, lift = .6, { brk = .56, push = null, ridgeW = null, ridgeH = null, end = null, skirt = 0, hip = false } = {}) {
+  const swap = Wr > Lr; if (swap) [Lr, Wr] = [Wr, Lr];
+  const sc = Math.min(1, Math.max(.45, Wr / 11)); // 작은 전각은 마루·띠도 가늘게
+  ridgeW = ridgeW ?? Math.min(.5, Math.max(.2, Wr * .042)); ridgeH = ridgeH ?? ridgeW * .84; end = end ?? ridgeW * 1.6;
+  const hx = Lr / 2, hz = Wr / 2;
+  let db = hz * brk; if (hx - db < .35) db = Math.max(.15, hx - .35);
+  if (skirt) db = Math.min(skirt, hz - .2);
+  if (hip) db = hz; // 합각 없이 네 면이 용마루까지 (우진각) — 아(亞)자 지붕 가운데처럼 사방에 다른 지붕이 붙을 때
+  const low = skirt || hip; // 중층 아래 지붕: 처마에서 d=skirt까지만 두른 띠 지붕 (위층 벽이 뚫고 올라감)
+  const gx = hx - db, zJ = hz - db, a = .62;
+  const Rl = hz * .95, K = push ?? Math.min(.55, hz * .075);
+  const h = d => { const s = Math.min(1, Math.max(0, d / hz)); return H * (a * s + (1 - a) * s * s); };
+  const NS = 48, arc = [0]; for (let i = 1; i <= NS; i++) { const d0 = hz * (i - 1) / NS, d1 = hz * i / NS; arc.push(arc[i - 1] + Math.hypot(d1 - d0, h(d1) - h(d0))); }
+  const S = d => { const f = Math.min(NS, Math.max(0, d / hz * NS)), i = Math.min(NS - 1, Math.floor(f)); return arc[i] + (arc[i + 1] - arc[i]) * (f - i); };
+  const cf = (d, e) => (e < Rl ? (1 - e / Rl) ** 2 : 0) * (d < db ? (1 - d / db) ** 1.6 : 0);
+  const V = (x, z, d, e) => { const c = cf(d, e); return [x + Math.sign(x) * K * c, h(d) + lift * c, z + Math.sign(z) * K * c]; };
+  const out = { roof: [], under: [], eave: [], gable: [], board: [], ridge: [] }, uvs = { roof: [], under: [], eave: [], gable: [], board: [], ridge: [] };
+  const tri = (k, p, q, r, tp = [0, 0], tq = [0, 0], tr = [0, 0]) => { out[k].push(...p, ...q, ...r); uvs[k].push(...tp, ...tq, ...tr); };
+  const quad = (k, p, q, r, s, tp, tq, tr, ts) => { tri(k, p, q, r, tp, tq, tr); tri(k, p, r, s, tp, tr, ts); };
+  const NB = 7, NT = 6, rowsAll = [], rowsLow = [];
+  for (let i = 0; i <= NB; i++) rowsLow.push(db * i / NB);
+  rowsAll.push(...rowsLow); for (let i = 1; i <= NT; i++) rowsAll.push(db + (hz - db) * i / NT);
+  // 면 하나: plan(d, t) → [x, z], 밖을 보는 방향(ox, oz) · 처마 방향 u는 roofUV와 같은 규칙
+  const faces = [
+    { rows: low ? rowsLow : rowsAll, n: 20, plan: (d, t) => [t * (d < db ? hx - d : gx), hz - d], o: [0, 1] },
+    { rows: low ? rowsLow : rowsAll, n: 20, plan: (d, t) => [-t * (d < db ? hx - d : gx), -(hz - d)], o: [0, -1] },
+    { rows: rowsLow, n: 10, plan: (d, t) => [hx - d, -t * (hz - d)], o: [1, 0] },
+    { rows: rowsLow, n: 10, plan: (d, t) => [-(hx - d), t * (hz - d)], o: [-1, 0] },
+  ];
+  const TH = .09 * sc, SU = 1.8, SV = 1.8, RU = .8 * sc;
+  for (const F of faces) {
+    const side = F.o[0] !== 0, grid = F.rows.map(d => { const row = []; for (let j = 0; j <= F.n; j++) { const t = -1 + 2 * j / F.n, [x, z] = F.plan(d, t), e = side ? hz - Math.abs(z) : hx - Math.abs(x); row.push({ p: V(x, z, d, e), u: (x * F.o[1] - z * F.o[0]), v: S(d) }); } return row; });
+    for (let k = 0; k < grid.length - 1; k++) for (let j = 0; j < F.n; j++) {
+      const A = grid[k][j], B = grid[k][j + 1], C = grid[k + 1][j + 1], D = grid[k + 1][j];
+      quad('roof', A.p, B.p, C.p, D.p, [A.u / SU, A.v / SV], [B.u / SU, B.v / SV], [C.u / SU, C.v / SV], [D.u / SU, D.v / SV]);
+      const dn = q => [q.p[0], q.p[1] - TH, q.p[2]];
+      quad('under', dn(A), dn(D), dn(C), dn(B), [A.u / RU, A.v / SV], [D.u / RU, D.v / SV], [C.u / RU, C.v / SV], [B.u / RU, B.v / SV]);
+    }
+    let len = 0; const r0 = grid[0];                                     // 처마 끝: 지붕 가장자리에서 아래로 내린 띠
+    for (let j = 0; j < F.n; j++) {
+      const A = r0[j].p, B = r0[j + 1].p, l = Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]), EH = .32 * sc;
+      quad('eave', [A[0], A[1] - EH, A[2]], [B[0], B[1] - EH, B[2]], [B[0], B[1] + .02, B[2]], [A[0], A[1] + .02, A[2]], [len / RU, 0], [(len + l) / RU, 0], [(len + l) / RU, 1], [len / RU, 1]);
+      len += l;
+    }
+  }
+  const gin = .12 * sc, yb = h(db) - .14 * sc;
+  if (!low) { // 합각벽과 박공널 (양옆): 아래 가장자리는 옆 처마 지붕 꼭대기(높이 y(db)) 조금 밑으로 감춤
+  const verge = []; for (const d of [...rowsAll.filter(d => d >= db)].reverse()) verge.push([hz - d, h(d)]); // 꼭대기 z=0 → 앞 z=zJ
+  const edge = [...[...verge].reverse(), ...verge.slice(1).map(([z, y]) => [-z, y])]; // z: +zJ → 0 → -zJ
+  for (const sx of [1, -1]) {
+    const pts = sx > 0 ? edge : [...edge].reverse(), xg = sx * (gx - gin);
+    let len = 0, BW = .36 * sc;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [z0, y0] = pts[i], [z1, y1] = pts[i + 1], l = Math.hypot(z1 - z0, y1 - y0);
+      quad('gable', [xg, yb, z0], [xg, yb, z1], [xg, y1 - .02, z1], [xg, y0 - .02, z0]);
+      const xb = xg + sx * .04;
+      quad('board', [xb, y0 - BW, z0], [xb, y1 - BW, z1], [xb, y1 + .01, z1], [xb, y0 + .01, z0], [len / (4 * BW), 0], [(len + l) / (4 * BW), 0], [(len + l) / (4 * BW), 1], [len / (4 * BW), 1]);
+      len += l;
+    }
+  }
+  } // !skirt
+  // 마루: 선을 따라 네모난 막대 (윗면 + 양옆 + 끝막음)
+  const up = new THREE.Vector3(0, 1, 0);
+  function tube(pts, w, hh) {
+    const P = pts.map(p => new THREE.Vector3(...p)), n = P.length, L = [], Rr = [];
+    for (let i = 0; i < n; i++) { const t = P[Math.min(n - 1, i + 1)].clone().sub(P[Math.max(0, i - 1)]).normalize(), s = new THREE.Vector3().crossVectors(t, up).normalize().multiplyScalar(w / 2); L.push(P[i].clone().sub(s).setY(P[i].y - .06)); Rr.push(P[i].clone().add(s).setY(P[i].y - .06)); }
+    const T = v => [v.x, v.y + hh, v.z], B = v => [v.x, v.y, v.z];
+    for (let i = 0; i < n - 1; i++) {
+      quad('ridge', T(L[i]), T(Rr[i]), T(Rr[i + 1]), T(L[i + 1]));
+      quad('ridge', B(L[i]), T(L[i]), T(L[i + 1]), B(L[i + 1]));
+      quad('ridge', B(Rr[i + 1]), T(Rr[i + 1]), T(Rr[i]), B(Rr[i]));
+    }
+    for (const [i, sg] of [[0, 1], [n - 1, -1]]) { if (sg > 0) quad('ridge', B(Rr[i]), T(Rr[i]), T(L[i]), B(L[i])); else quad('ridge', B(L[i]), T(L[i]), T(Rr[i]), B(Rr[i])); }
+  }
+  function blk(cx, cy, cz, w, hh, dd) { // 상자 (용마루 끝 취두)
+    const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy, y1 = cy + hh, z0 = cz - dd / 2, z1 = cz + dd / 2;
+    const c = [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0]];
+    for (const [a, b, cc, dd2] of [[0, 1, 2, 3], [5, 4, 7, 6], [1, 5, 6, 2], [4, 0, 3, 7], [3, 2, 6, 7]]) quad('ridge', c[a], c[b], c[cc], c[dd2]);
+  }
+  const RX = gx + (hip ? .05 : .3), yr = H - ridgeH * .35;
+  if (!skirt) {
+    const ridgePts = []; for (let i = 0; i <= 10; i++) { const x = -RX + 2 * RX * i / 10; ridgePts.push([x, yr + .16 * (Math.abs(x) / RX) ** 4, 0]); }
+    tube(ridgePts, ridgeW, ridgeH);
+    for (const sx of [-1, 1]) blk(sx * (RX + .05), yr + .1, 0, ridgeW * .75, ridgeH + end * .55, ridgeW * .95);
+  }
+  const w2 = ridgeW * .66, h2 = ridgeH * .72;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    if (!low) tube(rowsAll.filter(d => d >= db).reverse().map(d => [sx * (gx - .04), h(d), sz * (hz - d)]), w2, h2); // 내림마루 (박공 위)
+    const hp = []; for (let i = 0; i <= 8; i++) { const d = db * (1 - i / 8) + .35 * (i / 8); hp.push(V(sx * (hx - d), sz * (hz - d), d, d)); }
+    tube(hp, w2, h2);                                                                                        // 추녀마루
+  }
+  if (!low) for (const sx of [-1, 1]) tube([[sx * (gx - gin + .02), yb + .1 * sc, -zJ], [sx * (gx - gin + .02), yb + .1 * sc, zJ]], .26 * sc, .22 * sc); // 합각 아래 마루
+  const geos = {};
+  for (const k of Object.keys(out)) {
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(out[k], 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs[k], 2)); g.computeVertexNormals();
+    if (swap) g.rotateY(Math.PI / 2);
+    geos[k] = g;
+  }
+  geos.y = h; geos.lift = lift; geos.gx = gx;
+  return geos;
 }
