@@ -5,12 +5,12 @@ import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
 import { buildHall } from './hall.js?v=16';
 import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=36';
-import { buildItems, buildLantern, buildGate } from './items.js?v=16';
-import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=8';
+import { buildItems, buildLantern, buildGate } from './items.js?v=17';
+import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=9';
 import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
-import { REGIONS } from './temples.js?v=19';
+import { REGIONS } from './temples.js?v=20';
 import { yardTex, pathTex } from './tex.js?v=5';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=9';
@@ -319,7 +319,7 @@ function buildSite(info, T) {
   }
   // 탑 (사찰마다 다름: 삼층·오층·칠층 석탑, 팔각구층석탑, 목탑, 석가탑·다보탑)
   const YG = yg ? yonggungFrame({ L, D, YX, YZ1 }) : null;
-  const PZ = yg ? YG.PZ : D / 2 + (st.pagodaZ ?? 10.5), H = { THREE, add, box, col, MAT, L, D, YX, IX, YZ0, YZ1, SL, PZ, RG, nameTex, site, fig: [] };
+  const PZ = yg ? YG.PZ : D / 2 + (st.pagodaZ ?? 10.5), H = { THREE, add, box, col, MAT, L, D, YX, IX, YZ0, YZ1, SL, PZ, RG, nameTex, site, fig: [], st };
   if (st.gate) buildGate(H, st.gate, T);
   let lanSpot = null; if (st.lantern && !yg) { const r = buildLantern(H, st.lantern, SL); if (r) lanSpot = { lx: 0, lz: SL, r: 2.6, ...r }; }
   if (hyu) { H.fishX = -6.2; H.fishZ = YZ0 - 7.3; H.fishAt = { lx: -6.2, lz: YZ0 - 2.4 }; H.fishStall = { lx: -9.2, lz: YZ0 + 2.7 }; }
