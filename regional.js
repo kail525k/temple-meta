@@ -337,6 +337,7 @@ export function buildPagoda(h, type, PZ) {
     r = 1.3;
   }
   else if (type === 'hex') r = hexSlate(h, 0, PZ);
+  else if (type === 'stone5s') { x = -6.2; r = stoneTiers(h, x, PZ, 5, .62, false, { slim: .9 }); } // 봉녕사: 앞마당 연못 왼쪽의 작은 오층석탑 (누리집 배치도)
   else if (type === 'octa9s') { r = octa9(h, 0, PZ); offeringBosal(h, 0, PZ + 2.25, Math.PI); r = 2.75; } // 월정사: 탑 남쪽에서 탑을 향해 공양하는 보살좌상
   else if (type === 'pair') { // 서쪽 석가탑 · 동쪽 다보탑 (법당을 바라볼 때 왼쪽·오른쪽)
     x = -3.5; r = stoneTiers(h, x, PZ, 3, 1.12);

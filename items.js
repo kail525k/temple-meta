@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=16';
-import { R, standingGwaneum, stoneTiers, paljakParts } from './regional.js?v=36';
+import { R, standingGwaneum, stoneTiers, paljakParts } from './regional.js?v=37';
 import { stripUV, ensureUV } from './tex.js?v=5';
 import { reliefStatue } from './relief.js?v=1';
 
@@ -532,7 +532,7 @@ export function buildItems(h, T) {
       { const w = 13, d = 7, g = grp(h, -(L / 2 + 12.6), D / 2 + 11.6, LEFT); two(g, { w, d, h1: 4.2, rows: 2, h2: 2.4, plaque: '우화궁', pw: 1.4 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         spot(g, 0, 4.1, 3.6, '봉녕사 우화궁', '학인 스님들의 학사 · 2층에 수계식을 여는 금강계단이 있어요'); }
       // ── 들어오는 길 왼쪽: 불서각 · 해우소 · 육화당(1층 향적실) · 금비라(사찰음식교육관)
-      { const g = grp(h, -7.8, YZ1 + 4.6, LEFT); smallHall(h, g, { w: 4.6, d: 3.2, hh: 2.0, gable: true, roofH: .9, plaque: '불서각', plaqueW: 1.0 }); colG(h, g, 0, 0, 2.6, 1.9); }
+      { const g = grp(h, -7.8, YZ1 + 4.6, LEFT); smallHall(h, g, { w: 4.6, d: 3.2, hh: 2.0, gable: true, roofH: .9, plaque: '불서각 · 회향원', plaqueW: 1.5 }); colG(h, g, 0, 0, 2.6, 1.9); }
       { const g = grp(h, -8.2, YZ1 + 9.4, LEFT); smallHall(h, g, { w: 3.6, d: 2.6, hh: 1.9, gable: true, roofH: .8, plaque: '해우소', plaqueW: 1.0 }); colG(h, g, 0, 0, 2.1, 1.6); }
       { const w = 13, d = 5.6, g = grp(h, -16.4, YZ1 + 10.6, LEFT); two(g, { w, d, plaque: '육화당', low: '향적실' }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         spot(g, 0, 3.6, 3.4, '봉녕사 육화당', '1층 향적실에서 공양을 짓고, 법회와 템플스테이가 열리는 곳이에요'); }
@@ -542,6 +542,15 @@ export function buildItems(h, T) {
         P.box(w + .9, .22, d + .9, M('#5a4a3c'), 0, .25 + hh + .11, 0); P.box(w * .7, .3, .2, R.roofTile, 0, .25 + hh + .37, d / 2 + .2); P.flush(g);
         plate(h, g, '금비라', 1.3, 0, .25 + hh - .42, d / 2 + .06, { px: 46 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         spot(g, 0, 3.4, 3.2, '봉녕사 금비라', '사찰음식을 배우는 교육관이에요'); }
+      // ── 앞마당 가운데: 길 양옆 두 연못과 그 사이 돌다리 (누리집 배치도) · 연잎과 연꽃
+      { const zc = D / 2 + 9.6, P = parts();
+        for (const sx of [-1, 1]) { const cx = sx * 2.35; pond(h, P, cx, zc, 1.15, 1.3);
+          for (let i = 0; i < 9; i++) { const a = rnd() * 6.28, rr = Math.sqrt(rnd()) * .75, px = cx + Math.cos(a) * 1.15 * rr, pz = zc + Math.sin(a) * 1.3 * rr, pr = .13 + rnd() * .12;
+            const pd = new THREE.CylinderGeometry(pr, pr, .02, 12, 1, false, .3, 5.9); pd.rotateY(rnd() * 6); pd.translate(px, .055, pz); P.put(pd, rnd() < .5 ? k.pad : k.pad2); }
+          for (let i = 0; i < 3; i++) { const px = cx + (rnd() - .5) * 1.1, pz = zc + (rnd() - .5) * 1.2; P.limb(k.stem, V(px, .03, pz), V(px, .3, pz), .012, .012, 4); P.ball(.08, k.lotus, px, .36, pz, .8, 1.3, .8); } }
+        P.box(2.5, .14, 3.0, R.granite, 0, .09, zc);                                              // 돌다리
+        for (const sx of [-1, 1]) { P.box(.14, .32, 2.9, R.granite2, sx * 1.22, .3, zc); for (const sz of [-1.35, 0, 1.35]) P.box(.2, .46, .2, R.granite2, sx * 1.22, .3, zc + sz); }
+        P.flush(h.site); }
       // ── 들어오는 길: 일주문(1994, 광교산봉녕사) · 오른쪽 사적비 · 다비공원(세주당 묘엄 스님 다비식 자리)
       { const z = YZ1 + 14, P = parts();
         for (const sx of [-1, 1]) { P.cyl(.3, .34, 3.2, 14, R.redCol, sx * 1.9, 1.6, z); P.cyl(.46, .5, .4, 12, R.granite, sx * 1.9, .2, z); h.col(sx * 1.9, z, .5, .5); }
