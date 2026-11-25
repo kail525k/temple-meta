@@ -91,7 +91,7 @@ function smallHall(h, g, { w, d, hh = 1.8, gable = false, roofH = 1.0, plaque = 
   if (!gable && !thatch) paljakMesh(g, w + 1.3, d + 1.3, roofH * 1.12, top);
   else { const geo = gable ? gableRoofGeo(THREE, w + 1.2, d + 1.6, roofH, .1) : hipRoofGeo(THREE, w + 1.3, d + 1.3, roofH, Math.max(.3, w - d * .7), .05); mesh(g, geo, roofMat, 0, top, 0).receiveShadow = false; }
   if (gable) mesh(g, new THREE.BoxGeometry(w + 1.3, .2, .24), h.MAT.stoneDark, 0, top + roofH + .04, 0);
-  if (plaque) plate(h, g, plaque, plaqueW, 0, top - .26, d / 2 + .1, { px: 50 });
+  if (plaque) plate(h, g, plaque, plaqueW, 0, top - .15 - plaqueW * 138 / 512 / 2, d / 2 + .1, { px: 50 }); // 현판 윗단이 단청 띠에 가리지 않게
   return top;
 }
 // 꽃나무 (매화·벚꽃): 굽은 줄기 + 가지 끝마다 꽃송이
