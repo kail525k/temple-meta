@@ -34,7 +34,7 @@ function parts() {
     cyl: (rt, rb, hh, seg, mat, x, y, z) => { const g = new THREE.CylinderGeometry(rt, rb, hh, seg); if (seg === 8) g.rotateY(Math.PI / 8); g.translate(x, y, z); return put(g, mat); },
     ball: (r, mat, x, y, z, sx = 1, sy = 1, sz = 1, det = 0) => { const g = new THREE.IcosahedronGeometry(r, det); g.scale(sx, sy, sz); g.translate(x, y, z); return put(g, mat); },
     limb: (mat, a, b, r0, r1, seg = 6) => { const d = V(b.x - a.x, b.y - a.y, b.z - a.z), len = d.length(); const g = new THREE.CylinderGeometry(r1, r0, len, seg); g.translate(0, len / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.normalize())); g.translate(a.x, a.y, a.z); return put(g, mat); },
-    flush(parent, { shadow = true, noOcc = false } = {}) { const out = []; for (const [mat, gs] of L) { const m = new THREE.Mesh(mergeGeometries(gs), mat); m.castShadow = shadow; m.receiveShadow = true; if (noOcc) m.userData.noOcc = true; parent.add(m); out.push(m); } L.clear(); return out; },
+    flush(parent, { shadow = true, noOcc = false, noSolid = false } = {}) { const out = []; for (const [mat, gs] of L) { const m = new THREE.Mesh(mergeGeometries(gs), mat); m.castShadow = shadow; m.receiveShadow = true; if (noOcc) m.userData.noOcc = true; if (noSolid) m.userData.noSolid = true; parent.add(m); out.push(m); } L.clear(); return out; },
   };
 }
 // 팔작지붕 붙이기: 그룹에 메시로(paljakMesh) · 합치는 부품에(paljakPut). 반환은 기와 메시
@@ -570,6 +570,137 @@ export function buildItems(h, T) {
         plate(h, g, '다비공원', .9, x, .75, z + .2, { px: 44, bg: '#e9e2d2', fg: '#5a3a22' }); h.col(x, z - .6, 1.1, .8);
         spotAt(x, z + 3.6, 3.0, '봉녕사 다비공원', '세주당 묘엄 스님의 다비식이 열린 자리예요 · 조용히 합장하며 지나 주세요'); }
     }
+    if (kind === 'bongseonMore') { // 봉선사 (2026.11 답사기·디지털남양주문화대전·조계종 교구본사 안내): 일주문(한글 세로 현판) → 왼쪽 연못 둘·오른쪽 부도밭 → 느티나무·하마비 → 오른쪽 범종루(1층 국보 동종) → 청풍루(1층 사천왕, 2층 설법당) → 삼층석탑·큰법당, 왼쪽 관음전·오른쪽 지장전, 뒤 삼성각·조사전, 양옆 운하당·방적당
+      const vplate = (g, cols, w, x, y, z, ry = 0) => { // 세로쓰기 현판 (오른쪽 줄부터)
+        const n = cols.length, ml = Math.max(...cols.map(s => [...s].length)), CW = 150 * n + 60, CH = Math.max(420, 140 * ml + 120), cv = document.createElement('canvas'); cv.width = CW; cv.height = CH;
+        const c = cv.getContext('2d'); c.fillStyle = '#2b1d14'; c.fillRect(0, 0, CW, CH); c.strokeStyle = '#f2cf72'; c.lineWidth = 8; c.strokeRect(12, 12, CW - 24, CH - 24);
+        c.fillStyle = '#f2cf72'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = 'bold 118px "Noto Serif KR","Nanum Myeongjo",serif';
+        cols.forEach((s, i) => { const cx = CW - 30 - 150 * (i + .5), a = [...s]; a.forEach((ch, j) => c.fillText(ch, cx, CH / 2 + (j - (a.length - 1) / 2) * 140)); });
+        const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+        const m = mesh(g, new THREE.PlaneGeometry(w, w * CH / CW), new THREE.MeshStandardMaterial({ map: t, roughness: .65 }), x, y, z, false); m.rotation.y = ry; return m; };
+      const bell = (g, S, x, y, z) => { // 동종: 쌍룡 고리 · 음통 없음 (아래 끝이 바닥에서 y)
+        const bm = new THREE.MeshStandardMaterial({ color: '#5d5236', metalness: .6, roughness: .42 });
+        const prof = [[0, 0], [.6, 0], [.59, .05], [.55, .16], [.5, .48], [.46, .86], [.42, 1.08], [.36, 1.18], [.22, 1.24], [0, 1.25]].map(([r, yy]) => new THREE.Vector2(r * S, yy * S));
+        mesh(g, new THREE.LatheGeometry(prof, 40), bm, x, y, z);
+        for (const yy of [.2, .95]) mesh(g, new THREE.TorusGeometry(.5 * S - (yy > .5 ? .05 * S : 0), .03 * S, 6, 32).rotateX(Math.PI / 2), bm, x, y + yy * S, z); // 띠
+        const hook = new THREE.TorusGeometry(.14 * S, .05 * S, 6, 14, Math.PI); mesh(g, hook, bm, x, y + 1.25 * S, z); // 용뉴
+        mesh(g, new THREE.CylinderGeometry(.03, .03, .4, 6), R.lattice, x, y + 1.25 * S + .3, z); };
+      const D2 = D / 2;
+      // ── 큰법당 왼쪽 관음전(옛 노전채) · 오른쪽 지장전(옛 어실각, 정면 5칸)
+      { const g = grp(h, -(L / 2 + 5.2), .6, 0), w = 5.4, d = 3.6; smallHall(h, g, { w, d, hh: 2.0, roofH: 1.1, plaque: '관음전', plaqueW: 1.1 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        spot(g, 0, 3.0, 2.8, '봉선사 관음전', '큰법당 왼쪽 · 관세음보살을 모신 전각이에요'); }
+      { const g = grp(h, L / 2 + 5.6, .6, 0), w = 6.6, d = 4.0; smallHall(h, g, { w, d, hh: 2.1, roofH: 1.2, plaque: '지장전', plaqueW: 1.1 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        spot(g, 0, 3.2, 2.9, '봉선사 지장전', '세조와 정희왕후의 위패를 모셨던 어실각 자리 · 지금은 지장보살을 모셔요'); }
+      // ── 뒤뜰: 관음전 뒤 삼성각 · 지장전 뒤 조사전
+      { const g = grp(h, -(L / 2 + 3.4), -D2 - 4.8, 0); smallHall(h, g, { w: 3.4, d: 2.6, hh: 1.75, gable: true, roofH: .95, plaque: '삼성각', plaqueW: 1.0 }); colG(h, g, 0, 0, 2.0, 1.6);
+        spot(g, 0, 2.3, 2.5, '봉선사 삼성각', '산신·칠성·독성을 모신 전각 · 한국전쟁 때 불타지 않고 남았어요'); }
+      { const g = grp(h, L / 2 + 3.4, -D2 - 4.8, 0); smallHall(h, g, { w: 3.4, d: 2.6, hh: 1.75, gable: true, roofH: .95, plaque: '조사전', plaqueW: 1.0 }); colG(h, g, 0, 0, 2.0, 1.6);
+        spot(g, 0, 2.3, 2.5, '봉선사 조사전', '봉선사를 이끈 근대 큰스님들의 영정을 모신 전각이에요'); }
+      // ── 마당 양옆 큰 요사: 왼쪽 운하당 · 오른쪽 방적당
+      { const g = grp(h, -(YX - 4.4), 4.2, LEFT), w = 12, d = 5.2; smallHall(h, g, { w, d, hh: 2.2, gable: true, roofH: 1.25, plaque: '운하당', plaqueW: 1.1 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        spot(g, 0, 3.6, 3.2, '봉선사 운하당', '마당 왼쪽의 큰 요사 · 1963년에 다시 지었어요'); }
+      { const g = grp(h, YX - 4.4, 4.2, RIGHT), w = 10, d = 5.0; smallHall(h, g, { w, d, hh: 2.1, gable: true, roofH: 1.2, plaque: '방적당', plaqueW: 1.1 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        spot(g, 0, 3.5, 3.2, '봉선사 방적당', '스님들이 수행하며 지내는 요사 · 1973년에 다시 지었어요'); }
+      spotAt(0, h.PZ + 2.4, 2.4, '봉선사 삼층석탑', '큰법당 앞마당을 지키는 삼층석탑이에요');
+      // ── 청풍루: 마당 앞 2층 누각 · 1층 가운데로 지나가고 양옆 칸에 사천왕 (옛 천왕문·해탈문 자리) · 2층 설법당
+      { const zc = YZ1 - 2.3, xs = [-4.6, -1.65, 1.65, 4.6], hc = 2.95, DD = 3.6, wallW = k.wallW;
+        for (const x of xs) for (const z of [-DD / 2, 0, DD / 2]) { if (Math.abs(x) > 4 && !z) continue;
+          mesh(h.site, new THREE.BoxGeometry(.42, .26, .42), R.granite2, x, .13, zc + z); mesh(h.site, new THREE.CylinderGeometry(.15, .16, hc - .26, 10), R.redCol, x, .26 + (hc - .26) / 2, zc + z); }
+        mesh(h.site, new THREE.BoxGeometry(3.0, .025, DD + 1.0), h.MAT.stone, 0, .045, zc, false);
+        const KD = './assets/tex/kings/', kings = [['k4', 'k3'], ['k1', 'k2']];
+        for (const sx of [-1, 1]) { const P = parts(), cx = sx * 3.12, bw = 2.95;
+          P.box(bw + .5, .3, DD + .5, h.MAT.stone, cx, .15, zc); P.box(bw, .35, DD - .1, R.wood, cx, .47, zc);
+          P.box(.14, hc, DD, wallW, sx * 4.6, hc / 2, zc);
+          for (const sz of [-1, 1]) { const wz = zc + sz * DD / 2; P.box(bw, 1.05, .16, wallW, cx, .525, wz); P.box(bw, .1, .18, R.redCol, cx, 1.1, wz); P.box(bw, .12, .18, R.redCol, cx, hc - .06, wz);
+            for (let bx = cx - bw / 2 + .12; bx <= cx + bw / 2 - .11; bx += .13) P.box(.045, hc - 1.27, .06, R.redCol, bx, (1.15 + hc - .12) / 2, wz); }
+          for (let z = -DD / 2 + .3; z <= DD / 2 - .29; z += .55) P.box(.07, .95, .07, R.redCol, sx * 1.66, .475, zc + z);
+          for (const y of [.5, .92]) P.box(.06, .07, DD - .4, R.redCol, sx * 1.66, y, zc);
+          kings[sx < 0 ? 0 : 1].forEach((nm, i) => reliefStatue(h.site, KD + nm + '.webp', { x: sx * 3.2, y: .645, z: zc + (i ? -.86 : .86), ry: -sx * Math.PI / 2 + sx * (i ? -.42 : .42), h: 2.2, depth: .13 }));
+          P.flush(h.site); h.col(cx + sx * .05, zc, 1.55, DD / 2 + .1); }
+        const Q = parts(), W = 9.6, yF = hc, uh = 2.0, yu = yF + .26; // 2층 (모두 머리 위)
+        Q.box(W + .6, .26, DD + .9, R.wood, 0, yF + .13, zc); Q.box(W + .7, .12, DD + 1.0, R.band, 0, yF - .02, zc);
+        for (const x of [-4.6, -2.3, 0, 2.3, 4.6]) for (const dz of [-1.5, 1.5]) Q.cyl(.13, .14, uh, 10, R.redCol, x, yu + uh / 2, zc + dz);
+        for (let i = 0; i < 4; i++) { const cx = -3.45 + i * 2.3; for (const dz of [-1.5, 1.5]) { Q.box(2.0, uh - .55, .06, R.lattice, cx, yu + .3 + (uh - .55) / 2, zc + dz); Q.box(2.0, .28, .07, M('#efe6d2'), cx, yu + .14, zc + dz); } }
+        for (const sx of [-1, 1]) Q.box(.08, uh, 3.0, M('#efe6d2'), sx * 4.6, yu + uh / 2, zc);
+        Q.box(W + .5, .1, .06, R.wood, 0, yu + .55, zc + 1.95); for (let x = -4.9; x <= 4.91; x += .35) Q.box(.04, .5, .04, R.lattice, x, yu + .3, zc + 1.95); // 앞 난간
+        Q.box(W + .4, .24, 3.5, R.band, 0, yu + uh + .12, zc);
+        for (let x = -4.9; x <= 4.91; x += .5) for (const dz of [-1, 1]) Q.box(.14, .14, .7, R.band, x, yu + uh + .3, zc + dz * 1.95);
+        paljakPut(Q, W + 2.2, 5.6, 2.0, 0, yu + uh + .36, zc);
+        Q.flush(h.site);
+        const gf = grp(h, 0, zc + 1.98); plate(h, gf, '청풍루', 1.7, 0, yu + uh - .25, 0, { px: 50 });
+        spotAt(0, zc + DD / 2 + 1.6, 3.0, '봉선사 청풍루', '1층으로 지나가며 사천왕께 인사하고, 2층은 법문을 듣는 설법당이에요'); }
+      // ── 마당 밖 오른쪽: 범종루 (2층 누각 · 1층에 국보 동종)
+      { const g = grp(h, 7.8, YZ1 + 4.6, RIGHT), P = parts(), y1 = 2.75;
+        P.box(4.8, .3, 4.8, h.MAT.stone, 0, .15, 0);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) { P.cyl(.17, .19, y1 - .3, 10, R.redCol, sx * 1.95, .3 + (y1 - .3) / 2, sz * 1.95); P.cyl(.25, .27, .2, 10, h.MAT.stone, sx * 1.95, .4, sz * 1.95); }
+        for (const sx of [-1, 1]) { P.box(4.0, .5, .06, R.redCol, 0, .55, sx * 1.95); P.box(.06, .5, 4.0, R.redCol, sx * 1.95, .55, 0); } // 낮은 난간
+        P.box(4.6, .22, 4.6, R.wood, 0, y1 + .11, 0); P.box(4.7, .12, 4.7, R.band, 0, y1 - .04, 0);
+        for (const sx of [-1, 1]) { P.box(4.4, .5, .06, R.lattice, 0, y1 + .47, sx * 2.18); P.box(.06, .5, 4.4, R.lattice, sx * 2.18, y1 + .47, 0); }
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.12, .13, 2.0, 8, R.redCol, sx * 2.0, y1 + 1.22, sz * 2.0);
+        P.box(4.4, .16, 4.4, R.band, 0, y1 + 2.26, 0); P.flush(g);
+        paljakMesh(g, 5.9, 5.9, 1.5, y1 + 2.34);
+        bell(g, 1.22, 0, .62, -.2); // 1층 동종
+        const drum = new THREE.CylinderGeometry(.55, .55, .65, 24); drum.rotateX(Math.PI / 2); mesh(g, drum, M('#9b3b2b'), .7, y1 + .9, .6); // 2층 법고
+        mesh(g, new THREE.BoxGeometry(.8, .5, .05), M('#7a6a4a', { metalness: .5 }), -.9, y1 + 1.5, -1.1); // 운판
+        const fish = new THREE.CapsuleGeometry(.18, .8, 4, 10); fish.rotateZ(Math.PI / 2); mesh(g, fish, M('#b04a2e'), -.9, y1 + 1.6, 1.0); // 목어
+        plate(h, g, '범종루', 1.1, 0, y1 + 1.9, 2.25, { px: 46 }); colG(h, g, 0, 0, 2.4, 2.4);
+        signpost(h, ...toSite(g, -1.2, 3.4), RIGHT, '국보 봉선사 동종', '1469년 · 2026년 국보가 됐어요', 1.5);
+        spot(g, 0, 3.6, 3.4, '봉선사 범종루', '1층에 1469년 왕실이 만든 국보 동종이 걸려 있어요'); }
+      // ── 느티나무(500년) · 하마비
+      { const x = -4.8, z = YZ1 + 6.4, T1 = parts(), T2 = parts();
+        T1.limb(k.bark2, V(x, 0, z), V(x + .15, 2.6, z - .1), .62, .45, 8); T1.flush(h.site); h.col(x, z, .62, .62);
+        for (const [dx, dy, dz] of [[-1.8, 4.2, .4], [1.7, 4.4, -.3], [.2, 4.9, 1.5], [-.3, 4.6, -1.6], [.9, 5.2, .5]]) T2.limb(k.bark2, V(x + .15, 2.5, z - .1), V(x + dx, dy, z + dz), .3, .12, 6);
+        for (const [dx, dy, dz, r] of [[-2.2, 4.9, .4, 1.7], [2.0, 5.1, -.4, 1.8], [.2, 5.6, 1.9, 1.7], [-.4, 5.3, -2.0, 1.7], [.4, 6.2, 0, 2.0], [1.4, 5.8, 1.4, 1.4], [-1.5, 5.8, -1.2, 1.4]]) T2.ball(r, rnd() < .5 ? k.leaf : k.leaf2, x + dx, dy, z + dz, 1, .75, 1, 1);
+        T2.flush(h.site, { noSolid: true });
+        signpost(h, x - 1.9, z + 1.7, 0, '500년 느티나무', '정희왕후가 절을 다시 지을 때 심었다고 전해요', 1.6);
+        spotAt(x + 1.2, z + 1.2, 3.0, '봉선사 느티나무', '정희왕후가 절을 다시 지으며 심었다고 전하는 500년 느티나무예요'); }
+      { const g = grp(h, -2.5, YZ1 + 8.2, LEFT * .35), P = parts(); // 하마비 (높이 93cm)
+        P.box(.75, .24, .5, R.granite2, 0, .12, 0); P.box(.42, .9, .2, R.granite, 0, .69, 0); P.box(.5, .1, .26, R.granite2, 0, 1.19, 0); P.flush(g); colG(h, g, 0, 0, .4, .3);
+        vplate(g, ['대소인원개하마'], .15, 0, .7, .11);
+        spot(g, 0, 1.0, 2.2, '봉선사 하마비', '“누구든 말에서 내리시오” · 왕실 능침사찰임을 알려 주는 비예요'); }
+      // ── 들어오는 길 왼쪽: 연못 둘 (안쪽 작은 연못 · 바깥 큰 연지와 데크길)
+      const lotusIn = (P, cx, cz, rx, rz, n, skipZ = null) => { const off = pz => skipZ != null && Math.abs(pz - skipZ) < 1.05; for (let i = 0; i < n; i++) { const a = rnd() * 6.28, rr = Math.sqrt(rnd()) * .88, px = cx + Math.cos(a) * rx * rr, pz = cz + Math.sin(a) * rz * rr, pr = .18 + rnd() * .2, up = rnd() < .3; if (off(pz)) continue;
+          const pd = new THREE.CylinderGeometry(pr, pr, .02, 12, 1, false, .3, 5.9); pd.rotateY(rnd() * 6); pd.translate(px, up ? .25 + rnd() * .25 : .055, pz); P.put(pd, rnd() < .5 ? k.pad : k.pad2);
+          if (up) P.limb(k.stem, V(px, .03, pz), V(px, .25, pz), .012, .012, 4); }
+        for (let i = 0; i < n * .35; i++) { const a = rnd() * 6.28, rr = Math.sqrt(rnd()) * .8, px = cx + Math.cos(a) * rx * rr, pz = cz + Math.sin(a) * rz * rr, fy = .35 + rnd() * .35; if (off(pz)) continue;
+          P.limb(k.stem, V(px, .03, pz), V(px, fy, pz), .014, .012, 4);
+          if (rnd() < .3) { P.ball(.07, k.lotus, px, fy + .07, pz, .8, 1.5, .8); continue; }
+          for (let j = 0; j < 7; j++) { const b = j / 7 * 6.28, pt = new THREE.SphereGeometry(.09, 8, 6); pt.scale(.55, 1.15, .32); pt.rotateZ(.55); pt.rotateY(b); pt.translate(px + Math.cos(b) * .06, fy + .07, pz - Math.sin(b) * .06); P.put(pt, k.lotus); }
+          P.cyl(.04, .035, .04, 8, k.lotusC, px, fy + .06, pz); } };
+      const water = (P, cx, cz, rx, rz) => { const w = mesh(h.site, new THREE.CircleGeometry(1, 40), R.water, cx, .035, cz, false); w.rotation.x = -Math.PI / 2; w.scale.set(rx, rz, 1);
+        const n = Math.round((rx + rz) * 6); for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; P.box(.42, .2, .26, h.MAT.stoneDark, cx + Math.cos(a) * (rx + .12), .1, cz + Math.sin(a) * (rz + .12), -a + Math.PI / 2); } };
+      { const cx = -9.6, cz = YZ1 + 9.8, rx = 3.6, rz = 2.6, P = parts(), Q = parts(); water(P, cx, cz, rx, rz); P.flush(h.site); h.col(cx, cz, rx * .82, rz * .82); lotusIn(Q, cx, cz, rx, rz, 34); Q.flush(h.site, { noSolid: true }); }
+      { const cx = -12.8, cz = YZ1 + 19.5, rx = 6.6, rz = 5.0, P = parts(), Q = parts(), dz = cz - .4, dw = .75; water(P, cx, cz, rx, rz); P.flush(h.site);
+        lotusIn(Q, cx, cz, rx, rz, 80, dz); // 연꽃 (데크길 위는 비움)
+        Q.flush(h.site, { noSolid: true });
+        const Dk = parts(), x0 = cx - rx - .4, x1 = cx + rx + .5; // 데크길: 연못을 가로질러 걸어 다님
+        Dk.box(x1 - x0, .12, dw * 2, R.wood, (x0 + x1) / 2, .3, dz); for (let x = x0 + .3; x < x1; x += 1.4) for (const s of [-1, 1]) Dk.box(.12, .3, .12, R.wood, x, .12, dz + s * (dw - .06));
+        Dk.flush(h.site);
+        const Rl = parts(); for (const s of [-1, 1]) { Rl.box(x1 - x0, .06, .06, R.wood, (x0 + x1) / 2, .82, dz + s * dw); for (let x = x0 + .2; x < x1; x += .9) Rl.box(.06, .48, .06, R.wood, x, .6, dz + s * dw); } Rl.flush(h.site, { noSolid: true });
+        for (const s of [-1, 1]) { const zz = s > 0 ? (dz + dw + .15 + cz + rz) / 2 : (dz - dw - .15 + cz - rz) / 2, hz = s > 0 ? (cz + rz - (dz + dw + .15)) / 2 : ((dz - dw - .15) - (cz - rz)) / 2; h.col(cx, zz, rx * .97, hz * .95); } // 물: 데크길 남북만 막음
+        signpost(h, -2.6, cz - 2.0, 0, '봉선사 연꽃단지', '여름 연꽃축제 · 연못 위 데크길', 1.5);
+        spotAt(cx + 3.5, dz, 3.4, '봉선사 연꽃단지', '여름이면 연못 가득 연꽃이 피고, 데크길로 연못 위를 걸을 수 있어요'); }
+      // ── 들어오는 길 오른쪽: 부도밭 (역대 큰스님 승탑 · 탑비 · 춘원 이광수 기념비)
+      { const x = 11.8, z = YZ1 + 15.8, P = parts();
+        P.box(7.4, .24, 3.6, h.MAT.stone, x, .12, z);
+        const prof = [[0, 0], [.34, 0], [.38, .12], [.36, .55], [.3, .85], [.18, 1.0], [0, 1.04]].map(([r, yy]) => new THREE.Vector2(r, yy)); // 석종형 승탑
+        for (const [dx, s] of [[-2.7, 1], [-1.35, .9], [0, 1.08], [1.35, .9]]) { P.box(.86 * s, .2, .86 * s, R.granite2, x + dx, .34, z - .6); const lg = new THREE.LatheGeometry(prof.map(v => new THREE.Vector2(v.x * s, v.y * s)), 16); lg.translate(x + dx, .44, z - .6); P.put(lg, R.granite); P.ball(.1 * s, R.granite2, x + dx, .44 + 1.08 * s, z - .6); }
+        P.box(.9, .32, .55, R.granite2, x + 2.8, .4, z - .4); P.box(.62, 1.5, .18, k.stele, x + 2.8, 1.31, z - .4); P.box(.76, .16, .3, R.granite2, x + 2.8, 2.14, z - .4); // 기념비
+        P.flush(h.site); h.col(x, z, 3.8, 1.9);
+        signpost(h, x - 4.6, z + 1.0, RIGHT, '부도밭', '역대 큰스님 승탑과 춘원 이광수 기념비', 1.5);
+        spotAt(x - 3.2, z, 3.2, '봉선사 부도밭', '역대 큰스님들의 사리를 모신 승탑과 비석이 모여 있어요'); }
+      // ── 일주문: 정면은 한글 세로쓰기 ‘운악산 봉선사’ (운허 스님) · 뒷면은 한문 ‘교종본찰 봉선사’
+      { const z = YZ1 + 24, P = parts();
+        for (const sx of [-1, 1]) { P.cyl(.3, .34, 3.2, 14, R.redCol, sx * 1.9, 1.6, z); P.cyl(.46, .5, .4, 12, R.granite, sx * 1.9, .2, z); h.col(sx * 1.9, z, .5, .5); }
+        P.box(4.6, .24, .32, R.redCol, 0, 3.0, z); P.box(4.8, .14, .5, R.band, 0, 3.19, z);
+        for (let x = -2.4; x <= 2.41; x += .4) { P.box(.18, .28, .8, R.band, x, 3.4, z); P.box(.13, .14, 1.2, R.redCol, x, 3.6, z); }
+        P.box(5.4, .16, 1.6, R.band, 0, 3.74, z);
+        P.flush(h.site); paljakMesh(grp(h, 0, z, 0), 6.4, 2.9, 1.45, 3.82);
+        const gf = grp(h, 0, z + .19); vplate(gf, ['운악산', '봉선사'], .78, 0, 2.3, 0);
+        const gb = grp(h, 0, z - .19, Math.PI); plate(h, gb, '敎宗本刹奉先寺', 2.0, 0, 2.62, 0, { px: 46 });
+        signpost(h, 3.6, z - 1.6, Math.PI, '봉선사 일주문', '한글로 세로로 쓴 ‘운악산 봉선사’ 현판', 1.5);
+        spotAt(0, z - 1.8, 3.0, '봉선사 일주문', '한글 세로쓰기 ‘운악산 봉선사’ 현판이 걸린 첫 문이에요'); }
+    }
     if (kind === 'yongjuUpper') { // 용주사 대웅보전 둘레 (누리집 가람 배치도): 왼쪽 시방칠등각(옛 칠성각) · 그 너머 천불전(옛 향로전 자리, 동쪽으로 문), 오른쪽 호성전(사도세자 제각) · 그 오른쪽 지장전
       { const g = grp(h, -(IX - 5.4), 1.9, 0); // 시방칠등각: 대웅보전과 천불전 사이
         smallHall(h, g, { w: 3.0, d: 2.2, hh: 1.65, gable: true, roofH: .9, plaque: '시방칠등각', plaqueW: 1.25 });
@@ -646,9 +777,8 @@ export function buildItems(h, T) {
       smallHall(h, g, { w: 4.6, d: 2.4, hh: 1.9, gable: true, roofH: .95, plaque: '향하당', plaqueW: 1.0 });
       colG(h, g, 0, 0, 2.6, 1.5);
     }
-    if (kind === 'lotusPond') { // 봉선사 연꽃단지: 길 양옆 연못에 연잎과 분홍 연꽃
-      const P = parts();
-      for (const s of [-1, 1]) {
+    if (kind === 'lotusPond') { // 연꽃단지: 길 양옆 연못에 연잎과 분홍 연꽃 (연못마다 따로 합치고 연잎·연꽃은 부딪힘 없이 — 두 연못을 한 덩어리로 합치면 그 사이 길까지 큰 상자로 막힘)
+      for (const s of [-1, 1]) { const P = parts();
         const cx = s * FX, cz = FZ, rx = 2.3, rz = 2.4;
         pond(h, P, cx, cz, rx, rz);
         for (let i = 0; i < 30; i++) { const a = rnd() * 6.28, rr = Math.sqrt(rnd()) * .9, px = cx + Math.cos(a) * rx * rr, pz = cz + Math.sin(a) * rz * rr, pr = .16 + rnd() * .18, up = rnd() < .3;
@@ -660,8 +790,8 @@ export function buildItems(h, T) {
           for (let j = 0; j < 7; j++) { const b = j / 7 * 6.28; const pt = new THREE.SphereGeometry(.09, 8, 6); pt.scale(.55, 1.15, .32); pt.rotateZ(.55); pt.rotateY(b); pt.translate(px + Math.cos(b) * .06, fy + .07, pz - Math.sin(b) * .06); P.put(pt, k.lotus); }
           P.cyl(.04, .035, .04, 8, k.lotusC, px, fy + .06, pz); }
         for (let i = 0; i < 9; i++) { const a = rnd() * 6.28, px = cx + Math.cos(a) * (rx + .05), pz = cz + Math.sin(a) * (rz + .05); P.limb(k.reed, V(px, 0, pz), V(px + (rnd() - .5) * .2, .7 + rnd() * .4, pz + (rnd() - .5) * .2), .02, .008, 3); }
+        P.flush(h.site, { noSolid: true });
       }
-      P.flush(h.site);
       signpost(h, -FX + 1.2, FZ + 3.0, LEFT * 0, '연꽃단지', '여름이면 연못 가득 연꽃이 피어요');
       spotAt(-FX, FZ, 3.6, '봉선사 연꽃단지', '여름이면 연못 가득 분홍 연꽃이 피어요'); spotAt(FX, FZ, 3.6, '봉선사 연꽃단지', '여름이면 연못 가득 분홍 연꽃이 피어요');
     }

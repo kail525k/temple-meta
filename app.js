@@ -5,12 +5,12 @@ import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
 import { buildHall } from './hall.js?v=16';
 import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=37';
-import { buildItems, buildLantern, buildGate } from './items.js?v=18';
-import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=10';
+import { buildItems, buildLantern, buildGate } from './items.js?v=19';
+import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=11';
 import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
-import { REGIONS } from './temples.js?v=21';
+import { REGIONS } from './temples.js?v=22';
 import { yardTex, pathTex } from './tex.js?v=5';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=9';
@@ -782,7 +782,7 @@ const _sb = new THREE.Box3(), _sv = new THREE.Vector3(), _sc = new THREE.Vector3
 function solidsFrom(root) {
   root.updateMatrixWorld(true);
   root.traverseVisible(m => {
-    if (!m.isMesh || m.isInstancedMesh) return;
+    if (!m.isMesh || m.isInstancedMesh || m.userData.noSolid) return; // noSolid: 연잎·꽃·가지처럼 넓게 흩어진 장식 (부딪힘은 따로 둠)
     const g = m.geometry, t = g.type; if (SKIPG.has(t)) return;
     const mat = Array.isArray(m.material) ? m.material[0] : m.material; if (!mat || (mat.transparent && mat.opacity < .9)) return;
     if (!g.boundingBox) g.computeBoundingBox(); const bb = g.boundingBox, e = m.matrixWorld.elements;
