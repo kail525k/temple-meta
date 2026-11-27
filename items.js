@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hipRoofGeo, gableRoofGeo } from './hall.js?v=16';
 import { R, standingGwaneum, stoneTiers, paljakParts } from './regional.js?v=37';
-import { stripUV, ensureUV } from './tex.js?v=5';
+import { stripUV, ensureUV, doorTex } from './tex.js?v=5';
 import { reliefStatue } from './relief.js?v=1';
 
 const M = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .8, flatShading: true, ...extra });
@@ -71,7 +71,9 @@ function boardTex(title, lines, { w = 960, hh = 0, size = 30, gap = 46 } = {}) {
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 4; return { tex: tx, ratio: hh / w };
 }
 // 작은 전각: 기단 · 벽 · 기둥 · 띠 · 지붕 · 현판 (앞 = +z)
-function smallHall(h, g, { w, d, hh = 1.8, gable = false, roofH = 1.0, plaque = '', plaqueW = 1.2, open = 0, thatch = false }) {
+let doorM_ = {};
+const doorMat = (plain) => doorM_[plain ? 1 : 0] || (doorM_[plain ? 1 : 0] = new THREE.MeshStandardMaterial({ color: plain ? '#c9a57a' : '#ffffff', map: doorTex(), roughness: .7 }));
+function smallHall(h, g, { w, d, hh = 1.8, gable = false, roofH = 1.0, plaque = '', plaqueW = 1.2, open = 0, thatch = false, doors = 0, plainDoors = false }) {
   const P = parts(), k = K(), y0 = .3;
   P.box(w + .5, y0, d + .5, h.MAT.stone, 0, y0 / 2, 0);
   if (open) { // 앞 가운데를 열어 둔 전각: 뒤·옆 벽 + 앞 양끝 벽, 어두운 안
@@ -82,7 +84,10 @@ function smallHall(h, g, { w, d, hh = 1.8, gable = false, roofH = 1.0, plaque = 
     P.box(open, .26, .08, R.lattice, 0, y0 + hh - .13, d / 2 - .04);
   } else {
     P.box(w, hh, d, thatch ? k.mud : k.wallW, 0, y0 + hh / 2, 0);
-    if (!thatch) { P.box(w * .66, hh * .62, .05, R.lattice, 0, y0 + hh * .42, d / 2 + .02); for (const sx of [-1, 1]) P.box(w * .12, hh * .45, .05, R.lattice, sx * w * .4, y0 + hh * .5, d / 2 + .02); }
+    if (doors) { const n = doors, dm = doorMat(plainDoors); // 칸마다 문짝 + 칸 사이 기둥
+      for (let i = 0; i < n; i++) { const cx = -w / 2 + w * (i + .5) / n, bw = w / n - .24, dh = Math.min(hh - .32, bw * 1.4); P.box(bw, dh, .05, dm, cx, y0 + .02 + dh / 2, d / 2 + .03); }
+      for (let i = 1; i < n; i++) P.cyl(.075, .085, hh, 8, R.redCol, -w / 2 + w * i / n, y0 + hh / 2, d / 2); }
+    else if (!thatch) { P.box(w * .66, hh * .62, .05, R.lattice, 0, y0 + hh * .42, d / 2 + .02); for (const sx of [-1, 1]) P.box(w * .12, hh * .45, .05, R.lattice, sx * w * .4, y0 + hh * .5, d / 2 + .02); }
     else P.box(.5, hh * .7, .05, R.lattice, 0, y0 + hh * .35, d / 2 + .02);
   }
   if (!thatch) { for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.08, .09, hh, 8, R.redCol, sx * w / 2, y0 + hh / 2, sz * d / 2); P.box(w + .06, .14, d + .06, R.band, 0, y0 + hh - .07, 0); }
@@ -587,7 +592,6 @@ export function buildItems(h, T) {
         mesh(g, new THREE.CylinderGeometry(.03, .03, .4, 6), R.lattice, x, y + 1.25 * S + .3, z); };
       const D2 = D / 2;
       const yosaFront = (g, w, d, hh) => { const P = parts(), n = Math.max(3, Math.round(w / 1.3)); // 요사: 칸마다 띠살문 + 앞 툇마루
-        for (let i = 0; i < n; i++) { const x = -w / 2 + w * (i + .5) / n; if (Math.abs(x) < w * .34) continue; P.box(w / n * .62, hh * .62, .05, R.lattice, x, .3 + hh * .42, d / 2 + .02); }
         P.box(w - .2, .1, .7, R.wood, 0, .5, d / 2 + .45); for (let i = 0; i <= n; i++) P.box(.1, .45, .1, R.wood, -w / 2 + .1 + (w - .2) * i / n, .25, d / 2 + .72);
         P.flush(g); };
       { const ix0 = -L / 2 + .6, IW = L - 1.2, zf = D2 - .35 + .24, P = parts(); // 큰법당 기둥의 우리말 주련 (실제 글귀 대신 붓 획 무늬)
@@ -596,20 +600,19 @@ export function buildItems(h, T) {
         const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; const jm = new THREE.MeshStandardMaterial({ map: t, roughness: .7 });
         for (let i = 0; i <= 3; i++) { const x = ix0 + IW * i / 3, m = mesh(h.site, new THREE.BoxGeometry(.2, 1.9, .03), jm, x, 1.0 + 2.05, zf, false); m.userData.noSolid = true; } }
       // ── 큰법당 왼쪽 관음전(옛 노전채) · 오른쪽 지장전(옛 어실각, 정면 5칸)
-      { const g = grp(h, -(L / 2 + 5.2), .6, 0), w = 5.4, d = 3.6; smallHall(h, g, { w, d, hh: 2.0, roofH: 1.1, plaque: '관음전', plaqueW: 1.1 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+      { const g = grp(h, -(L / 2 + 5.2), .6, 0), w = 5.4, d = 3.6; smallHall(h, g, { w, d, hh: 2.0, roofH: 1.1, plaque: '관음전', plaqueW: 1.1, doors: 3 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         spot(g, 0, 3.0, 2.8, '봉선사 관음전', '큰법당 왼쪽 · 관세음보살을 모신 전각이에요'); }
-      { const g = grp(h, L / 2 + 6.1, .4, 0), w = 7.6, d = 4.6; smallHall(h, g, { w, d, hh: 2.3, roofH: 1.3, plaque: '지장전', plaqueW: 1.15 });
-        { const P = parts(); for (const x of [-2.9, -1.45, 1.45, 2.9]) P.box(1.0, 1.35, .05, R.lattice, x, .3 + 1.0, d / 2 + .02); P.flush(g); } // 정면 다섯 칸 문 colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+      { const g = grp(h, L / 2 + 6.1, .4, 0), w = 7.6, d = 4.6; smallHall(h, g, { w, d, hh: 2.3, roofH: 1.3, plaque: '지장전', plaqueW: 1.15, doors: 5 }); // 정면 다섯 칸 colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         spot(g, 0, 3.2, 2.9, '봉선사 지장전', '세조와 정희왕후의 위패를 모셨던 어실각 자리 · 지금은 지장보살을 모셔요'); }
       // ── 뒤뜰: 관음전 뒤 삼성각 · 지장전 뒤 조사전
-      { const g = grp(h, -(L / 2 + 3.4), -D2 - 4.8, 0); smallHall(h, g, { w: 3.4, d: 2.6, hh: 1.75, gable: true, roofH: .95, plaque: '삼성각', plaqueW: 1.0 }); colG(h, g, 0, 0, 2.0, 1.6);
+      { const g = grp(h, -(L / 2 + 3.4), -D2 - 4.8, 0); smallHall(h, g, { w: 3.4, d: 2.6, hh: 1.75, gable: true, roofH: .95, plaque: '삼성각', plaqueW: 1.0, doors: 3 }); colG(h, g, 0, 0, 2.0, 1.6);
         spot(g, 0, 2.3, 2.5, '봉선사 삼성각', '산신·칠성·독성을 모신 전각 · 한국전쟁 때 불타지 않고 남았어요'); }
-      { const g = grp(h, L / 2 + 3.4, -D2 - 4.8, 0); smallHall(h, g, { w: 3.4, d: 2.6, hh: 1.75, gable: true, roofH: .95, plaque: '조사전', plaqueW: 1.0 }); colG(h, g, 0, 0, 2.0, 1.6);
+      { const g = grp(h, L / 2 + 3.4, -D2 - 4.8, 0); smallHall(h, g, { w: 3.4, d: 2.6, hh: 1.75, gable: true, roofH: .95, plaque: '조사전', plaqueW: 1.0, doors: 3 }); colG(h, g, 0, 0, 2.0, 1.6);
         spot(g, 0, 2.3, 2.5, '봉선사 조사전', '봉선사를 이끈 근대 큰스님들의 영정을 모신 전각이에요'); }
       // ── 마당 양옆 큰 요사: 왼쪽 운하당 · 오른쪽 방적당
-      { const g = grp(h, -(YX - 4.4), 4.2, LEFT), w = 12, d = 5.2; smallHall(h, g, { w, d, hh: 2.2, gable: true, roofH: 1.25, plaque: '운하당', plaqueW: 1.1 }); yosaFront(g, w, d, 2.2); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .9);
+      { const g = grp(h, -(YX - 4.4), 4.2, LEFT), w = 12, d = 5.2; smallHall(h, g, { w, d, hh: 2.2, gable: true, roofH: 1.25, plaque: '운하당', plaqueW: 1.1, doors: 7, plainDoors: true }); yosaFront(g, w, d, 2.2); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .9);
         spot(g, 0, 3.6, 3.2, '봉선사 운하당', '마당 왼쪽의 큰 요사 · 1963년에 다시 지었어요'); }
-      { const g = grp(h, YX - 4.4, 4.2, RIGHT), w = 10, d = 5.0; smallHall(h, g, { w, d, hh: 2.1, gable: true, roofH: 1.2, plaque: '방적당', plaqueW: 1.1 }); yosaFront(g, w, d, 2.1); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .9);
+      { const g = grp(h, YX - 4.4, 4.2, RIGHT), w = 10, d = 5.0; smallHall(h, g, { w, d, hh: 2.1, gable: true, roofH: 1.2, plaque: '방적당', plaqueW: 1.1, doors: 6, plainDoors: true }); yosaFront(g, w, d, 2.1); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .9);
         spot(g, 0, 3.5, 3.2, '봉선사 방적당', '스님들이 수행하며 지내는 요사 · 1973년에 다시 지었어요'); }
       spotAt(0, h.PZ + 2.4, 2.4, '봉선사 삼층석탑', '큰법당 앞마당을 지키는 삼층석탑이에요');
       // ── 청풍루: 마당 앞 2층 누각 · 1층 가운데로 지나가고 양옆 칸에 사천왕 (옛 천왕문·해탈문 자리) · 2층 설법당
@@ -651,7 +654,7 @@ export function buildItems(h, T) {
       { const g = grp(h, 7.8, YZ1 + 4.6, RIGHT), P = parts(), y1 = 2.75;
         P.box(4.8, .3, 4.8, h.MAT.stone, 0, .15, 0);
         for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.box(.42, y1 - .3, .42, R.granite, sx * 1.95, .3 + (y1 - .3) / 2, sz * 1.95); // 1층 돌기둥
-        for (const sx of [-1, 1]) { P.box(2.4, 1.0, .06, R.wood, 0, .8, -.2 + sx * 1.2); P.box(.06, 1.0, 2.4, R.wood, sx * 1.2, .8, -.2); for (let t = -1; t <= 1.01; t += .25) { P.box(.05, 1.0, .05, R.lattice, t, .8, -.2 + sx * 1.22); P.box(.05, 1.0, .05, R.lattice, sx * 1.22, .8, -.2 + t); } } // 동종을 두른 나무 보호 난간
+        for (const sx of [-1, 1]) { for (const yy of [.42, .92]) { P.box(2.44, .07, .07, R.wood, 0, yy, -.2 + sx * 1.22); P.box(.07, .07, 2.44, R.wood, sx * 1.22, yy, -.2); } for (let t = -1.1; t <= 1.11; t += .22) { P.box(.04, .5, .04, R.wood, t, .67, -.2 + sx * 1.22); P.box(.04, .5, .04, R.wood, sx * 1.22, .67, -.2 + t); } } // 동종을 두른 나무 보호 난간
         P.box(4.6, .22, 4.6, R.wood, 0, y1 + .11, 0); P.box(4.7, .12, 4.7, R.band, 0, y1 - .04, 0);
         for (const sx of [-1, 1]) { P.box(4.4, .5, .06, R.lattice, 0, y1 + .47, sx * 2.18); P.box(.06, .5, 4.4, R.lattice, sx * 2.18, y1 + .47, 0); }
         for (const sx of [-1, 1]) for (const sz of [-1, 1]) P.cyl(.12, .13, 2.0, 8, R.redCol, sx * 2.0, y1 + 1.22, sz * 2.0);
@@ -672,7 +675,7 @@ export function buildItems(h, T) {
         T2.flush(h.site, { noSolid: true });
         signpost(h, x + 1.6, z + 2.2, 0, '500년 느티나무', '정희왕후가 절을 다시 지을 때 심었다고 전해요', 1.6);
         spotAt(x + 1.2, z + 1.2, 3.0, '봉선사 느티나무', '정희왕후가 절을 다시 지으며 심었다고 전하는 500년 느티나무예요'); }
-      { const g = grp(h, -10.8, YZ1 + 4.6, LEFT), w = 5.4, d = 3.4; smallHall(h, g, { w, d, hh: 2.0, gable: true, roofH: 1.0 }); yosaFront(g, w, d, 2.0); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .9); // 찻집 (느티나무가 지붕을 드리움)
+      { const g = grp(h, -10.8, YZ1 + 4.6, LEFT), w = 5.4, d = 3.4; smallHall(h, g, { w, d, hh: 2.0, gable: true, roofH: 1.0, doors: 3, plainDoors: true }); yosaFront(g, w, d, 2.0); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .9); // 찻집 (느티나무가 지붕을 드리움)
         signpost(h, -7.3, YZ1 + 2.4, LEFT, '찻집', '느티나무 그늘 아래 차 한잔', 1.3);
         spot(g, 0, 3.0, 2.8, '봉선사 찻집', '느티나무 그늘 아래 차를 마시며 쉬어 가는 곳이에요'); }
       { const g = grp(h, -2.5, YZ1 + 8.2, LEFT * .35), P = parts(); // 하마비 (높이 93cm)
