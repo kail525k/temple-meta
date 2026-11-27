@@ -4,7 +4,7 @@
 // buddhas: 불단의 부처님 수(0 = 불상 대신 진신사리를 모신 적멸보궁) · altar: 실제 불단 구성(왼쪽→오른쪽, 자료 조사) · bigStand: 바깥 큰 입불 · q: 같은 이름 절이 많을 때 쓰는 검색어
 export const REGIONS = [
   { id: 'seoul', name: '서울', env: { trees: { ginkgo: .45, broad: .3, pine: .25 }, treeN: 520, mtn: { h: 42, rock: true }, city: true, grass: '#a9b98a', note: '도심 사찰 · 은행나무와 빌딩 숲' }, temples: [
-    { name: '조계사', hall: '대웅전', altar: 'amita:.95 sakya:1.15 yaksa:.95', buddhas: 3, lat: 37.5740, lng: 126.9818, where: '종로', note: '조계종 총본산', style: { base: 1.1, bays: 7, sideBays: 4, pagoda: 'octa10', extras: ['oldTree'], oldTreeSide: -1, lanterns: 'canopy', items: ['baeksong'] } },
+    { name: '조계사', hall: '대웅전', altar: 'amita:.95 sakya:1.15 yaksa:.95', buddhas: 3, lat: 37.5740, lng: 126.9818, where: '종로', note: '조계종 총본산 · ‘대한불교 총본산’ 일주문과 사천왕 · 1938년 대웅전 · 8각 10층 석탑 · 천연기념물 백송과 회화나무 · 연등회', style: { base: 1.1, bays: 7, sideBays: 4, gate: 'jogyeIlju', sideW: 8, back: 10, pagoda: 'octa10', extras: ['oldTree'], oldTreeSide: -1, lanterns: 'canopy', lanInset: 8.5, items: ['baeksong', 'jogyeMore'], start: [0, 28.5], approach: [12, 14] } },
     { name: '봉은사', hall: '대웅전', altar: 'yaksa sakya amita', buddhas: 3, lat: 37.5150, lng: 127.0573, where: '강남', note: '강남 빌딩 숲 속 천년 고찰 · 진여문 사천왕 · 정면 7칸 법왕루 · 23m 미륵대불 · 추사의 마지막 글씨 ‘판전’ · 영각 홍매화', style: { bays: 5, sideBays: 4, gate: 'jinyeo', sideW: 13, back: 8, pagodaZ: 6.0, lanRows: [3.4, 10.4], lanInset: 17, bigStand: { k: 'buddhaS', tint: 'stone', h: 12, name: '미륵대불', x: -19.0, z: -7.5 }, extras: ['oldTree'], items: ['bongeunMore', 'bongeunTree'], start: [0, 31], approach: [13, 26] } },
   ] },
   { id: 'gyeonggi', name: '경기·인천', env: { trees: { pine: .5, broad: .25, maple: .25 }, mtn: { h: 46 }, grass: '#a6bd7e', note: '나지막한 산 · 소나무' }, temples: [

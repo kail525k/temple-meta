@@ -729,6 +729,55 @@ export function buildItems(h, T) {
         signpost(h, 3.6, z - 1.6, Math.PI, '봉선사 일주문', '한글로 세로로 쓴 ‘운악산 봉선사’ 현판', 1.5);
         spotAt(0, z - 1.8, 3.0, '봉선사 일주문', '한글 세로쓰기 ‘운악산 봉선사’ 현판이 걸린 첫 문이에요'); }
     }
+    if (kind === 'jogyeMore') { // 조계사 (2026.11 한국민족문화대백과·서울 미디어허브·한국관광공사·나무위키 시설 안내): '대한불교 총본산 조계사' 일주문(기둥마다 사천왕) → 연등 지붕 덮인 앞마당 · 8각 10층 석탑 · 왼쪽 앞 회화나무 · 오른쪽 백송 → 대웅전 · 옆 극락전 · 범종루 · 뒤 한국불교역사문화기념관(총무원·불교중앙박물관)
+      const D2 = D / 2;
+      // ── 일주문: 네 기둥 세 칸 · 현판 '大韓佛敎總本山曹溪寺' · 기둥 앞마다 사천왕 (밖에서 보아 왼쪽부터 증장·광목·다문·지국)
+      { const z = YZ1 + 3.6, xs = [-5.0, -2.3, 2.3, 5.0], P = parts();
+        for (const x of xs) { P.cyl(.32, .36, 4.0, 14, R.redCol, x, 2.0, z); P.cyl(.5, .55, .45, 12, R.granite, x, .22, z); h.col(x, z, .55, .55); }
+        P.box(10.8, .3, .36, R.redCol, 0, 3.75, z); P.box(11.0, .16, .56, R.band, 0, 3.98, z);
+        for (let x = -5.4; x <= 5.41; x += .45) { P.box(.2, .3, .9, R.band, x, 4.2, z); P.box(.14, .14, 1.3, R.redCol, x, 4.42, z); }
+        P.box(11.6, .18, 1.8, R.band, 0, 4.58, z);
+        P.flush(h.site, { noSolid: true }); paljakMesh(grp(h, 0, z, 0), 12.6, 3.4, 1.9, 4.66); /* 기둥·보를 합친 덩어리는 길을 막지 않게 (기둥은 h.col) */
+        const gf = grp(h, 0, z + .2); plate(h, gf, '大韓佛敎總本山曹溪寺', 4.2, 0, 3.32, 0, { px: 44 });
+        const KD = './assets/tex/kings/'; [['k2', -5.0], ['k3', -2.3], ['k4', 2.3], ['k1', 5.0]].forEach(([nm, x]) => reliefStatue(h.site, KD + nm + '.webp', { x, y: .45, z: z + .62, ry: 0, h: 2.1, depth: .12 }));
+        signpost(h, -7.4, z + 1.4, .25, '조계사 일주문', '대한불교 총본산 · 기둥마다 사천왕', 1.45);
+        spotAt(0, z + 2.6, 3.0, '조계사 일주문', '‘대한불교 총본산 조계사’ 현판이 걸린 큰 문 · 기둥마다 사천왕이 지켜요'); }
+      // ── 대웅전 안내 · 연등회 안내 · 회화나무 안내
+      signpost(h, -4.6, D2 + 2.4, .2, '조계사 대웅전', '1938년 · 서울시 유형문화유산', 1.4);
+      spotAt(-3.4, D2 + 1.8, 2.6, '조계사 대웅전', '정읍 보천교 십일전을 옮겨 1938년 낙성한 큰 법당이에요');
+      signpost(h, -SX - 1.6, D2 + .9, .4, '조계사 회화나무', '대웅전 앞마당 · 450년쯤 된 나무', 1.35);
+      spotAt(-SX + .3, D2 + 1.9, 2.4, '조계사 회화나무', '대웅전 앞마당을 지키는 450년쯤 된 회화나무예요');
+      signpost(h, 5.2, YZ1 - 2.2, -.3, '조계사 연등회', '1955년 제등행렬에서 시작 · 유네스코 무형유산', 1.4);
+      spotAt(4.2, YZ1 - 3.4, 2.6, '조계사 연등회', '조계사 부근 제등행렬에서 시작한 연등회 · 유네스코 인류무형문화유산이에요');
+      // ── 대웅전 옆(왼쪽) 극락전: 건물 1층의 작은 법당 (49재·천도재)
+      { const g = grp(h, -15.0, 1.6, LEFT), w = 7.4, d = 4.4; smallHall(h, g, { w, d, hh: 2.3, roofH: 1.3, plaque: '극락전', plaqueW: 1.1, doors: 5 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+        spot(g, 0, 3.2, 2.9, '조계사 극락전', '대웅전 옆 작은 법당 · 지장보살을 모시고 49재와 천도재를 올려요'); }
+      // ── 범종루: 앞마당 오른쪽 2층 누각 (1층 기둥 사이로 범종)
+      { const x = 15.6, zc = D2 + 12.0, y1 = 2.5, P = parts(), Q = parts();
+        P.box(4.6, .3, 4.6, h.MAT.stone, x, .15, zc);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) { P.cyl(.16, .18, y1 - .3, 10, R.redCol, x + sx * 1.9, .3 + (y1 - .3) / 2, zc + sz * 1.9); h.col(x + sx * 1.9, zc + sz * 1.9, .2, .2); }
+        P.flush(h.site, { noSolid: true });
+        const bm = new THREE.MeshStandardMaterial({ color: '#5d5236', metalness: .6, roughness: .42 }), prof = [[0, 0], [.62, 0], [.6, .06], [.55, .2], [.5, .55], [.46, .95], [.4, 1.15], [.22, 1.24], [0, 1.26]].map(([r, yy]) => new THREE.Vector2(r * 1.1, yy * 1.1));
+        mesh(h.site, new THREE.LatheGeometry(prof, 36), bm, x, .75, zc); h.col(x, zc, .75, .75);
+        Q.box(4.8, .24, 4.8, R.wood, x, y1 + .12, zc); Q.box(4.9, .12, 4.9, R.band, x, y1 - .02, zc);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) Q.cyl(.13, .14, 1.8, 10, R.redCol, x + sx * 1.9, y1 + .24 + .9, zc + sz * 1.9);
+        for (const sx of [-1, 1]) { Q.box(4.0, .5, .05, R.lattice, x, y1 + .55, zc + sx * 1.95); Q.box(.05, .5, 4.0, R.lattice, x + sx * 1.95, y1 + .55, zc); }
+        Q.box(4.5, .22, 4.5, R.band, x, y1 + 2.16, zc);
+        paljakPut(Q, 6.4, 6.4, 1.8, x, y1 + 2.28, zc); Q.flush(h.site, { noSolid: true });
+        const gq = grp(h, x - 2.45, zc, -Math.PI / 2); plate(h, gq, '범종루', 1.1, 0, y1 + 1.9, 0, { px: 46 });
+        signpost(h, x - 3.2, zc + 3.0, -.5, '조계사 범종루', '범종·법고·목어·운판 사물', 1.35);
+        spotAt(x - 3.4, zc + 1.6, 2.6, '조계사 범종루', '범종·법고·목어·운판, 사물을 모신 누각이에요'); }
+      // ── 대웅전 뒤 한국불교역사문화기념관 (조계종 총무원 · 불교중앙박물관): 돌벽 3층 건물 + 기와 지붕
+      { const zc = -D2 - 8.6, W = 22, DD = 6.4, HB = 7.2, P = parts(), stone = M('#d8d2c4'), glass = M('#3b4a55', { roughness: .3, metalness: .3 });
+        P.box(W, HB, DD, stone, 0, HB / 2, zc); P.box(W + .4, .3, DD + .4, h.MAT.stoneDark, 0, .15, zc);
+        for (const fy of [1.4, 3.7, 6.0]) for (let i = 0; i < 9; i++) { if (i === 4 && fy < 4) continue; const x = -W / 2 + 1.6 + i * (W - 3.2) / 8; P.box(1.5, 1.2, .06, glass, x, fy, zc + DD / 2 + .03); }
+        P.box(3.6, 2.6, .08, glass, 0, 1.3, zc + DD / 2 + .05); P.box(W + .2, .3, DD + .2, R.band, 0, HB + .1, zc);
+        P.flush(h.site); h.col(0, zc, W / 2 + .2, DD / 2 + .2);
+        mesh(h.site, hipRoofGeo(THREE, W + 1.6, DD + 1.6, 2.0, W - DD * .6, .05), R.roofTile, 0, HB + .25, zc).receiveShadow = false;
+        const gb = grp(h, 0, zc + DD / 2 + .1); plate(h, gb, '한국불교역사문화기념관', 3.6, 0, 3.55, 0, { px: 40 });
+        signpost(h, 4.8, zc + DD / 2 + 1.6, 0, '한국불교역사문화기념관', '조계종 총무원 · 불교중앙박물관', 1.5);
+        spotAt(3.2, zc + DD / 2 + 1.4, 2.8, '조계사 한국불교역사문화기념관', '조계종 총무원과 불교중앙박물관이 있는 건물이에요'); }
+    }
     if (kind === 'bongeunMore') { // 봉은사 (2026.11 디지털강남문화대전·불교신문 사찰순례·서울 미디어허브·봉은사 템플스테이 사찰소개·한국민족문화대백과): 진여문(사천왕) → 연등 길·포대화상 연못 → 법왕루(정면 7칸, 아래로 지나감) → 삼층석탑·대웅전 · 오른쪽 선불당, 그 뒤 지장전 · 왼쪽 심검당 · 대웅전 뒤 영산전·북극보전·영각(홍매화) · 서쪽 미륵대불 광장·미륵전·판전
       const D2 = D / 2, gl = c => glow(c, .3);
       // ── 진여문: 일주문 자리의 문 · 좌우에 목조 사천왕 · 뒤 현판 '진여문'
