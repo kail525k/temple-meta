@@ -807,7 +807,7 @@ export function buildItems(h, T) {
         for (let i = 0; i < 11; i++) { const a = Math.PI * (.12 + .76 * i / 10), x = bx + Math.cos(a) * 5.0, z = bz - Math.sin(a) * 3.6 - .4; // 33관음보살상 (줄여서)
           P.box(.5, .3, .5, R.granite2, x, .15, z); standingGwaneum(o => h.site.add(o), x, .3, z, 1.25, Math.atan2(bx - x, bz + 2 - z), R.marble); h.col(x, z, .3, .3); }
         P.flush(h.site, { noSolid: true }); }
-      { const g = grp(h, -19.0, 4.4, Math.PI), w = 7.0, d = 3.6; smallHall(h, g, { w, d, hh: 2.3, roofH: 1.25, plaque: '미륵전', plaqueW: 1.1, open: 2.4 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
+      { const g = grp(h, -19.0, 4.4, Math.PI), w = 7.0, d = 3.6; smallHall(h, g, { w, d, hh: 2.3, roofH: 1.25, plaque: '미륵전', plaqueW: 1.1, doors: 5 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         spot(g, 0, 3.0, 2.8, '봉은사 미륵전', '미륵대불과 마주 보는 옛 법왕루 · 안에서 창 너머로 대불을 바라봐요'); }
       { const g = grp(h, -23.2, -1.4, LEFT), w = 6.0, d = 3.6; smallHall(h, g, { w, d, hh: 2.1, gable: true, roofH: 1.15, plaque: '板殿', plaqueW: 1.0, doors: 5 }); colG(h, g, 0, 0, w / 2 + .3, d / 2 + .3);
         signpost(h, -20.4, 2.4, LEFT * .35, '봉은사 판전', '추사 김정희가 세상을 떠나기 사흘 전에 쓴 현판', 1.5);
