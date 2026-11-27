@@ -4,13 +4,13 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createBabyMonk } from './avatar.js?v=4';
 import { loadMonkGLB, shareClip, loadClip } from './monk-glb.js?v=6';
 import { buildHall } from './hall.js?v=16';
-import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=37';
-import { buildItems, buildLantern, buildGate } from './items.js?v=21';
-import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=12';
+import { buildPagoda, buildExtras, buildBackdrop, buildSea, buildHyuhyu, yonggungFrame, buildYonggung, treeKit } from './regional.js?v=38';
+import { buildItems, buildLantern, buildGate } from './items.js?v=22';
+import { BOARDS, boardKey, boardSign, initBoards, openBoard, isBoardOpen } from './boards.js?v=13';
 import { createWalkTo } from './walkto.js?v=1';
 import { loadStatue } from './statue.js?v=1';
 import { connectTogether, myIdentity, saveNick, offerError } from './together.js?v=3';
-import { REGIONS } from './temples.js?v=23';
+import { REGIONS } from './temples.js?v=24';
 import { yardTex, pathTex } from './tex.js?v=5';
 import { loadMonk, myMonk, redeem, forgetMonk, pingMonk, monkRoster, monkBadge, checkBadge, monkLabel, plainNick, monkError } from './monk.js?v=1';
 import { createStore, createSound, initTodo, initRituals, initSoundPanel } from './features.js?v=9';
@@ -367,11 +367,11 @@ function buildSite(info, T) {
       sp.push({ lx: lx + Math.sin(ry) * 1.1, lz: lz + Math.cos(ry) * 1.1, r: 2.2, name: o.title || key, story: o.story || first(key), board: key }); };
     const at = (key, lx, lz, r) => { if (BOARDS[key] && !sp.some(q => q.board === key && Math.hypot(q.lx - lx, q.lz - lz) < 1.5)) sp.push({ lx, lz, r, name: key, story: first(key), board: key }); };
     if (BOARDS[T.name]) sign(T.name, -2.75, YZ1 + 1.7, 0, { title: T.name + ' 안내', story: BOARDS[T.name].tag + ' · 안내판을 읽어 보세요', yg: true });
-    const PK = { '조계사': '조계사 팔각십층석탑', '월정사': '월정사 팔각구층석탑', '법주사': '법주사 팔상전', '마곡사': '마곡사 오층석탑', '불국사': '불국사 석가탑', '선운사': '선운사 육층석탑', '직지사': '직지사 대웅전 앞 삼층석탑', '금산사': '금산사 육각다층석탑' }[T.name];
+    const PK = { '봉은사': '봉은사 삼층석탑', '조계사': '조계사 팔각십층석탑', '월정사': '월정사 팔각구층석탑', '법주사': '법주사 팔상전', '마곡사': '마곡사 오층석탑', '불국사': '불국사 석가탑', '선운사': '선운사 육층석탑', '직지사': '직지사 대웅전 앞 삼층석탑', '금산사': '금산사 육각다층석탑' }[T.name];
     if (PG && PK) { const R0 = (T.pagodaR || 2.7) + 1.5, s0 = PG.x > .1 ? 1 : -1; at(PK, PG.x, PZ, (T.pagodaR || 2.7) + 2); sign(PK, PG.x + s0 * R0, PZ + 1.3, -s0 * .45); }
     if (PG && st.pagoda === 'pair') { const k2 = '불국사 다보탑', R0 = (T.pagodaR || 2.7) + 1.6; at(k2, -PG.x, PZ, (T.pagodaR || 2.7) + 2); sign(k2, -PG.x + R0, PZ + 1.3, -.45); }
     if (ex.includes('buldu')) { at('와우정사 황금 불두', 0, PZ + 3, 3.6); sign('와우정사 황금 불두', -3.4, PZ + 2.6, .4); }
-    if (st.bigStand && st.bigStand.name) { const k = T.name + ' ' + st.bigStand.name; at(k, -SXe, 2.6, 3.4); sign(k, -SXe + 1.7, 3.0, .35); }
+    if (st.bigStand && st.bigStand.name) { const k = T.name + ' ' + st.bigStand.name, bx = st.bigStand.x ?? -SXe, bz = st.bigStand.z ?? -.4; at(k, bx, bz + 3.0, 3.4); sign(k, bx + 1.7, bz + 3.4, .35); }
     if (ex.includes('bigBuddha')) { at('신흥사 통일대불', -SXe, 2.0, 3.4); sign('신흥사 통일대불', -SXe + 1.7, 2.8, .35); }
     if (exo.mireuk) { const M = exo.mireuk; sign('금산사 미륵전', M.sign[0], M.sign[1], M.ry + .4); }
     if (exo.bangdeung) { const B = exo.bangdeung; sign('금산사 금강계단 · 오층석탑', B.x - 2.0, B.zt + 3.3, -.4); }

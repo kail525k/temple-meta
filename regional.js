@@ -386,7 +386,7 @@ export function buildExtras(h, T) {
       out.bigBuddha = { lx: x, ly: 1.55, lz: z, h: 5.2 };
     }
     if (kind === 'bigStand') { // 바깥 큰 입불 (법주사 금동미륵대불·동화사 약사대불·봉은사 미륵대불): 기단 위에 선 부처님
-      const b = T.style.bigStand, x = -SX, z = -.4, mat = b.tint === 'gold' ? R.gold : R.granite;
+      const b = T.style.bigStand, x = b.x ?? -SX, z = b.z ?? -.4, mat = b.tint === 'gold' ? R.gold : R.granite;
       add(new THREE.CylinderGeometry(2.0, 2.25, .9, 8), h.MAT.stone, x, .45, z);
       add(new THREE.CylinderGeometry(1.55, 1.75, .7, 8), R.granite2, x, 1.25, z);
       add(new THREE.CylinderGeometry(1.25, 1.0, .45, 16), mat, x, 1.82, z);
