@@ -562,7 +562,7 @@ export function buildItems(h, T) {
         P.box(4.6, .24, .32, R.redCol, 0, 3.0, z); P.box(4.8, .14, .5, R.band, 0, 3.19, z);
         for (let x = -2.4; x <= 2.41; x += .4) { P.box(.18, .28, .8, R.band, x, 3.4, z); P.box(.13, .14, 1.2, R.redCol, x, 3.6, z); }
         P.box(5.4, .16, 1.6, R.band, 0, 3.74, z);
-        P.flush(h.site); paljakMesh(grp(h, 0, z, 0), 6.4, 2.9, 1.45, 3.82); // 다포 팔작지붕 plate(h, h.site, '광교산봉녕사', 2.0, 0, 3.0, z + .2, { px: 40 });
+        P.flush(h.site, { noSolid: true }); paljakMesh(grp(h, 0, z, 0), 6.4, 2.9, 1.45, 3.82); /* 기둥·보를 합친 덩어리가 문 전체를 막지 않게 (기둥은 h.col) */ // 다포 팔작지붕 plate(h, h.site, '광교산봉녕사', 2.0, 0, 3.0, z + .2, { px: 40 });
         signpost(h, 3.6, z + 1.6, 0, '봉녕사 일주문', '1994년 · 광교산봉녕사', 1.4);
         spotAt(0, z + 1.8, 3.0, '봉녕사 일주문', '한마음으로 들어오라는 첫 문 · 광교산봉녕사 현판이에요'); }
       { const x = 4.8, z = YZ1 + 9.2, g = grp(h, x, z, -.35), P = parts(); // 사적비
@@ -720,7 +720,7 @@ export function buildItems(h, T) {
         P.box(4.6, .24, .32, R.redCol, 0, 3.0, z); P.box(4.8, .14, .5, R.band, 0, 3.19, z);
         for (let x = -2.4; x <= 2.41; x += .4) { P.box(.18, .28, .8, R.band, x, 3.4, z); P.box(.13, .14, 1.2, R.redCol, x, 3.6, z); }
         P.box(5.4, .16, 1.6, R.band, 0, 3.74, z);
-        P.flush(h.site); paljakMesh(grp(h, 0, z, 0), 6.4, 2.9, 1.45, 3.82);
+        P.flush(h.site, { noSolid: true }); paljakMesh(grp(h, 0, z, 0), 6.4, 2.9, 1.45, 3.82); /* 기둥·보를 합친 덩어리가 문 전체를 막지 않게 (기둥은 h.col) */
         const gf = grp(h, 0, z + .19); vplate(gf, ['운악산', '봉선사'], .78, 0, 2.3, 0);
         const gb = grp(h, 0, z - .19, Math.PI); plate(h, gb, '敎宗本刹奉先寺', 2.0, 0, 2.62, 0, { px: 46 });
         { const P = parts(), sx = -4.0, sz = z + .8; P.ball(1.1, R.granite, sx, .75, sz, 1.25, .8, .55, 1); P.ball(.9, R.granite2, sx, .2, sz, 1.5, .3, .8); P.flush(h.site); h.col(sx, sz, 1.3, .7); // 표지석
